@@ -1,4 +1,6 @@
+using DatabaseMod.Models;
 using DataMod;
+using DataMod.EF;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -36,7 +38,7 @@ internal class Program
             // App-specific
             var csBuilder = new SqliteConnectionStringBuilder()
             {
-                DataSource = Path.GetFullPath("./-data/NeonMuon.db", builder.Environment.ContentRootPath),
+                DataSource = Path.GetFullPath("../-development/NeonMuon.db", builder.Environment.ContentRootPath),
                 //Mode = SqliteOpenMode.Memory,
                 Cache = SqliteCacheMode.Shared,
             };
@@ -61,6 +63,10 @@ internal class Program
         using (var scope = app.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ComponentDbContext<LoginDb>>();
+            var database = new Database();
+            database.Contribute(dbContext.Model);
+
+
             dbContext.Database.OpenConnection();
             dbContext.Database.EnsureCreated();
         }

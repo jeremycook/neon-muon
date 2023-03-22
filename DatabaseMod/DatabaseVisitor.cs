@@ -1,42 +1,41 @@
 ﻿using DatabaseMod.Models;
 
-namespace DatabaseMod
+namespace DatabaseMod;
+
+public class DatabaseVisitor
 {
-    public class DatabaseVisitor
+    private readonly Action<object> visitor;
+
+    public DatabaseVisitor(Action<object> visitor)
     {
-        private readonly Action<object> visitor;
+        this.visitor = visitor;
+    }
 
-        public DatabaseVisitor(Action<object> visitor)
+    public void Visit(Database database)
+    {
+        visitor(database);
+
+        foreach (var schema in database.Schemas)
         {
-            this.visitor = visitor;
-        }
-
-        public void Visit(Database database)
-        {
-            visitor(database);
-
-            foreach (var schema in database.Schemas)
+            visitor(schema);
+            foreach (var defaultPrivileges in schema.DefaultPrivileges)
             {
-                visitor(schema);
-                foreach (var defaultPrivileges in schema.DefaultPrivileges)
+                visitor(defaultPrivileges);
+            }
+            foreach (var privileges in schema.Privileges)
+            {
+                visitor(privileges);
+            }
+            foreach (var table in schema.Tables)
+            {
+                visitor(table);
+                foreach (var column in table.Columns)
                 {
-                    visitor(defaultPrivileges);
+                    visitor(column);
                 }
-                foreach (var privileges in schema.Privileges)
+                foreach (var index in table.Indexes)
                 {
-                    visitor(privileges);
-                }
-                foreach (var table in schema.Tables)
-                {
-                    visitor(table);
-                    foreach (var column in table.Columns)
-                    {
-                        visitor(column);
-                    }
-                    foreach (var index in table.Indexes)
-                    {
-                        visitor(index);
-                    }
+                    visitor(index);
                 }
             }
         }
