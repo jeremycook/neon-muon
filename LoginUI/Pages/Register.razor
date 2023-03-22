@@ -1,0 +1,44 @@
+﻿@page "/register"
+@using Microsoft.JSInterop
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>Register</PageTitle>
+
+<h1>Register</h1>
+
+<form @onsubmit="SubmitForm" @onsubmit:preventDefault="true">
+    <div>
+        <input @bind-value="Username" required placeholder="Username" autocomplete="username" autofocus />
+        <input @bind-value="Password" type="password" minlength="12" required placeholder="Password" autocomplete="new-password" />
+    </div>
+    <div>
+        <button>Register</button>
+        <a href="/login">Login</a>
+    </div>
+</form>
+
+@code {
+    private string? Username;
+    private string? Password;
+
+    private async Task SubmitForm()
+    {
+        var response = await Http.PostAsJsonAsync("/api/register", new
+        {
+            Username,
+            Password,
+        });
+
+        if (response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("Registered!");
+            Nav.NavigateTo("/login");
+        }
+        else
+        {
+            Console.WriteLine("Try again!");
+        }
+    }
+}
