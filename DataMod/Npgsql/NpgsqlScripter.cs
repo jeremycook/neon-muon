@@ -6,9 +6,9 @@ using System.Data;
 using System.Text.RegularExpressions;
 using static DataMod.Sql;
 
-namespace DataMod.Sqlite;
+namespace DataMod.Npgsql;
 
-public static class SqliteDatabaseScripter
+public static class NpgsqlScripter
 {
     /// <summary>
     /// Script missing objects. Useful when developing.
@@ -166,7 +166,7 @@ END IF;
             switch (alteration)
             {
                 case CreateSchema createSchema:
-                    script.Add(ScriptCreateSchema(createSchema));
+                    // NOOP
                     break;
 
                 case CreateTable createTable:
@@ -193,7 +193,7 @@ END IF;
                     break;
 
                 case CreateIndex addIndex:
-                    script.Add(ScriptCreateIndex(addIndex));
+                    script.Add(ScriptAddIndex(addIndex));
                     break;
                 case AlterIndex alterIndex:
                     script.Add(ScriptAlterIndex(alterIndex));
@@ -213,7 +213,7 @@ END IF;
 
     private static Sql ScriptCreateSchema(CreateSchema change)
     {
-        return Interpolate($"-- Cannot create schemas");
+        return Interpolate($"CREATE SCHEMA {Identifier(change.SchemaName)};");
     }
 
 
@@ -230,7 +230,7 @@ END IF;
 
     private static Sql ScriptChangeTableOwner(ChangeTableOwner change)
     {
-        return Interpolate($"-- Cannot change table owner");
+        return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} OWNER TO {Identifier(change.NewOwner)};");
     }
 
 
@@ -287,39 +287,51 @@ END IF;
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} DROP COLUMN {Identifier(change.ColumnName)};");
     }
 
-    private static Sql ScriptCreateIndex(CreateIndex change)
-    {
-        if (change.Index.IndexType == TableIndexType.PrimaryKey)
-        {
-            return Raw("-- Cannot create primary keys");
-        }
 
-        var index = change.Index;
-        return Interpolate($"CREATE {Raw(index.IndexType == TableIndexType.UniqueConstraint ? "UNIQUE INDEX" : "INDEX")} {Identifier(index.GetName(change.TableName))} ON {Identifier(change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});");
+    private static Sql ScriptAddIndex(CreateIndex change)
+    {
+        if (change.Index.IndexType == TableIndexType.Index)
+        {
+            var index = change.Index;
+            return Interpolate($"CREATE INDEX {Identifier(index.GetName(change.TableName))} ON {Identifier(change.SchemaName, change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});");
+        }
+        else
+        {
+            var constraint = change.Index;
+            string type = constraint.IndexType == TableIndexType.PrimaryKey ? "PRIMARY KEY" : "UNIQUE";
+            return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} ADD CONSTRAINT {Identifier(constraint.GetName(change.TableName))} {type} ({Join(", ", constraint.Columns.Select(Identifier))});");
+        }
     }
 
     private static Sql ScriptAlterIndex(AlterIndex change)
     {
-        if (change.Index.IndexType == TableIndexType.PrimaryKey)
+        if (change.Index.IndexType == TableIndexType.Index)
         {
-            return Raw("-- Cannot alter primary keys");
-        }
-
-        var index = change.Index;
-        return Interpolate($"""
-DROP INDEX IF EXISTS {Identifier(index.GetName(change.TableName))};
-CREATE {Raw(index.IndexType == TableIndexType.UniqueConstraint ? "UNIQUE INDEX" : "INDEX")} {Identifier(index.GetName(change.TableName))} ON {Identifier(change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});
+            var index = change.Index;
+            return Interpolate($"""
+DROP INDEX {Identifier(index.GetName(change.TableName))};
+CREATE INDEX {Identifier(index.GetName(change.TableName))} ON {Identifier(change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});
 """);
+        }
+        else
+        {
+            var constraint = change.Index;
+            string type = constraint.IndexType == TableIndexType.PrimaryKey ? "PRIMARY KEY" : "UNIQUE";
+            return Interpolate($"ALTER TABLE {Identifier(change.TableName)} ALTER CONSTRAINT {Identifier(constraint.GetName(change.TableName))} {type} ({Join(", ", constraint.Columns.Select(Identifier))});");
+        }
     }
 
     private static Sql ScriptDropIndex(DropIndex change)
     {
-        if (change.Index.IndexType == TableIndexType.PrimaryKey)
+        if (change.Index.IndexType == TableIndexType.Index)
         {
-            return Raw("-- Cannot drop primary keys");
+            var index = change.Index;
+            return Interpolate($"DROP INDEX {Identifier(change.SchemaName, index.GetName(change.TableName))};");
         }
-
-        var index = change.Index;
-        return Interpolate($"DROP INDEX IF EXISTS {Identifier(index.GetName(change.TableName))};");
+        else
+        {
+            var constraint = change.Index;
+            return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} DROP CONSTRAINT {Identifier(constraint.GetName(change.TableName))};");
+        }
     }
 }

@@ -5,32 +5,50 @@ namespace DatabaseMod.Alterations;
 
 public static class TableDiffer
 {
-    public static List<DatabaseAlteration> DiffTables(string schemaName, Table current, Table target)
+    public static List<DatabaseAlteration> DiffTables(string schemaName, Table? current, Table goal)
     {
-        string tableName = target.Name;
-
         var changes = new List<DatabaseAlteration>();
+
+        string tableName = goal.Name;
+
+        if (current is null)
+        {
+            var primaryKey =
+                goal.Indexes.FirstOrDefault(o => o.IndexType == TableIndexType.PrimaryKey)?.Columns ??
+                goal.Columns.Take(1).Select(o => o.Name).ToList();
+
+            // Create the table
+            changes.Add(new CreateTable(schemaName, tableName, goal.Owner, goal.Columns, primaryKey));
+
+            // Create the indexes
+            changes.AddRange(goal.Indexes
+                //.Where(index => index.IndexType != TableIndexType.PrimaryKey)
+                .Select(index => new CreateIndex(schemaName, tableName, index)));
+
+            // Return early
+            return changes;
+        }
 
         // Table changes
 
-        if (current.Name != target.Name)
+        if (current.Name != goal.Name)
         {
-            changes.Add(new RenameTable(schemaName, current.Name, target.Name));
+            changes.Add(new RenameTable(schemaName, current.Name, goal.Name));
         }
 
-        if (!string.IsNullOrEmpty(target.Owner) && current.Owner != target.Owner)
+        if (!string.IsNullOrEmpty(goal.Owner) && current.Owner != goal.Owner)
         {
-            changes.Add(new ChangeTableOwner(schemaName, tableName, target.Owner));
+            changes.Add(new ChangeTableOwner(schemaName, tableName, goal.Owner));
         }
 
         // Column changes
 
-        var newColumns = target.Columns
+        var newColumns = goal.Columns
             .Where(targetColumn => !current.Columns.Any(column => column.Name == targetColumn.Name))
             .ToArray();
         changes.AddRange(newColumns.Select(newColumn => new CreateColumn(schemaName, tableName, newColumn)));
 
-        var alteredColumns = target.Columns.Except(newColumns)
+        var alteredColumns = goal.Columns.Except(newColumns)
             .Where(targetColumn => !targetColumn.Same(current.Columns.Single(column => column.Name == targetColumn.Name)));
         foreach (var alteredColumn in alteredColumns)
         {
@@ -54,26 +72,29 @@ public static class TableDiffer
                 modifications.Add(AlterColumnModification.Generated);
             }
 
-            changes.Add(new AlterColumn(schemaName, tableName, alteredColumn, modifications));
+            if (modifications.Any())
+            {
+                changes.Add(new AlterColumn(schemaName, tableName, alteredColumn, modifications));
+            }
         }
 
         var droppedColumns = current.Columns
-            .Where(column => !target.Columns.Any(targetColumn => targetColumn.Name == column.Name));
+            .Where(column => !goal.Columns.Any(targetColumn => targetColumn.Name == column.Name));
         changes.AddRange(droppedColumns.Select(c => new DropColumn(schemaName, tableName, columnName: c.Name)));
 
         // Index changes
 
-        var newIndexes = target.Indexes
+        var newIndexes = goal.Indexes
             .Where(targetIndex => !current.Indexes.Any(index => index.Name == targetIndex.Name))
             .ToArray();
         changes.AddRange(newIndexes.Select(index => new CreateIndex(schemaName, tableName, index)));
 
-        var alteredIndexes = target.Indexes.Except(newIndexes)
+        var alteredIndexes = goal.Indexes.Except(newIndexes)
             .Where(targetIndex => !targetIndex.Same(current.Indexes.Single(index => index.Name == targetIndex.Name)));
         changes.AddRange(alteredIndexes.Select(index => new AlterIndex(schemaName, tableName, index)));
 
         var droppedIndexes = current.Indexes
-            .Where(index => !target.Indexes.Any(targetIndex => targetIndex.Name == index.Name));
+            .Where(index => !goal.Indexes.Any(targetIndex => targetIndex.Name == index.Name));
         changes.AddRange(droppedIndexes.Select(index => new DropIndex(schemaName, tableName, index)));
 
         return changes;

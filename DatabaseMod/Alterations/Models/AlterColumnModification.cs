@@ -1,10 +1,9 @@
-﻿namespace DatabaseMod.Alterations.Models
+﻿namespace DatabaseMod.Alterations.Models;
+
+public enum AlterColumnModification
 {
-    public enum AlterColumnModification
-    {
-        Nullability,
-        Default,
-        Type,
-        Generated,
-    }
+    Nullability,
+    Default,
+    Type,
+    Generated,
 }

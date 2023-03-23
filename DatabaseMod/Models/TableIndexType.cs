@@ -1,9 +1,8 @@
-﻿namespace DatabaseMod.Models
+﻿namespace DatabaseMod.Models;
+
+public enum TableIndexType
 {
-    public enum TableIndexType
-    {
-        Index = 0,
-        UniqueConstraint = 1,
-        PrimaryKey = 2,
-    }
+    Index = 0,
+    UniqueConstraint = 1,
+    PrimaryKey = 2,
 }

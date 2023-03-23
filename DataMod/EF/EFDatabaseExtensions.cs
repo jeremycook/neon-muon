@@ -6,7 +6,7 @@ namespace DataMod.EF;
 
 public static class EFDatabaseExtensions
 {
-    public static void Contribute(this Database database, IModel model)
+    public static void ContributeEFCore(this Database database, IModel model)
     {
         var defaultSchema = model.GetDefaultSchema();
 
@@ -16,7 +16,7 @@ public static class EFDatabaseExtensions
                 .GroupBy(o =>
                     o.Table.Schema ??
                     defaultSchema ??
-                    throw new InvalidOperationException("A schema was not provided.")
+                    "*"
                 ))
             {
                 var schema = new Schema(schemaGroup.Key);

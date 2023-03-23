@@ -1,15 +1,20 @@
+using DatabaseMod.Alterations;
+using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
 using DataMod;
 using DataMod.EF;
+using DataMod.Sqlite;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         WebApplication app;
         {
@@ -63,12 +68,50 @@ internal class Program
         using (var scope = app.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ComponentDbContext<LoginDb>>();
-            var database = new Database();
-            database.Contribute(dbContext.Model);
-
-
             dbContext.Database.OpenConnection();
             dbContext.Database.EnsureCreated();
+
+            var connection = (SqliteConnection)dbContext.Database.GetDbConnection();
+
+            var currentDatabase = new Database();
+            await currentDatabase.ContributeSqliteAsync(connection);
+
+            var goalDatabase = new Database();
+            goalDatabase.ContributeEFCore(dbContext.GetService<IDesignTimeModel>().Model);
+
+            var alterations = new List<DatabaseAlteration>();
+            foreach (var goalSchema in goalDatabase.Schemas)
+            {
+                if (currentDatabase.Schemas.SingleOrDefault(o => o.Name == goalSchema.Name) is not Schema currentSchema)
+                {
+                    currentSchema = new Schema(goalSchema.Name)
+                    {
+                        Owner = goalSchema.Owner,
+                    };
+
+                    alterations.Add(new CreateSchema(currentSchema.Name, currentSchema.Owner));
+                }
+                foreach (var goalTable in goalSchema.Tables)
+                {
+                    var currentTable = currentSchema.Tables.SingleOrDefault(o => o.Name == goalTable.Name);
+                    var tableAlterations = TableDiffer.DiffTables(goalSchema.Name, currentTable, goalTable);
+
+                    alterations.AddRange(tableAlterations);
+                }
+            }
+
+            if (alterations.Any(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase)))
+            {
+                var drops = alterations.Where(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase)).ToList();
+                alterations.RemoveAll(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase));
+                app.Logger.LogWarning("The following database alterations were skipped:\n\t" + string.Join("\n\t", drops));
+            }
+
+            var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
+            foreach (var sql in sqlStatements)
+            {
+                await connection.ExecuteAsync(sql);
+            }
         }
 
         // Configure the HTTP request pipeline.

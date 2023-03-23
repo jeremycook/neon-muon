@@ -1,10 +1,9 @@
-﻿namespace DatabaseMod.Models
+﻿namespace DatabaseMod.Models;
+
+public enum DefaultPrivilegesEnum
 {
-    public enum DefaultPrivilegesEnum
-    {
-        Tables,
-        Sequences,
-        Functions,
-        Types,
-    }
+    Tables,
+    Sequences,
+    Functions,
+    Types,
 }
