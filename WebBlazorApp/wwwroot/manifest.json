@@ -1,6 +1,6 @@
 {
-  "name": "BlazorWebApp",
-  "short_name": "BlazorWebApp",
+  "name": "WebBlazorApp",
+  "short_name": "WebBlazorApp",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",

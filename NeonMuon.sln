@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33424.131
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorWebApp", "BlazorWebApp\BlazorWebApp.csproj", "{367AB867-BD5E-4E43-8CA7-642D0539425A}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApiApp", "WebApiApp\WebApiApp.csproj", "{3942D52B-16C5-443C-AD1D-07B5CAE1C3DB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebProxyApp", "WebProxyApp\WebProxyApp.csproj", "{CDCEC6C8-896E-43F9-AAE9-760D990A0E59}"
@@ -25,7 +23,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataMod", "DataMod\DataMod.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LoginApi", "LoginApi\LoginApi.csproj", "{2A81A2D0-C582-418E-8B49-48B7CDCC76E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DatabaseMod", "DatabaseMod\DatabaseMod.csproj", "{9D4A63DA-0DB0-4C68-A494-F2224ACEEF37}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DatabaseMod", "DatabaseMod\DatabaseMod.csproj", "{9D4A63DA-0DB0-4C68-A494-F2224ACEEF37}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebBlazorApp", "WebBlazorApp\WebBlazorApp.csproj", "{C7B019F5-D268-4619-A5B2-5F0BAAD13888}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,10 +33,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{367AB867-BD5E-4E43-8CA7-642D0539425A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{367AB867-BD5E-4E43-8CA7-642D0539425A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{367AB867-BD5E-4E43-8CA7-642D0539425A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{367AB867-BD5E-4E43-8CA7-642D0539425A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3942D52B-16C5-443C-AD1D-07B5CAE1C3DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3942D52B-16C5-443C-AD1D-07B5CAE1C3DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3942D52B-16C5-443C-AD1D-07B5CAE1C3DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -69,6 +65,10 @@ Global
 		{9D4A63DA-0DB0-4C68-A494-F2224ACEEF37}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D4A63DA-0DB0-4C68-A494-F2224ACEEF37}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D4A63DA-0DB0-4C68-A494-F2224ACEEF37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7B019F5-D268-4619-A5B2-5F0BAAD13888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7B019F5-D268-4619-A5B2-5F0BAAD13888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7B019F5-D268-4619-A5B2-5F0BAAD13888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7B019F5-D268-4619-A5B2-5F0BAAD13888}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
