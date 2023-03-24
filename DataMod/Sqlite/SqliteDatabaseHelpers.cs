@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 
 namespace DataMod.Sqlite;
 
-public static class SqliteDatabaseExtensions
+public static class SqliteDatabaseHelpers
 {
     public static async ValueTask ContributeSqliteAsync(this Database database, SqliteConnection connection, CancellationToken cancellationToken = default)
     {

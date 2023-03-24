@@ -3,11 +3,11 @@ using System.Reflection;
 
 namespace DataMod.Sqlite;
 
-public static class SqliteDbContextExtensions
+public static class SqliteConnectionHelpers
 {
     public static async ValueTask<int> ExecuteAsync(this SqliteConnection connection, Sql sql, CancellationToken cancellationToken = default)
     {
-        var (CommandText, ParameterValues) = ParameterizeSql(sql);
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
 
         using var command = connection.CreateCommand();
         command.CommandText = CommandText;
@@ -26,7 +26,7 @@ public static class SqliteDbContextExtensions
 
     public static async ValueTask<List<T>> ListAsync<T>(this SqliteConnection connection, Sql sql, CancellationToken cancellationToken = default)
     {
-        var (CommandText, ParameterValues) = ParameterizeSql(sql);
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
 
         using var command = connection.CreateCommand();
         command.CommandText = CommandText;
@@ -83,78 +83,5 @@ public static class SqliteDbContextExtensions
         }
 
         return list;
-    }
-
-
-    public static (string CommandText, SqliteParameter[] ParameterValues) ParameterizeSql(Sql sql)
-    {
-        var tempValues = new List<object>();
-        var formatArgs = new List<string>(sql.Arguments.Count);
-
-        foreach (var arg in sql.Arguments)
-        {
-            switch (arg)
-            {
-                case SqlIdentifier sqlIdentifier:
-                    formatArgs.Add(
-                        (sqlIdentifier.Prefix is not null ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
-                        "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"");
-                    break;
-
-                case SqlLiteral sqlLiteral:
-                    formatArgs.Add("'" + sqlLiteral.Value.Replace("'", "''") + "'");
-                    break;
-
-                case Sql innerSql:
-                    formatArgs.Add(GetParameterizedSql(innerSql, ref tempValues));
-                    break;
-
-                default:
-                    formatArgs.Add($"${tempValues.Count + 1}");
-                    tempValues.Add(arg ?? DBNull.Value);
-                    break;
-            }
-        }
-
-        var parameterValues = tempValues
-            .Select(val => val switch
-            {
-                //char[] charArray => new SqliteParameter() { Value = charArray, NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.InternalChar },
-                _ => new SqliteParameter() { Value = val },
-            })
-            .ToArray();
-        return (CommandText: string.Format(sql.Format, args: formatArgs.ToArray()), ParameterValues: parameterValues);
-    }
-
-    private static string GetParameterizedSql(Sql sql, ref List<object> parameterValues)
-    {
-        var formatArgs = new List<string>(sql.Arguments.Count);
-
-        foreach (var arg in sql.Arguments)
-        {
-            switch (arg)
-            {
-                case SqlIdentifier sqlIdentifier:
-                    formatArgs.Add(
-                        (sqlIdentifier.Prefix is not null ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
-                        "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"");
-                    break;
-
-                case SqlLiteral sqlLiteral:
-                    formatArgs.Add("'" + sqlLiteral.Value.Replace("'", "''") + "'");
-                    break;
-
-                case Sql innerSql:
-                    formatArgs.Add(GetParameterizedSql(innerSql, ref parameterValues));
-                    break;
-
-                default:
-                    formatArgs.Add($"${parameterValues.Count + 1}");
-                    parameterValues.Add(arg ?? DBNull.Value);
-                    break;
-            }
-        }
-
-        return string.Format(sql.Format, args: formatArgs.ToArray());
     }
 }

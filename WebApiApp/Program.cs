@@ -100,13 +100,6 @@ internal class Program
                 }
             }
 
-            if (alterations.Any(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase)))
-            {
-                var drops = alterations.Where(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase)).ToList();
-                alterations.RemoveAll(o => o.Type.StartsWith("DROP", StringComparison.OrdinalIgnoreCase));
-                app.Logger.LogWarning("The following database alterations were skipped:\n\t" + string.Join("\n\t", drops));
-            }
-
             var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
             foreach (var sql in sqlStatements)
             {

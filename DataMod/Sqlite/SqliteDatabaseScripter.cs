@@ -213,7 +213,7 @@ END IF;
 
     private static Sql ScriptCreateSchema(CreateSchema change)
     {
-        return Interpolate($"-- Cannot create schemas");
+        return Raw("-- Cannot create schemas");
     }
 
 
@@ -230,7 +230,7 @@ END IF;
 
     private static Sql ScriptChangeTableOwner(ChangeTableOwner change)
     {
-        return Interpolate($"-- Cannot change table owner");
+        return Raw("-- Cannot change table owner");
     }
 
 
