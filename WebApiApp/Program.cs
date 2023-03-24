@@ -4,8 +4,8 @@ using DatabaseMod.Models;
 using DataMod;
 using DataMod.EF;
 using DataMod.Sqlite;
+using LoginApi;
 using LoginMod;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +33,7 @@ internal class Program
             })
                 .AddCookie(options =>
                 {
-                    options.Events = new CustomCookieAuthenticationEvents();
+                    options.Events = new ApiFriendlyCookieAuthenticationEvents();
                 });
             builder.Services.AddAuthorization(options => options.FallbackPolicy = options.DefaultPolicy);
 
@@ -136,40 +136,9 @@ internal class Program
 
         //app.MapControllers();
 
-        app.MapPost("/api/login", LoginApi.LoginController.Login).AllowAnonymous();
-        app.MapPost("/api/register", LoginApi.LoginController.Register).AllowAnonymous();
+        app.MapPost("/api/login", LoginController.Login).AllowAnonymous();
+        app.MapPost("/api/register", LoginController.Register).AllowAnonymous();
 
         app.Run();
-    }
-
-    private class CustomCookieAuthenticationEvents : CookieAuthenticationEvents
-    {
-        public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> context)
-        {
-            if (context.Request.Path.StartsWithSegments("/api") &&
-                context.Response.StatusCode == StatusCodes.Status200OK)
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
-            }
-            else
-            {
-                return base.RedirectToLogin(context);
-            }
-        }
-
-        public override Task RedirectToAccessDenied(RedirectContext<CookieAuthenticationOptions> context)
-        {
-            if (context.Request.Path.StartsWithSegments("/api") &&
-                context.Response.StatusCode == StatusCodes.Status200OK)
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return Task.CompletedTask;
-            }
-            else
-            {
-                return base.RedirectToAccessDenied(context);
-            }
-        }
     }
 }
