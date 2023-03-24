@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace DataMod;
+namespace DataMod.EF;
 
 public class ComponentDbContext<T> : DbContext
 {

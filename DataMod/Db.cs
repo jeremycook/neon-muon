@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DataMod.EF;
+using Microsoft.EntityFrameworkCore;
 
 namespace DataMod;
 
