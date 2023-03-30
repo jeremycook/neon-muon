@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="Pages\Blog.razor" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
@@ -16,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\" />
+    <ProjectReference Include="..\ContentMod\ContentMod.csproj" />
   </ItemGroup>
 
 </Project>

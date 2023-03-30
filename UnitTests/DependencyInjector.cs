@@ -21,7 +21,7 @@ internal static class DependencyInjector
         }.ToString();
 
         serviceCollection.AddSingleton<PasswordHashing>();
-        serviceCollection.AddDb<LoginDb>(o => o.UseSqlite(connectionString));
+        serviceCollection.AddDb<ILoginDb, LoginDb>(o => o.UseSqlite(connectionString));
         serviceCollection.AddScoped<LoginServices>();
 
         ServiceProvider services = serviceCollection.BuildServiceProvider();

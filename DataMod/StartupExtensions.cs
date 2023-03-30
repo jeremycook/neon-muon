@@ -1,4 +1,6 @@
-﻿using DataMod.EF;
+﻿using DataCore;
+using DataCore.EF;
+using DataMod.EF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,12 +8,15 @@ namespace DataMod;
 
 public static class StartupExtensions
 {
-    public static IServiceCollection AddDb<TDb>(this IServiceCollection services, Action<DbContextOptionsBuilder> optionsAction)
-        where TDb : Db<TDb>
+    public static IServiceCollection AddDb<TDbService, TDbImpl>(this IServiceCollection services, Action<DbContextOptionsBuilder> optionsAction)
+        where TDbService : IDb<TDbService>
+        where TDbImpl : class, TDbService
     {
         return services
-            .AddPooledDbContextFactory<ComponentDbContext<TDb>>(optionsAction)
-            .AddDbContextPool<ComponentDbContext<TDb>>(optionsAction)
-            .AddScoped<TDb>();
+            .AddPooledDbContextFactory<ComponentDbContext<TDbService>>(optionsAction)
+            .AddDbContextPool<ComponentDbContext<TDbService>>(optionsAction)
+            .AddScoped<IComponentDbContext<TDbService>>(svc => svc.GetRequiredService<ComponentDbContext<TDbService>>())
+            .AddScoped<IComponentDbContext>(svc => svc.GetRequiredService<ComponentDbContext<TDbService>>())
+            .AddScoped(typeof(TDbService), typeof(TDbImpl));
     }
 }

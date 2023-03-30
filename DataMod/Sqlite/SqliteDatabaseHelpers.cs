@@ -1,4 +1,5 @@
 ﻿using DatabaseMod.Models;
+using DataCore;
 using Microsoft.Data.Sqlite;
 
 namespace DataMod.Sqlite;
@@ -28,8 +29,11 @@ public static class SqliteDatabaseHelpers
 
         var tableColumnsList = await connection.ListAsync<TableColumns>(sql, cancellationToken);
 
-        var schema = new Schema("*");
-        database.Schemas.Add(schema);
+        if (database.Schemas.FirstOrDefault(o => o.Name == Schema.DefaultName) is not Schema schema)
+        {
+            schema = new();
+            database.Schemas.Add(schema);
+        }
 
         foreach (var tableMapping in tableColumnsList.GroupBy(o => o.TableName))
         {

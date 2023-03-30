@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DatabaseMod.Alterations.Models;
 
@@ -22,4 +23,9 @@ public abstract class DatabaseAlteration
 
     [JsonPropertyName("$type"), JsonPropertyOrder(-1)]
     public string Type { get; }
+
+    public override string ToString()
+    {
+        return $"{base.ToString()}: {JsonSerializer.Serialize(this)}";
+    }
 }

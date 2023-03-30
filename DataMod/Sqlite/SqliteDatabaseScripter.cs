@@ -1,10 +1,11 @@
 ﻿using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
+using DataCore;
 using Microsoft.Extensions.Primitives;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Text.RegularExpressions;
-using static DataMod.Sql;
+using static DataCore.Sql;
 
 namespace DataMod.Sqlite;
 
@@ -211,7 +212,7 @@ END IF;
     }
 
 
-    private static Sql ScriptCreateSchema(CreateSchema change)
+    private static Sql ScriptCreateSchema(CreateSchema _)
     {
         return Raw("-- Cannot create schemas");
     }
@@ -220,6 +221,12 @@ END IF;
     private static Sql ScriptCreateTable(CreateTable change)
     {
         var columns = change.Columns.Select(ScriptAddColumnDefinition);
+
+        if (change.PrimaryKey.Any())
+        {
+            columns = columns.Append(Interpolate($"CONSTRAINT {Identifier(change.SchemaName, "PK_" + change.TableName)} PRIMARY KEY({Join(", ", change.PrimaryKey.Select(Identifier))})"));
+        }
+
         return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");
     }
 
@@ -228,7 +235,7 @@ END IF;
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} RENAME TO {Identifier(change.NewTableName)};");
     }
 
-    private static Sql ScriptChangeTableOwner(ChangeTableOwner change)
+    private static Sql ScriptChangeTableOwner(ChangeTableOwner _)
     {
         return Raw("-- Cannot change table owner");
     }

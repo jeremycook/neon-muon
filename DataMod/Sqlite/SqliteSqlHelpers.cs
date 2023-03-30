@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using DataCore;
+using Microsoft.Data.Sqlite;
 
 namespace DataMod.Sqlite;
 
@@ -7,7 +8,7 @@ public static class SqliteSqlHelpers
     public static string Quote(this SqlIdentifier sqlIdentifier)
     {
         return
-            (sqlIdentifier.Prefix is not null ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
+            (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
             "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
     }
 

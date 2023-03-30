@@ -1,13 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
-
-namespace LoginMod;
+﻿namespace LoginMod;
 
 public class LoginServices
 {
-    private readonly LoginDb loginDb;
+    private readonly ILoginDb loginDb;
     private readonly PasswordHashing passwordHashing;
 
-    public LoginServices(LoginDb loginDb, PasswordHashing passwordHashing)
+    public LoginServices(ILoginDb loginDb, PasswordHashing passwordHashing)
     {
         this.loginDb = loginDb;
         this.passwordHashing = passwordHashing;
@@ -17,44 +15,54 @@ public class LoginServices
     {
         var component = await loginDb
             .LocalLogin
-            .Where(x => x.Username.ToLower() == username.ToLower())
-            .SingleOrDefaultAsync(cancellationToken);
+            .Filter(x => x.Username.ToLower() == username.ToLower())
+            .ToOptionalItemAsync(cancellationToken);
 
-        if (component is not null)
+        if (component is null)
         {
-            var result = passwordHashing.Verify(component.Hash, password);
-            switch (result)
-            {
-                case PasswordHashingVerify.Success:
-
-                    return component;
-
-                case PasswordHashingVerify.SuccessRehashNeeded:
-
-                    var rehashedPassword = passwordHashing.Hash(component.Hash);
-
-                    // Rehash the password
-                    _ = loginDb
-                        .LocalLogin
-                        .Where(x => x.EntityId == component.EntityId && x.Version == component.Version)
-                        .ExecuteUpdateAsync(x => x
-                            .SetProperty(o => o.Version, o => o.Version + 1)
-                            .SetProperty(o => o.Hash, rehashedPassword),
-                            cancellationToken);
-
-                    return component;
-            }
+            return LoginConstants.Unknown;
         }
 
-        return LoginConstants.Unknown;
+        var result = passwordHashing.Verify(component.Hash, password);
+        switch (result)
+        {
+            case PasswordHashingVerify.Success:
+
+                return component;
+
+            case PasswordHashingVerify.SuccessRehashNeeded:
+
+                var rehashedPassword = passwordHashing.Hash(component.Hash);
+
+                // Rehash the password
+                _ = loginDb
+                    .LocalLogin
+                    .Filter(x => x.UserId == component.UserId && x.Version == component.Version)
+                    .Update(x => new LocalLogin()
+                    {
+                        Version = x.Version + 1,
+                        Hash = rehashedPassword,
+                    })
+                    .ExecuteAsync(cancellationToken);
+
+                return component;
+
+            case PasswordHashingVerify.Failed:
+
+                return LoginConstants.Unknown;
+
+            default:
+
+                throw new NotSupportedException(result.ToString());
+        }
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default)
     {
         var component = await loginDb
             .LocalLogin
-            .Where(x => x.Username.ToLower() == username.ToLower())
-            .SingleOrDefaultAsync(cancellationToken);
+            .Filter(x => x.Username.ToLower() == username.ToLower())
+            .ToItemAsync(cancellationToken);
 
         if (component is not null)
         {
@@ -66,12 +74,16 @@ public class LoginServices
 
         component = new()
         {
-            EntityId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
             Version = 0,
             Username = username,
             Hash = hashedPassword,
         };
-        await loginDb.CreateAsync(component, cancellationToken);
+
+        await loginDb
+            .LocalLogin
+            .Insert(component)
+            .ExecuteAsync(1, cancellationToken);
 
         return component;
     }

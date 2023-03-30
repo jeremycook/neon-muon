@@ -20,9 +20,9 @@ public static class TableDiffer
             // Create the table
             changes.Add(new CreateTable(schemaName, tableName, goal.Owner, goal.Columns, primaryKey));
 
-            // Create the indexes
+            // Create the non-pk indexes
             changes.AddRange(goal.Indexes
-                //.Where(index => index.IndexType != TableIndexType.PrimaryKey)
+                .Where(index => index.IndexType != TableIndexType.PrimaryKey)
                 .Select(index => new CreateIndex(schemaName, tableName, index)));
 
             // Return early

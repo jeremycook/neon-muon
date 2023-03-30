@@ -19,9 +19,9 @@ public class LoginTests
         var wrongPassword = await loginServices.Find("john", "WrongP@ssword!");
         var user = await loginServices.Find("john", "P@ssword!");
 
-        Assert.AreNotEqual(LoginConstants.Unknown.EntityId, newUser.EntityId);
-        Assert.AreEqual(LoginConstants.Unknown.EntityId, wrongPassword.EntityId);
-        Assert.AreEqual(newUser.EntityId, user.EntityId);
+        Assert.AreNotEqual(LoginConstants.Unknown.UserId, newUser.UserId);
+        Assert.AreEqual(LoginConstants.Unknown.UserId, wrongPassword.UserId);
+        Assert.AreEqual(newUser.UserId, user.UserId);
     }
 
     [TestMethod]
@@ -36,17 +36,17 @@ public class LoginTests
         await using var loginDb2 = await loginDbFactory.CreateDbContextAsync();
 
         var newUser = await loginServices.Register("john", "P@ssword!");
-        var john1 = await loginDb1.Set<LocalLogin>().FindAsync(newUser.EntityId);
-        var john2 = await loginDb2.Set<LocalLogin>().FindAsync(newUser.EntityId);
+        var john1 = await loginDb1.Set<LocalLogin>().FindAsync(newUser.UserId);
+        var john2 = await loginDb2.Set<LocalLogin>().FindAsync(newUser.UserId);
 
-        john1!.Version++;
-        john1.Username = "john1";
+        loginDb1.Entry(john1!).Property(x => x.Version).CurrentValue++;
+        loginDb1.Entry(john1!).Property(x => x.Username).CurrentValue = "john1";
         loginDb1.SaveChanges();
 
-        john2!.Version++;
-        john2.Username = "john2";
+        loginDb2.Entry(john2!).Property(x => x.Version).CurrentValue++;
+        loginDb2.Entry(john2!).Property(x => x.Username).CurrentValue = "john2";
 
         Assert.ThrowsException<DbUpdateConcurrencyException>(() => loginDb2.SaveChanges());
-        Assert.AreEqual("john1", loginDb1.Set<LocalLogin>().Where(x => x.EntityId == newUser.EntityId).Select(x => x.Username).FirstOrDefault());
+        Assert.AreEqual("john1", loginDb1.Set<LocalLogin>().Where(x => x.UserId == newUser.UserId).Select(x => x.Username).FirstOrDefault());
     }
 }

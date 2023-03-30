@@ -1,20 +1,25 @@
-﻿using DataMod;
-using DataMod.EF;
-using Microsoft.EntityFrameworkCore;
+﻿using DataCore;
+using DataCore.EF;
 
 namespace LoginMod;
 
-public class LoginDb : Db<LoginDb>
+public interface ILoginDb : IDb<ILoginDb>
 {
-    public LoginDb(ComponentDbContext<LoginDb> dbContext) : base(dbContext)
+    IQuery<ILoginDb, LocalLogin> LocalLogin { get; }
+}
+
+public class LoginDb : Db<ILoginDb>, ILoginDb
+{
+    public LoginDb(IComponentDbContext<ILoginDb> dbContext) : base(dbContext)
     {
     }
 
-    public IQueryable<LocalLogin> LocalLogin => Set<LocalLogin>().AsNoTracking();
+    public IQuery<ILoginDb, LocalLogin> LocalLogin => From<LocalLogin>();
 
-    public async ValueTask CreateAsync(LocalLogin component, CancellationToken cancellationToken)
+    public async ValueTask CreateAsync(LocalLogin localLogin, CancellationToken cancellationToken)
     {
-        Set<LocalLogin>().Add(component);
-        await SaveChangesAsync(cancellationToken);
+        await LocalLogin
+            .Insert(localLogin)
+            .ExecuteAsync(cancellationToken);
     }
 }

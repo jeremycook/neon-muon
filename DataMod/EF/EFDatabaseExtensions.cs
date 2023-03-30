@@ -8,19 +8,21 @@ public static class EFDatabaseExtensions
 {
     public static void ContributeEFCore(this Database database, IModel model)
     {
-        var defaultSchema = model.GetDefaultSchema();
+        var defaultSchema = model.GetDefaultSchema() ?? string.Empty;
 
         foreach (var entityType in model.GetEntityTypes())
         {
             foreach (var schemaGroup in entityType.GetTableMappings()
                 .GroupBy(o =>
                     o.Table.Schema ??
-                    defaultSchema ??
-                    "*"
+                    defaultSchema
                 ))
             {
-                var schema = new Schema(schemaGroup.Key);
-                database.Schemas.Add(schema);
+                if (database.Schemas.FirstOrDefault(o => o.Name == schemaGroup.Key) is not Schema schema)
+                {
+                    schema = new(schemaGroup.Key);
+                    database.Schemas.Add(schema);
+                }
 
                 foreach (var tableMapping in schemaGroup)
                 {

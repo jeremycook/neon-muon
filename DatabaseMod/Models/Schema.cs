@@ -4,7 +4,9 @@ namespace DatabaseMod.Models;
 
 public class Schema
 {
-    public Schema(string name)
+    public const string DefaultName = "";
+
+    public Schema(string name = DefaultName)
     {
         Name = name;
     }

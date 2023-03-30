@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DataMod\DataMod.csproj" />
     <ProjectReference Include="..\LoginMod\LoginMod.csproj" />
   </ItemGroup>
 

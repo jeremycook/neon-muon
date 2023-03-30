@@ -15,7 +15,7 @@ public class LoginController : Controller
     {
         var login = await service.Find(input.Username, input.Password, cancel);
 
-        if (login.EntityId == LoginConstants.Unknown.EntityId)
+        if (login.UserId == LoginConstants.Unknown.UserId)
         {
             return Results.BadRequest("Invalid username or password.");
         }
@@ -23,7 +23,7 @@ public class LoginController : Controller
         ClaimsIdentity identity = new(
             new Claim[]
             {
-                new Claim("sub", login.EntityId.ToString()),
+                new Claim("sub", login.UserId.ToString()),
                 new Claim("name", login.Username),
             },
             "local",
@@ -47,7 +47,7 @@ public class LoginController : Controller
     {
         var login = await service.Register(input.Username, input.Password, cancel);
 
-        if (login.EntityId == LoginConstants.Unknown.EntityId)
+        if (login.UserId == LoginConstants.Unknown.UserId)
         {
             return Results.BadRequest("Invalid username or password.");
         }

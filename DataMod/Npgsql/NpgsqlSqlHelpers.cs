@@ -1,4 +1,5 @@
-﻿using Npgsql;
+﻿using DataCore;
+using Npgsql;
 
 namespace DataMod.Npgsql;
 
@@ -7,7 +8,7 @@ public static class NpgsqlSqlHelpers
     public static string Quote(this SqlIdentifier sqlIdentifier)
     {
         return
-            (sqlIdentifier.Prefix is not null ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
+            (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
             "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
     }
 

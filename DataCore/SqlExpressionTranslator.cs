@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
 
-namespace DataMod;
+namespace DataCore;
 
 public class SqlExpressionTranslator
 {

@@ -1,6 +1,9 @@
+using ContentMod;
+using ContentServer;
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
+using DataCore.EF;
 using DataMod;
 using DataMod.EF;
 using DataMod.Sqlite;
@@ -11,6 +14,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.Extensions.DependencyInjection;
 
 internal class Program
 {
@@ -59,51 +63,68 @@ internal class Program
             }
 
             builder.Services.AddSingleton<PasswordHashing>();
-            builder.Services.AddDb<LoginDb>(o => o.UseSqlite(csBuilder.ToString()));
+            builder.Services.AddDb<ILoginDb, LoginDb>(o => o.UseSqlite(csBuilder.ToString()));
             builder.Services.AddScoped<LoginServices>();
+
+            builder.Services.AddDb<IContentDb, ContentDb>(o => o.UseSqlite(csBuilder.ToString()));
 
             app = builder.Build();
         }
 
         using (var scope = app.Services.CreateScope())
         {
-            var dbContext = scope.ServiceProvider.GetRequiredService<ComponentDbContext<LoginDb>>();
-            dbContext.Database.OpenConnection();
-            dbContext.Database.EnsureCreated();
+            var dbContexts = scope.ServiceProvider.GetServices<IComponentDbContext>()
+                .Cast<DbContext>()
+                .ToList();
 
-            var connection = (SqliteConnection)dbContext.Database.GetDbConnection();
+            var databaseGroups = dbContexts
+                .GroupBy(o => (o.Database.GetDbConnection().DataSource, o.Database.GetDbConnection().Database));
 
-            var currentDatabase = new Database();
-            await currentDatabase.ContributeSqliteAsync(connection);
-
-            var goalDatabase = new Database();
-            goalDatabase.ContributeEFCore(dbContext.GetService<IDesignTimeModel>().Model);
-
-            var alterations = new List<DatabaseAlteration>();
-            foreach (var goalSchema in goalDatabase.Schemas)
+            foreach (var databaseGroup in databaseGroups)
             {
-                if (currentDatabase.Schemas.SingleOrDefault(o => o.Name == goalSchema.Name) is not Schema currentSchema)
+                var currentDatabase = new Database();
+                var goalDatabase = new Database();
+
+                SqliteConnection? connection = default;
+
+                foreach (var dbContext in databaseGroup)
                 {
-                    currentSchema = new Schema(goalSchema.Name)
+                    dbContext.Database.OpenConnection();
+                    dbContext.Database.EnsureCreated();
+
+                    connection ??= (SqliteConnection)dbContext.Database.GetDbConnection();
+
+                    await currentDatabase.ContributeSqliteAsync(connection);
+
+                    goalDatabase.ContributeEFCore(dbContext.GetService<IDesignTimeModel>().Model);
+                }
+
+                var alterations = new List<DatabaseAlteration>();
+                foreach (var goalSchema in goalDatabase.Schemas)
+                {
+                    if (currentDatabase.Schemas.SingleOrDefault(o => o.Name == goalSchema.Name) is not Schema currentSchema)
                     {
-                        Owner = goalSchema.Owner,
-                    };
+                        currentSchema = new Schema(goalSchema.Name)
+                        {
+                            Owner = goalSchema.Owner,
+                        };
 
-                    alterations.Add(new CreateSchema(currentSchema.Name, currentSchema.Owner));
+                        alterations.Add(new CreateSchema(currentSchema.Name, currentSchema.Owner));
+                    }
+                    foreach (var goalTable in goalSchema.Tables)
+                    {
+                        var currentTable = currentSchema.Tables.SingleOrDefault(o => o.Name == goalTable.Name);
+                        var tableAlterations = TableDiffer.DiffTables(goalSchema.Name, currentTable, goalTable);
+
+                        alterations.AddRange(tableAlterations);
+                    }
                 }
-                foreach (var goalTable in goalSchema.Tables)
+
+                var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
+                foreach (var sql in sqlStatements)
                 {
-                    var currentTable = currentSchema.Tables.SingleOrDefault(o => o.Name == goalTable.Name);
-                    var tableAlterations = TableDiffer.DiffTables(goalSchema.Name, currentTable, goalTable);
-
-                    alterations.AddRange(tableAlterations);
+                    await connection!.ExecuteAsync(sql);
                 }
-            }
-
-            var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
-            foreach (var sql in sqlStatements)
-            {
-                await connection.ExecuteAsync(sql);
             }
         }
 

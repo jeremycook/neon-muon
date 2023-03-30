@@ -1,6 +1,4 @@
-﻿using DataMod.Sqlite;
-
-namespace DataMod;
+﻿namespace DataCore;
 
 public readonly struct Sql
 {
@@ -31,8 +29,82 @@ public readonly struct Sql
 
     public override string ToString()
     {
-        var (CommandText, _) = SqliteSqlHelpers.ParameterizeSql(this);
-        return "PREVIEW: " + CommandText;
+        var commandText = ParameterizeSql(this);
+        return $"{base.ToString()}: {commandText}";
+    }
+
+    private static string Quote(SqlIdentifier sqlIdentifier)
+    {
+        return
+            (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
+            "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
+    }
+
+    private static string Quote(SqlLiteral sqlLiteral)
+    {
+        return "'" + sqlLiteral.Value.Replace("'", "''") + "'";
+    }
+
+    private static string ParameterizeSql(Sql sql)
+    {
+        var tempValues = new List<object>();
+        var formatArgs = new List<string>(sql.Arguments.Count);
+
+        foreach (var arg in sql.Arguments)
+        {
+            switch (arg)
+            {
+                case SqlIdentifier sqlIdentifier:
+                    formatArgs.Add(Quote(sqlIdentifier));
+                    break;
+
+                case SqlLiteral sqlLiteral:
+                    formatArgs.Add(Quote(sqlLiteral));
+                    break;
+
+                case Sql innerSql:
+                    formatArgs.Add(GetParameterizedSql(innerSql, ref tempValues));
+                    break;
+
+                default:
+                    formatArgs.Add($"${tempValues.Count + 1}");
+                    tempValues.Add(arg ?? DBNull.Value);
+                    break;
+            }
+        }
+
+        string commandText = string.Format(sql.Format, args: formatArgs.ToArray());
+        return commandText;
+    }
+
+    private static string GetParameterizedSql(Sql sql, ref List<object> parameterValues)
+    {
+        var formatArgs = new List<string>(sql.Arguments.Count);
+
+        foreach (var arg in sql.Arguments)
+        {
+            switch (arg)
+            {
+                case SqlIdentifier sqlIdentifier:
+                    formatArgs.Add(Quote(sqlIdentifier));
+                    break;
+
+                case SqlLiteral sqlLiteral:
+                    formatArgs.Add(Quote(sqlLiteral));
+                    break;
+
+                case Sql innerSql:
+                    formatArgs.Add(GetParameterizedSql(innerSql, ref parameterValues));
+                    break;
+
+                default:
+                    formatArgs.Add($"${parameterValues.Count + 1}");
+                    parameterValues.Add(arg ?? DBNull.Value);
+                    break;
+            }
+        }
+
+        return string.Format(sql.Format, args: formatArgs.ToArray());
     }
 
     public static Sql Empty { get; } = Raw(string.Empty);

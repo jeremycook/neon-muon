@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using DataCore;
+using Microsoft.Data.Sqlite;
 using System.Reflection;
 
 namespace DataMod.Sqlite;

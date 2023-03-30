@@ -4,7 +4,7 @@ public static class LoginConstants
 {
     public static LocalLogin Unknown { get; } = new()
     {
-        EntityId = Guid.Empty,
+        UserId = Guid.Empty,
         Version = 0,
         Username = "Unknown",
         Hash = string.Empty,

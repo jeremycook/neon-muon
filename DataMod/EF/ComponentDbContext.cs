@@ -1,11 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DataCore;
+using DataCore.EF;
+using Microsoft.EntityFrameworkCore;
 
 namespace DataMod.EF;
 
-public class ComponentDbContext<T> : DbContext
+public class ComponentDbContext<T> : DbContext, IComponentDbContext<T>
 {
     public ComponentDbContext(DbContextOptions<ComponentDbContext<T>> options) : base(options) { }
     protected ComponentDbContext(DbContextOptions options) : base(options) { }
+
+    public IQueryable<TEntity> Queryable<TEntity>()
+        where TEntity : class
+    {
+        return Set<TEntity>();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -14,9 +22,9 @@ public class ComponentDbContext<T> : DbContext
         {
             Type propertyType = prop.PropertyType;
             if (propertyType.IsGenericType &&
-                propertyType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                propertyType.GetGenericTypeDefinition() == typeof(IQuery<,>))
             {
-                modelBuilder.Entity(propertyType.GetGenericArguments()[0]);
+                modelBuilder.Entity(propertyType.GetGenericArguments()[1]);
             }
         }
     }
