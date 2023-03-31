@@ -1,17 +1,14 @@
 ﻿using DataCore;
 using DataCore.EF;
-using DataMod.EF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DataMod;
+namespace EFMod;
 
-public static class StartupExtensions
-{
+public static class StartupExtensions {
     public static IServiceCollection AddDb<TDbService, TDbImpl>(this IServiceCollection services, Action<DbContextOptionsBuilder> optionsAction)
         where TDbService : IDb<TDbService>
-        where TDbImpl : class, TDbService
-    {
+        where TDbImpl : class, TDbService {
         return services
             .AddPooledDbContextFactory<QueryDbContext<TDbService>>(optionsAction)
             .AddDbContextPool<QueryDbContext<TDbService>>(optionsAction)

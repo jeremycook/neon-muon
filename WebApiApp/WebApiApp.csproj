@@ -8,12 +8,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ContentMod\ContentMod.csproj" />
     <ProjectReference Include="..\ContentServer\ContentServer.csproj" />
+    <ProjectReference Include="..\EFMod\EFMod.csproj" />
     <ProjectReference Include="..\LoginApi\LoginApi.csproj" />
   </ItemGroup>
 

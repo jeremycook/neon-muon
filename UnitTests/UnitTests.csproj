@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataMod\DataMod.csproj" />
+    <ProjectReference Include="..\EFMod\EFMod.csproj" />
     <ProjectReference Include="..\LoginMod\LoginMod.csproj" />
   </ItemGroup>
 

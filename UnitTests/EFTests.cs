@@ -1,4 +1,4 @@
-using DataMod.EF;
+using EFMod;
 using LoginMod;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

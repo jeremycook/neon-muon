@@ -2,7 +2,7 @@
 using DataCore.EF;
 using Microsoft.EntityFrameworkCore;
 
-namespace DataMod.EF;
+namespace EFMod;
 
 /// <summary>
 /// A <see cref="DbContext"/> that add entity sets based on the 

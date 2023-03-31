@@ -5,9 +5,8 @@ using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
 using DataCore;
 using DataCore.EF;
-using DataMod;
-using DataMod.EF;
 using DataMod.Sqlite;
+using EFMod;
 using LoginApi;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -15,7 +14,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.Extensions.DependencyInjection;
 
 internal class Program
 {
