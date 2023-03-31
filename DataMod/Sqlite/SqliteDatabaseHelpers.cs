@@ -5,6 +5,10 @@ using Microsoft.Data.Sqlite;
 namespace DataMod.Sqlite;
 
 public static class SqliteDatabaseHelpers {
+    public static void ContributeSqlite(this Database database, SqliteConnection connection) {
+        database.ContributeSqliteAsync(connection).GetAwaiter().GetResult();
+    }
+
     public static async ValueTask ContributeSqliteAsync(this Database database, SqliteConnection connection, CancellationToken cancellationToken = default) {
         var sql = Sql.Raw("""
             SELECT

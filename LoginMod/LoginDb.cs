@@ -7,11 +7,5 @@ public interface ILoginDb {
 }
 
 public class LoginDb : ILoginDb {
-    public LoginDb(IQueryOrchestrator<ILoginDb> handler) {
-        Handler = handler;
-    }
-
     public IQuery<ILoginDb, LocalLogin> LocalLogin => new FromQuery<ILoginDb, LocalLogin>();
-
-    public IQueryOrchestrator<ILoginDb> Handler { get; }
 }
