@@ -2,6 +2,12 @@
 
 namespace DatabaseMod.Models;
 
+public interface IReadOnlyDefaultPrivileges {
+    string Grantee { get; }
+    string ObjectType { get; }
+    string Privileges { get; }
+}
+
 // ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA "Finance"
 //  GRANT ALL ON TABLES TO "t:DB1:d";
 // ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA "Finance"
@@ -24,10 +30,8 @@ namespace DatabaseMod.Models;
 /// <summary>
 /// See https://www.postgresql.org/docs/14/sql-alterdefaultprivileges.html
 /// </summary>
-public class DefaultPrivileges
-{
-    public DefaultPrivileges(string grantee, DefaultPrivilegesEnum objectType, string privileges)
-    {
+public class DefaultPrivileges : IReadOnlyDefaultPrivileges {
+    public DefaultPrivileges(string grantee, DefaultPrivilegesEnum objectType, string privileges) {
         this.privileges = privileges;
         this.objectType = objectType.ToString().ToUpperInvariant();
         Grantee = grantee;
@@ -38,21 +42,16 @@ public class DefaultPrivileges
     /// <summary>
     /// Examples: ALL, SELECT INSERT, EXECUTE
     /// </summary>
-    public string Privileges
-    {
-        get
-        {
-            if (privilegesIsValid)
-            {
+    public string Privileges {
+        get {
+            if (privilegesIsValid) {
                 return privileges;
             }
-            else if (Regex.IsMatch(privileges, "^[A-Z, ]+$"))
-            {
+            else if (Regex.IsMatch(privileges, "^[A-Z, ]+$")) {
                 privilegesIsValid = true;
                 return privileges;
             }
-            else
-            {
+            else {
                 throw new InvalidOperationException($"The value \"{privileges}\" of {nameof(Privileges)} is invalid.");
             }
         }
@@ -63,21 +62,16 @@ public class DefaultPrivileges
     /// <summary>
     /// Examples: TABLES, SEQUENCES, FUNCTIONS, TYPES
     /// </summary>
-    public string ObjectType
-    {
-        get
-        {
-            if (objectTypeIsValid)
-            {
+    public string ObjectType {
+        get {
+            if (objectTypeIsValid) {
                 return objectType;
             }
-            else if (Regex.IsMatch(objectType, "^[A-Z]+$"))
-            {
+            else if (Regex.IsMatch(objectType, "^[A-Z]+$")) {
                 objectTypeIsValid = true;
                 return objectType;
             }
-            else
-            {
+            else {
                 throw new InvalidOperationException($"The value \"{objectType}\" of {nameof(ObjectType)} is invalid.");
             }
         }

@@ -1,12 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Data;
 
 namespace DatabaseMod.Models;
 
-public class Column
-{
-    public Column(string name, StoreType storeType, bool isNullable, string? defaultValueSql, string? computedColumnSql)
-    {
+public interface IReadOnlyColumn {
+    string? ComputedColumnSql { get; }
+    string? DefaultValueSql { get; }
+    bool IsNullable { get; }
+    string Name { get; }
+    int Position { get; }
+    StoreType StoreType { get; }
+
+    bool Same(Column column);
+}
+
+public class Column : IReadOnlyColumn {
+    public Column(string name, StoreType storeType, bool isNullable, string? defaultValueSql, string? computedColumnSql) {
         Name = name;
         StoreType = storeType;
         IsNullable = isNullable;
@@ -27,8 +35,7 @@ public class Column
 
     public string? ComputedColumnSql { get; set; }
 
-    public bool Same(Column column)
-    {
+    public bool Same(Column column) {
         return
             Position == column.Position &&
             Name == column.Name &&

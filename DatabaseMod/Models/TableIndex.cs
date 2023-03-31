@@ -2,10 +2,18 @@
 
 namespace DatabaseMod.Models;
 
-public class TableIndex
-{
-    public TableIndex(string? name, TableIndexType indexType)
-    {
+public interface IReadOnlyTableIndex {
+    IReadOnlyList<string> Columns { get; }
+    TableIndexType IndexType { get; }
+    string? Name { get; }
+
+    string GetName(string tableName);
+    string GetName(IReadOnlyTable table);
+    bool Same(IReadOnlyTableIndex index);
+}
+
+public class TableIndex : IReadOnlyTableIndex {
+    public TableIndex(string? name, TableIndexType indexType) {
         Name = name;
         IndexType = indexType;
     }
@@ -18,20 +26,18 @@ public class TableIndex
     [Required, MinLength(1)]
     public List<string> Columns { get; set; } = new();
 
-    public string GetName(Table table)
-    {
+    IReadOnlyList<string> IReadOnlyTableIndex.Columns => Columns;
+
+    public string GetName(IReadOnlyTable table) {
         return GetName(table.Name);
     }
 
-    public string GetName(string tableName)
-    {
-        if (!string.IsNullOrEmpty(Name))
-        {
+    public string GetName(string tableName) {
+        if (!string.IsNullOrEmpty(Name)) {
             return Name;
         }
 
-        return IndexType switch
-        {
+        return IndexType switch {
             TableIndexType.Index => string.Join("_", new[] { "ix", tableName }.Concat(Columns)),
             TableIndexType.UniqueConstraint => string.Join("_", new[] { "uc", tableName }.Concat(Columns)),
             TableIndexType.PrimaryKey => "pk_" + tableName,
@@ -39,8 +45,7 @@ public class TableIndex
         };
     }
 
-    public bool Same(TableIndex index)
-    {
+    public bool Same(IReadOnlyTableIndex index) {
         return
             Name == index.Name &&
             IndexType == index.IndexType &&

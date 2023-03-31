@@ -8,13 +8,13 @@ namespace DataMod.Sqlite;
 public class SqliteQueryOrchestrator<TDb> : IQueryOrchestrator<TDb> {
     public SqliteQueryOrchestrator(
         IDbConnectionString<TDb> connectionString,
-        IDatabase<TDb> database) {
+        IReadOnlyDatabase<TDb> database) {
         ConnectionString = connectionString;
         Database = database;
     }
 
     public IDbConnectionString<TDb> ConnectionString { get; }
-    public IDatabase<TDb> Database { get; }
+    public IReadOnlyDatabase<TDb> Database { get; }
 
     public IReadOnlyCollection<IQueryCommand<object>> Compose<T1>(IQuery<TDb, T1> query) {
         return StartVisit(query).ToArray();

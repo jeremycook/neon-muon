@@ -26,13 +26,12 @@ internal static class DependencyInjector {
             Cache = SqliteCacheMode.Shared,
         };
 
+        Console.WriteLine("Test Database: " + connectionStringBuilder.DataSource);
+
+        // Migrate database
         if (File.Exists(connectionStringBuilder.DataSource)) {
             File.Delete(connectionStringBuilder.DataSource);
         }
-
-        Console.WriteLine(connectionStringBuilder.DataSource);
-
-        // Migrate database
         using (var connection = new SqliteConnection(connectionStringBuilder.ToString())) {
             connection.Open();
 
@@ -67,7 +66,7 @@ internal static class DependencyInjector {
 
         var loginDatabase = new Database<ILoginDb>();
         loginDatabase.ContributeQueryContext(typeof(ILoginDb));
-        serviceCollection.AddSingleton<IDatabase<ILoginDb>>(loginDatabase);
+        serviceCollection.AddSingleton<IReadOnlyDatabase<ILoginDb>>(loginDatabase);
 
         // Login
         serviceCollection.AddSingleton<PasswordHashing>();

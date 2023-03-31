@@ -2,10 +2,15 @@
 
 namespace DatabaseMod.Models;
 
-public class Table
-{
-    public Table(string name)
-    {
+public interface IReadOnlyTable {
+    IReadOnlyList<IReadOnlyColumn> Columns { get; }
+    IReadOnlyList<IReadOnlyTableIndex> Indexes { get; }
+    string Name { get; }
+    string? Owner { get; }
+}
+
+public class Table : IReadOnlyTable {
+    public Table(string name) {
         Name = name;
     }
 
@@ -18,4 +23,7 @@ public class Table
     public List<Column> Columns { get; set; } = new();
 
     public List<TableIndex> Indexes { get; set; } = new();
+
+    IReadOnlyList<IReadOnlyColumn> IReadOnlyTable.Columns => Columns;
+    IReadOnlyList<IReadOnlyTableIndex> IReadOnlyTable.Indexes => Indexes;
 }

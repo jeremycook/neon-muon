@@ -2,12 +2,18 @@
 
 namespace DatabaseMod.Models;
 
-public class Schema
-{
+public interface IReadOnlySchema {
+    string Name { get; }
+    string? Owner { get; }
+    IReadOnlyList<IReadOnlyTable> Tables { get; }
+    IReadOnlyList<IReadOnlySchemaPrivileges> Privileges { get; }
+    IReadOnlyList<IReadOnlyDefaultPrivileges> DefaultPrivileges { get; }
+}
+
+public class Schema : IReadOnlySchema {
     public const string DefaultName = "";
 
-    public Schema(string name = DefaultName)
-    {
+    public Schema(string name = DefaultName) {
         Name = name;
     }
 
@@ -20,4 +26,8 @@ public class Schema
     public List<Table> Tables { get; set; } = new();
     public List<SchemaPrivileges> Privileges { get; set; } = new();
     public List<DefaultPrivileges> DefaultPrivileges { get; set; } = new();
+
+    IReadOnlyList<IReadOnlyDefaultPrivileges> IReadOnlySchema.DefaultPrivileges => DefaultPrivileges;
+    IReadOnlyList<IReadOnlySchemaPrivileges> IReadOnlySchema.Privileges => Privileges;
+    IReadOnlyList<IReadOnlyTable> IReadOnlySchema.Tables => Tables;
 }
