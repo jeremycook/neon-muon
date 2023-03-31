@@ -6,6 +6,7 @@ public readonly struct TakeQuery<TDb, T1> : IQuery<TDb, T1> {
         Take = take;
     }
 
+    public QueryType Type => QueryType.Take;
     public IQuery<TDb, T1> Query { get; }
     public int Take { get; }
 }

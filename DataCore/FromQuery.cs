@@ -1,9 +1,11 @@
 ﻿namespace DataCore;
 
-public readonly struct FromQuery<TDb, T> : IQuery<TDb, T> {
+public readonly struct FromQuery<TDb, T1> : IQuery<TDb, T1> {
     public FromQuery() {
-        Type = typeof(T);
+        T1Type = typeof(T1);
     }
 
-    public Type Type { get; }
+    public QueryType Type => QueryType.From;
+
+    public Type T1Type { get; }
 }

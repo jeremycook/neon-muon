@@ -37,7 +37,7 @@ public static class QueryExtensions {
     }
 
     public static IReadOnlyCollection<IQueryCommand<object>> Compose<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> queryHandler) {
-        return queryHandler.Compose(query);
+        return queryHandler.Compose<TDb>(query);
     }
 
     public static async ValueTask<List<T1>> ToListAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> orchestrator, CancellationToken cancellationToken = default) {
