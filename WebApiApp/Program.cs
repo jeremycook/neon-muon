@@ -3,6 +3,7 @@ using ContentServer;
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
+using DataCore;
 using DataCore.EF;
 using DataMod;
 using DataMod.EF;
@@ -63,7 +64,7 @@ internal class Program
             }
 
             builder.Services.AddSingleton<PasswordHashing>();
-            builder.Services.AddDb<ILoginDb, LoginDb>(o => o.UseSqlite(csBuilder.ToString()));
+            // TODO: builder.Services.AddDb<ILoginDb, LoginDb>(o => o.UseSqlite(csBuilder.ToString()));
             builder.Services.AddScoped<LoginServices>();
 
             builder.Services.AddDb<IContentDb, ContentDb>(o => o.UseSqlite(csBuilder.ToString()));

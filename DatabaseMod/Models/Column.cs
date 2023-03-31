@@ -1,10 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Data;
 
 namespace DatabaseMod.Models;
 
 public class Column
 {
-    public Column(string name, string storeType, bool isNullable, string? defaultValueSql, string? computedColumnSql)
+    public Column(string name, StoreType storeType, bool isNullable, string? defaultValueSql, string? computedColumnSql)
     {
         Name = name;
         StoreType = storeType;
@@ -18,8 +19,7 @@ public class Column
     [Required, StringLength(50)]
     public string Name { get; set; }
 
-    [Required, StringLength(50), RegularExpression("^[a-zA-Z]+$", ErrorMessage = "The {0} may only contain letters.")]
-    public string StoreType { get; set; }
+    public StoreType StoreType { get; set; }
 
     public bool IsNullable { get; set; }
 

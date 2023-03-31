@@ -1,31 +1,30 @@
-﻿namespace LoginMod;
+﻿using DataCore;
 
-public class LoginServices
-{
+namespace LoginMod;
+
+public class LoginServices {
     private readonly ILoginDb loginDb;
+    private readonly IQueryOrchestrator<ILoginDb> orchestrator;
     private readonly PasswordHashing passwordHashing;
 
-    public LoginServices(ILoginDb loginDb, PasswordHashing passwordHashing)
-    {
+    public LoginServices(ILoginDb loginDb, IQueryOrchestrator<ILoginDb> orchestrator, PasswordHashing passwordHashing) {
         this.loginDb = loginDb;
+        this.orchestrator = orchestrator;
         this.passwordHashing = passwordHashing;
     }
 
-    public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
         var component = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToOptionalItemAsync(cancellationToken);
+            .ToOptionalAsync(orchestrator, cancellationToken);
 
-        if (component is null)
-        {
+        if (component is null) {
             return LoginConstants.Unknown;
         }
 
         var result = passwordHashing.Verify(component.Hash, password);
-        switch (result)
-        {
+        switch (result) {
             case PasswordHashingVerify.Success:
 
                 return component;
@@ -38,8 +37,7 @@ public class LoginServices
                 _ = loginDb
                     .LocalLogin
                     .Filter(x => x.UserId == component.UserId && x.Version == component.Version)
-                    .Update(x => new LocalLogin()
-                    {
+                    .Update(x => new LocalLogin() {
                         Version = x.Version + 1,
                         Hash = rehashedPassword,
                     })
@@ -57,23 +55,20 @@ public class LoginServices
         }
     }
 
-    public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
         var component = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToItemAsync(cancellationToken);
+            .ToItemAsync(orchestrator, cancellationToken);
 
-        if (component is not null)
-        {
+        if (component is not null) {
             // A user with that username already exists
             return LoginConstants.Unknown;
         }
 
         var hashedPassword = passwordHashing.Hash(password);
 
-        component = new()
-        {
+        component = new() {
             UserId = Guid.NewGuid(),
             Version = 0,
             Username = username,

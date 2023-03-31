@@ -32,7 +32,7 @@ public static class EFDatabaseExtensions
                     {
                         var column = table.Columns.GetOrAdd(new Column(
                             name: columnMapping.Column.Name,
-                            storeType: columnMapping.Column.StoreType,
+                            storeType: StoreTypeHelpers.ConvertClrTypeToStoreType(columnMapping.Column.StoreTypeMapping.ClrType),
                             isNullable: columnMapping.Column.IsNullable,
                             defaultValueSql: columnMapping.Column.DefaultValueSql,
                             computedColumnSql: columnMapping.Column.ComputedColumnSql)

@@ -1,25 +1,17 @@
 ﻿using DataCore;
-using DataCore.EF;
 
 namespace LoginMod;
 
-public interface ILoginDb : IDb<ILoginDb>
-{
+public interface ILoginDb {
     IQuery<ILoginDb, LocalLogin> LocalLogin { get; }
 }
 
-public class LoginDb : Db<ILoginDb>, ILoginDb
-{
-    public LoginDb(IComponentDbContext<ILoginDb> dbContext) : base(dbContext)
-    {
+public class LoginDb : ILoginDb {
+    public LoginDb(IQueryOrchestrator<ILoginDb> handler) {
+        Handler = handler;
     }
 
-    public IQuery<ILoginDb, LocalLogin> LocalLogin => From<LocalLogin>();
+    public IQuery<ILoginDb, LocalLogin> LocalLogin => new FromQuery<ILoginDb, LocalLogin>();
 
-    public async ValueTask CreateAsync(LocalLogin localLogin, CancellationToken cancellationToken)
-    {
-        await LocalLogin
-            .Insert(localLogin)
-            .ExecuteAsync(cancellationToken);
-    }
+    public IQueryOrchestrator<ILoginDb> Handler { get; }
 }

@@ -4,10 +4,8 @@ using Microsoft.Data.Sqlite;
 
 namespace DataMod.Sqlite;
 
-public static class SqliteDatabaseHelpers
-{
-    public static async ValueTask ContributeSqliteAsync(this Database database, SqliteConnection connection, CancellationToken cancellationToken = default)
-    {
+public static class SqliteDatabaseHelpers {
+    public static async ValueTask ContributeSqliteAsync(this Database database, SqliteConnection connection, CancellationToken cancellationToken = default) {
         var sql = Sql.Raw("""
             SELECT
                 m.name as TableName,
@@ -29,25 +27,21 @@ public static class SqliteDatabaseHelpers
 
         var tableColumnsList = await connection.ListAsync<TableColumns>(sql, cancellationToken);
 
-        if (database.Schemas.FirstOrDefault(o => o.Name == Schema.DefaultName) is not Schema schema)
-        {
+        if (database.Schemas.FirstOrDefault(o => o.Name == Schema.DefaultName) is not Schema schema) {
             schema = new();
             database.Schemas.Add(schema);
         }
 
-        foreach (var tableMapping in tableColumnsList.GroupBy(o => o.TableName))
-        {
+        foreach (var tableMapping in tableColumnsList.GroupBy(o => o.TableName)) {
             var table = schema.Tables.GetOrAdd(new Table(tableMapping.Key));
 
-            foreach (var columnMapping in tableMapping)
-            {
+            foreach (var columnMapping in tableMapping) {
                 table.Columns.GetOrAdd(new Column(
                     name: columnMapping.ColumnName,
-                    storeType: columnMapping.ColumnType,
+                    storeType: ConvertToStoreType(columnMapping.ColumnType),
                     isNullable: columnMapping.IsNullable,
                     defaultValueSql: columnMapping.DefaultValueSql,
-                    computedColumnSql: null)
-                {
+                    computedColumnSql: null) {
                     Position = columnMapping.ColumnPosition,
                 });
             }
@@ -61,15 +55,23 @@ public static class SqliteDatabaseHelpers
             //}
 
             var primaryKeyColumns = tableMapping.Where(o => o.IsPrimaryKey);
-            table.Indexes.GetOrAdd(new TableIndex("PK_" + table.Name, TableIndexType.PrimaryKey)
-            {
+            table.Indexes.GetOrAdd(new TableIndex("PK_" + table.Name, TableIndexType.PrimaryKey) {
                 Columns = primaryKeyColumns.Select(c => c.ColumnName).ToList(),
             });
         }
     }
 
-    private class TableColumns
-    {
+    private static StoreType ConvertToStoreType(string columnType) {
+        return columnType switch {
+            "TEXT" => StoreType.Text,
+            "INTEGER" => StoreType.Integer,
+            "REAL" => StoreType.Double,
+            "BLOB" => StoreType.Blob,
+            _ => throw new NotImplementedException(columnType),
+        };
+    }
+
+    private class TableColumns {
         public string TableName { get; set; }
         public string TableType { get; set; }
         public int ColumnPosition { get; set; }

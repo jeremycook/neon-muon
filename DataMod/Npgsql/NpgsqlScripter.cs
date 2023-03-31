@@ -2,6 +2,7 @@
 using DatabaseMod.Models;
 using DataCore;
 using Microsoft.Extensions.Primitives;
+using NpgsqlTypes;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Text.RegularExpressions;
@@ -9,21 +10,17 @@ using static DataCore.Sql;
 
 namespace DataMod.Npgsql;
 
-public static class NpgsqlScripter
-{
+public static class NpgsqlScripter {
     /// <summary>
     /// Script missing objects. Useful when developing.
     /// </summary>
     /// <param name="database"></param>
     /// <returns></returns>
-    public static List<Sql> ScriptIfNotExists(Database database)
-    {
+    public static List<Sql> ScriptIfNotExists(Database database) {
         var script = new List<Sql>();
 
-        foreach (var schema in database.Schemas)
-        {
-            if (!string.IsNullOrEmpty(schema.Owner))
-            {
+        foreach (var schema in database.Schemas) {
+            if (!string.IsNullOrEmpty(schema.Owner)) {
                 script.Add(Interpolate($"SET ROLE {Identifier(schema.Owner)};"));
             }
 
@@ -33,48 +30,41 @@ public static class NpgsqlScripter
             script.Add(Empty);
 
             // Apply privileges
-            foreach (var privilege in schema.Privileges)
-            {
+            foreach (var privilege in schema.Privileges) {
                 script.Add(Interpolate($"GRANT {privilege.Privileges} ON SCHEMA {Identifier(schema.Name)} TO {Identifier(privilege.Grantee)};"));
             }
             script.Add(Empty);
 
             // Apply default privileges
-            foreach (var privilege in schema.DefaultPrivileges)
-            {
+            foreach (var privilege in schema.DefaultPrivileges) {
                 script.Add(Interpolate($"ALTER DEFAULT PRIVILEGES IN SCHEMA {Identifier(schema.Name)} GRANT {privilege.Privileges} ON {privilege.ObjectType} TO {Identifier(privilege.Grantee)};"));
             }
             script.Add(Empty);
 
-            foreach (var table in schema.Tables)
-            {
-                if (!string.IsNullOrEmpty(table.Owner))
-                {
+            foreach (var table in schema.Tables) {
+                if (!string.IsNullOrEmpty(table.Owner)) {
                     script.Add(Interpolate($"SET ROLE {Identifier(table.Owner)};"));
                 }
-                else if (!string.IsNullOrEmpty(schema.Owner))
-                {
+                else if (!string.IsNullOrEmpty(schema.Owner)) {
                     script.Add(Interpolate($"SET ROLE {Identifier(schema.Owner)};"));
                 }
 
                 // Create missing table
                 // https://www.postgresql.org/docs/current/sql-createtable.html
                 IEnumerable<string> tableParts;
-                if (table.Indexes.FirstOrDefault(uc => uc.IndexType == TableIndexType.PrimaryKey) is TableIndex primaryKey)
-                {
+                if (table.Indexes.FirstOrDefault(uc => uc.IndexType == TableIndexType.PrimaryKey) is TableIndex primaryKey) {
                     tableParts =
                         // Columns
                         table.Columns.Select(column =>
                             ScriptAddColumnDefinition(column) +
                             // Assume that integer primary keys are identity columns.
                             // TODO: Drive this from the Database model.
-                            (primaryKey.Columns.Contains(column.Name) && column.StoreType == "integer" ? " GENERATED ALWAYS AS IDENTITY" : "")
+                            (primaryKey.Columns.Contains(column.Name) && column.StoreType == StoreType.Integer ? " GENERATED ALWAYS AS IDENTITY" : "")
                         )
                         // Primary key constraint
                         .Append($"CONSTRAINT {Identifier(primaryKey.GetName(table))} PRIMARY KEY ({Join(", ", primaryKey.Columns.Select(Identifier))})");
                 }
-                else
-                {
+                else {
                     tableParts = Enumerable.Empty<string>();
                 }
                 script.Add(Interpolate($"CREATE TABLE IF NOT EXISTS {Identifier(schema.Name, table.Name)} ({Join(", ", tableParts)});"));
@@ -82,8 +72,7 @@ public static class NpgsqlScripter
 
                 // Add missing columns
                 // https://www.postgresql.org/docs/current/sql-altertable.html
-                foreach (var column in table.Columns)
-                {
+                foreach (var column in table.Columns) {
                     script.Add(Interpolate($"ALTER TABLE {Identifier(schema.Name, table.Name)} ADD COLUMN IF NOT EXISTS {ScriptAddColumnDefinition(column)};"));
                 }
                 script.Add(Empty);
@@ -91,8 +80,7 @@ public static class NpgsqlScripter
                 // Add missing unique constraints
                 // https://www.postgresql.org/docs/current/sql-altertable.html
                 var uniqueConstraints = table.Indexes.Where(uc => uc.IndexType != TableIndexType.Index);
-                foreach (var constraint in uniqueConstraints)
-                {
+                foreach (var constraint in uniqueConstraints) {
                     string indexType = constraint.IndexType == TableIndexType.PrimaryKey ? "PRIMARY KEY" : "UNIQUE";
                     script.Add(Interpolate($"""
 IF NOT EXISTS (SELECT NULL FROM information_schema.table_constraints WHERE constraint_schema = {Literal(schema.Name)} AND constraint_name = {Literal(constraint.GetName(table))})
@@ -105,8 +93,7 @@ END IF;
 
                 // Add missing indexes
                 // https://www.postgresql.org/docs/current/sql-createindex.html
-                foreach (var index in table.Indexes.Where(o => o.IndexType == TableIndexType.Index))
-                {
+                foreach (var index in table.Indexes.Where(o => o.IndexType == TableIndexType.Index)) {
                     script.Add(Interpolate($"CREATE INDEX IF NOT EXISTS {Identifier(index.GetName(table))} ON {Identifier(schema.Name, table.Name)} ({Join(", ", index.Columns.Select(Identifier))});"));
                 }
                 if (table.Indexes.Any()) script.Add(Empty);
@@ -118,39 +105,41 @@ END IF;
         return script;
     }
 
-    private static Sql ScriptAddColumnDefinition(Column column)
-    {
+    private static Sql ScriptAddColumnDefinition(Column column) {
         return Join("", new object[]
         {
-            Interpolate($"{Identifier(column.Name)} {Raw(column.StoreType)} {Raw(column.IsNullable ? "NULL" : "NOT NULL")}"),
+            Interpolate($"{Identifier(column.Name)} {ScriptStoreType(column.StoreType)} {Raw(column.IsNullable ? "NULL" : "NOT NULL")}"),
             ScriptColumnDefault(column),
             !string.IsNullOrEmpty(column.ComputedColumnSql) ? Interpolate($" GENERATED ALWAYS AS ({column.ComputedColumnSql}) STORED") : Empty,
         });
     }
 
-    private static readonly Dictionary<string, string> DefaultValueSqlMap = new(StringComparer.InvariantCultureIgnoreCase)
+    private static Sql ScriptStoreType(StoreType storeType) {
+        return storeType switch {
+            StoreType.Text => Raw("TEXT"),
+            StoreType.Unknown
+            or _ => throw new NotImplementedException(storeType.ToString()),
+        };
+    }
+
+    private static readonly Dictionary<StoreType, string> DefaultValueSqlMap = new()
     {
-        { "boolean", "false" },
-        { "integer", "0" },
-        { "text", "''" },
-        { "timestamp with time zone", "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
-        { "uuid", "gen_random_uuid()" },
+        { StoreType.Boolean, "false" },
+        { StoreType.Integer, "0" },
+        { StoreType.Guid, "gen_random_uuid()" },
+        { StoreType.Text, "''" },
+        { StoreType.Timestamp, "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
     };
 
-    private static Sql ScriptColumnDefault(Column column)
-    {
-        if (!string.IsNullOrEmpty(column.DefaultValueSql))
-        {
-            if (column.DefaultValueSql != string.Empty)
-            {
+    private static Sql ScriptColumnDefault(Column column) {
+        if (!string.IsNullOrEmpty(column.DefaultValueSql)) {
+            if (column.DefaultValueSql != string.Empty) {
                 return Interpolate($" DEFAULT {column.DefaultValueSql}");
             }
-            else if (DefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql))
-            {
+            else if (DefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql)) {
                 return Interpolate($" DEFAULT {Raw(defaultValueSql)}");
             }
-            else if (Regex.IsMatch(column.StoreType, "^[A-Za-z]+$"))
-            {
+            else {
                 return Interpolate($" DEFAULT ''::{column.StoreType}");
             }
         }
@@ -158,14 +147,11 @@ END IF;
         return Empty;
     }
 
-    public static List<Sql> ScriptAlterations(IEnumerable<DatabaseAlteration> alterations)
-    {
+    public static List<Sql> ScriptAlterations(IEnumerable<DatabaseAlteration> alterations) {
         var script = new List<Sql>();
 
-        foreach (var alteration in alterations)
-        {
-            switch (alteration)
-            {
+        foreach (var alteration in alterations) {
+            switch (alteration) {
                 case CreateSchema createSchema:
                     script.Add(ScriptCreateSchema(createSchema));
                     break;
@@ -212,70 +198,55 @@ END IF;
     }
 
 
-    private static Sql ScriptCreateSchema(CreateSchema change)
-    {
+    private static Sql ScriptCreateSchema(CreateSchema change) {
         return Interpolate($"CREATE SCHEMA {Identifier(change.SchemaName)};");
     }
 
 
-    private static Sql ScriptCreateTable(CreateTable change)
-    {
+    private static Sql ScriptCreateTable(CreateTable change) {
         var columns = change.Columns.Select(ScriptAddColumnDefinition);
         return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");
     }
 
-    private static Sql ScriptRenameTable(RenameTable change)
-    {
+    private static Sql ScriptRenameTable(RenameTable change) {
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} RENAME TO {Identifier(change.NewTableName)};");
     }
 
-    private static Sql ScriptChangeTableOwner(ChangeTableOwner change)
-    {
+    private static Sql ScriptChangeTableOwner(ChangeTableOwner change) {
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} OWNER TO {Identifier(change.NewOwner)};");
     }
 
 
-    private static Sql ScriptAddColumn(CreateColumn change)
-    {
+    private static Sql ScriptAddColumn(CreateColumn change) {
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} ADD COLUMN {ScriptAddColumnDefinition(change.Column)};");
     }
 
-    private static Sql ScriptRenameColumn(RenameColumn change)
-    {
+    private static Sql ScriptRenameColumn(RenameColumn change) {
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} RENAME COLUMN {Identifier(change.ColumnName)} TO {Identifier(change.NewColumnName)};");
     }
 
-    private static Sql ScriptAlterColumn(AlterColumn change)
-    {
+    private static Sql ScriptAlterColumn(AlterColumn change) {
         var commands = new List<Sql>();
 
-        if (change.Modifications.Contains(AlterColumnModification.Default))
-        {
-            if (!string.IsNullOrEmpty(change.Column.DefaultValueSql))
-            {
+        if (change.Modifications.Contains(AlterColumnModification.Default)) {
+            if (!string.IsNullOrEmpty(change.Column.DefaultValueSql)) {
                 commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} SET DEFAULT ({change.Column.DefaultValueSql})"));
             }
-            else
-            {
+            else {
                 commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} DROP DEFAULT"));
             }
         }
-        if (change.Modifications.Contains(AlterColumnModification.Nullability))
-        {
+        if (change.Modifications.Contains(AlterColumnModification.Nullability)) {
             commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} {(change.Column.IsNullable ? "DROP NOT NULL" : "SET NOT NULL")}"));
         }
-        if (change.Modifications.Contains(AlterColumnModification.Type))
-        {
+        if (change.Modifications.Contains(AlterColumnModification.Type)) {
             commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} TYPE {change.Column.StoreType}"));
         }
-        if (change.Modifications.Contains(AlterColumnModification.Generated))
-        {
-            if (!string.IsNullOrEmpty(change.Column.ComputedColumnSql))
-            {
+        if (change.Modifications.Contains(AlterColumnModification.Generated)) {
+            if (!string.IsNullOrEmpty(change.Column.ComputedColumnSql)) {
                 throw new ValidationException("Modifying a generated column is not currently supported because it requires dropping the existing column and then recreating it with the new expression. Please manually drop and recreate the generated column if needed.");
             }
-            else
-            {
+            else {
                 commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} DROP EXPRESSION"));
             }
         }
@@ -283,54 +254,44 @@ END IF;
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} {Join(", ", commands)};");
     }
 
-    private static Sql ScriptDropColumn(DropColumn change)
-    {
+    private static Sql ScriptDropColumn(DropColumn change) {
         return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} DROP COLUMN {Identifier(change.ColumnName)};");
     }
 
 
-    private static Sql ScriptAddIndex(CreateIndex change)
-    {
-        if (change.Index.IndexType == TableIndexType.Index)
-        {
+    private static Sql ScriptAddIndex(CreateIndex change) {
+        if (change.Index.IndexType == TableIndexType.Index) {
             var index = change.Index;
             return Interpolate($"CREATE INDEX {Identifier(index.GetName(change.TableName))} ON {Identifier(change.SchemaName, change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});");
         }
-        else
-        {
+        else {
             var constraint = change.Index;
             string type = constraint.IndexType == TableIndexType.PrimaryKey ? "PRIMARY KEY" : "UNIQUE";
             return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} ADD CONSTRAINT {Identifier(constraint.GetName(change.TableName))} {type} ({Join(", ", constraint.Columns.Select(Identifier))});");
         }
     }
 
-    private static Sql ScriptAlterIndex(AlterIndex change)
-    {
-        if (change.Index.IndexType == TableIndexType.Index)
-        {
+    private static Sql ScriptAlterIndex(AlterIndex change) {
+        if (change.Index.IndexType == TableIndexType.Index) {
             var index = change.Index;
             return Interpolate($"""
 DROP INDEX {Identifier(index.GetName(change.TableName))};
 CREATE INDEX {Identifier(index.GetName(change.TableName))} ON {Identifier(change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});
 """);
         }
-        else
-        {
+        else {
             var constraint = change.Index;
             string type = constraint.IndexType == TableIndexType.PrimaryKey ? "PRIMARY KEY" : "UNIQUE";
             return Interpolate($"ALTER TABLE {Identifier(change.TableName)} ALTER CONSTRAINT {Identifier(constraint.GetName(change.TableName))} {type} ({Join(", ", constraint.Columns.Select(Identifier))});");
         }
     }
 
-    private static Sql ScriptDropIndex(DropIndex change)
-    {
-        if (change.Index.IndexType == TableIndexType.Index)
-        {
+    private static Sql ScriptDropIndex(DropIndex change) {
+        if (change.Index.IndexType == TableIndexType.Index) {
             var index = change.Index;
             return Interpolate($"DROP INDEX {Identifier(change.SchemaName, index.GetName(change.TableName))};");
         }
-        else
-        {
+        else {
             var constraint = change.Index;
             return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} DROP CONSTRAINT {Identifier(constraint.GetName(change.TableName))};");
         }
