@@ -14,7 +14,7 @@ public class EFTests
         using var scope = DependencyInjector.CreateScope();
         var serviceProvider = scope.ServiceProvider;
         var loginServices = serviceProvider.GetRequiredService<LoginServices>();
-        var loginDbFactory = serviceProvider.GetRequiredService<IDbContextFactory<ComponentDbContext<LoginDb>>>();
+        var loginDbFactory = serviceProvider.GetRequiredService<IDbContextFactory<QueryDbContext<LoginDb>>>();
 
         await using var loginDb1 = await loginDbFactory.CreateDbContextAsync();
         await using var loginDb2 = await loginDbFactory.CreateDbContextAsync();

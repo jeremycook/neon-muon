@@ -6,7 +6,7 @@ namespace DataCore;
 public class Db<TDb> : IDb<TDb>
     where TDb : IDb<TDb>
 {
-    public Db(IComponentDbContext<TDb> dbContext)
+    public Db(IDbContext<TDb> dbContext)
     {
         DbContext = dbContext;
     }
@@ -21,5 +21,5 @@ public class Db<TDb> : IDb<TDb>
         throw new NotImplementedException();
     }
 
-    protected IComponentDbContext<TDb> DbContext { get; }
+    protected IDbContext<TDb> DbContext { get; }
 }

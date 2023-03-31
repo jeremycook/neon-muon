@@ -13,10 +13,10 @@ public static class StartupExtensions
         where TDbImpl : class, TDbService
     {
         return services
-            .AddPooledDbContextFactory<ComponentDbContext<TDbService>>(optionsAction)
-            .AddDbContextPool<ComponentDbContext<TDbService>>(optionsAction)
-            .AddScoped<IComponentDbContext<TDbService>>(svc => svc.GetRequiredService<ComponentDbContext<TDbService>>())
-            .AddScoped<IComponentDbContext>(svc => svc.GetRequiredService<ComponentDbContext<TDbService>>())
+            .AddPooledDbContextFactory<QueryDbContext<TDbService>>(optionsAction)
+            .AddDbContextPool<QueryDbContext<TDbService>>(optionsAction)
+            .AddScoped<IDbContext<TDbService>>(svc => svc.GetRequiredService<QueryDbContext<TDbService>>())
+            .AddScoped<IDbContext>(svc => svc.GetRequiredService<QueryDbContext<TDbService>>())
             .AddScoped(typeof(TDbService), typeof(TDbImpl));
     }
 }

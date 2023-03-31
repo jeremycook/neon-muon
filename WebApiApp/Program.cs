@@ -74,7 +74,7 @@ internal class Program
 
         using (var scope = app.Services.CreateScope())
         {
-            var dbContexts = scope.ServiceProvider.GetServices<IComponentDbContext>()
+            var dbContexts = scope.ServiceProvider.GetServices<IDbContext>()
                 .Cast<DbContext>()
                 .ToList();
 

@@ -6,7 +6,7 @@ namespace ContentServer;
 
 public class ContentDb : Db<IContentDb>, IContentDb
 {
-    public ContentDb(IComponentDbContext<IContentDb> dbContext)
+    public ContentDb(IDbContext<IContentDb> dbContext)
         : base(dbContext) { }
 
     public IQuery<IContentDb, AuthorInfo> AuthorInfo => From<AuthorInfo>();
