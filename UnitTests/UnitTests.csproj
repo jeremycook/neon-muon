@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataMod\DataMod.csproj" />
-    <ProjectReference Include="..\EFMod\EFMod.csproj" />
     <ProjectReference Include="..\LoginMod\LoginMod.csproj" />
   </ItemGroup>
 

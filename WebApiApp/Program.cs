@@ -103,7 +103,7 @@ internal class Program {
 
                 serviceCollection.AddSingleton<PasswordHashing>();
                 serviceCollection.AddSingleton<IDbConnectionString<ILoginDb>, DbConnectionString<ILoginDb>>();
-                serviceCollection.AddScoped<IQueryOrchestrator<ILoginDb>, SqliteQueryOrchestrator<ILoginDb>>();
+                serviceCollection.AddScoped<IQueryComposer<ILoginDb>, SqliteQueryComposer<ILoginDb>>();
                 serviceCollection.AddScoped<ILoginDb, LoginDb>();
                 serviceCollection.AddScoped<LoginServices>();
             }
@@ -115,7 +115,7 @@ internal class Program {
                 serviceCollection.AddSingleton<IReadOnlyDatabase<IContentDb>>(database);
 
                 serviceCollection.AddSingleton<IDbConnectionString<IContentDb>, DbConnectionString<IContentDb>>();
-                serviceCollection.AddScoped<IQueryOrchestrator<IContentDb>, SqliteQueryOrchestrator<IContentDb>>();
+                serviceCollection.AddScoped<IQueryComposer<IContentDb>, SqliteQueryComposer<IContentDb>>();
                 serviceCollection.AddScoped<IContentDb, ContentDb>();
             }
 

@@ -5,18 +5,23 @@ namespace DataMod.Sqlite;
 
 public class SqliteProduceQueryCommand<TDb, TItem> : IQueryCommand<List<TItem>> {
     private readonly Sql sql;
-    private readonly IDbConnectionString<TDb> connectionString;
+    private readonly IDbConnectionFactory<TDb> connectionFactory;
 
-    public SqliteProduceQueryCommand(Sql sql, IDbConnectionString<TDb> connectionString) {
+    public SqliteProduceQueryCommand(Sql sql, IDbConnectionFactory<TDb> connectionFactory) {
         this.sql = sql;
-        this.connectionString = connectionString;
+        this.connectionFactory = connectionFactory;
     }
 
     public List<TItem>? Response { get; private set; }
 
     public async ValueTask ExecuteAsync(CancellationToken cancellationToken) {
-        using var connection = new SqliteConnection(connectionString.ConnectionString);
+        using var connection = connectionFactory.Get<SqliteConnection>();
         await connection.OpenAsync(cancellationToken);
-        Response = await connection.ListAsync<TItem>(sql, cancellationToken);
+        try {
+            Response = await connection.ListAsync<TItem>(sql, cancellationToken);
+        }
+        catch {
+            throw;
+        }
     }
 }

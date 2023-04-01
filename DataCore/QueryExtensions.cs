@@ -36,14 +36,9 @@ public static class QueryExtensions {
         return new ProduceQuery<TDb, T1>(query);
     }
 
-    public static IReadOnlyCollection<IQueryCommand<object>> Compose<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> queryHandler) {
-        return queryHandler.Compose<TDb>(query);
-    }
-
-    public static async ValueTask<List<T1>> ToListAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> orchestrator, CancellationToken cancellationToken = default) {
-        var commands = query
-            .Produce()
-            .Compose(orchestrator);
+    public static async ValueTask<List<T1>> ToListAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
+        var commands = composer.Compose(query
+            .Produce());
 
         if (commands.Count < 1) {
             throw new Exception();
@@ -64,7 +59,7 @@ public static class QueryExtensions {
         throw new Exception();
     }
 
-    public static async ValueTask<T1> ToItemAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> orchestrator, CancellationToken cancellationToken = default) {
+    public static async ValueTask<T1> ToItemAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> orchestrator, CancellationToken cancellationToken = default) {
         var list = await query
             .Take(2)
             .ToListAsync(orchestrator, cancellationToken);
@@ -72,7 +67,7 @@ public static class QueryExtensions {
         return list.Single();
     }
 
-    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryOrchestrator<TDb> orchestrator, CancellationToken cancellationToken = default) {
+    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> orchestrator, CancellationToken cancellationToken = default) {
         var list = await query
             .Take(2)
             .ToListAsync(orchestrator, cancellationToken);

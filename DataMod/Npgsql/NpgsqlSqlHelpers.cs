@@ -8,7 +8,7 @@ public static class NpgsqlSqlHelpers
     public static string Quote(this SqlIdentifier sqlIdentifier)
     {
         return
-            (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"." : string.Empty) +
+            (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Prefix.Replace("\"", "\"\"") + "\"." : string.Empty) +
             "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
     }
 

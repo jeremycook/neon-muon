@@ -4,9 +4,9 @@ namespace ContentMod;
 
 public class BlogSystem {
     private readonly IContentDb contentDb;
-    private readonly IQueryOrchestrator<IContentDb> orchestrator;
+    private readonly IQueryComposer<IContentDb> orchestrator;
 
-    public BlogSystem(IContentDb contentDb, IQueryOrchestrator<IContentDb> orchestrator) {
+    public BlogSystem(IContentDb contentDb, IQueryComposer<IContentDb> orchestrator) {
         this.contentDb = contentDb;
         this.orchestrator = orchestrator;
     }

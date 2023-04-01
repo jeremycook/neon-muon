@@ -1,6 +1,5 @@
 ﻿using DataCore;
 using Microsoft.Data.Sqlite;
-using System.Reflection;
 
 namespace DataMod.Sqlite;
 
@@ -35,7 +34,6 @@ public static class SqliteConnectionHelpers {
         }
     }
 
-
     public static async ValueTask<List<T>> ListAsync<T>(this SqliteConnection connection, Sql sql, CancellationToken cancellationToken = default) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
 
@@ -54,9 +52,10 @@ public static class SqliteConnectionHelpers {
                 }
             }
             else {
+                var lookup = typeof(T).GetProperties().ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
                 var props = columns.Select(c => new {
                     Column = c,
-                    Prop = typeof(T).GetProperty(c.ColumnName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!,
+                    Prop = lookup[c.ColumnName],
                 });
                 while (await reader.ReadAsync(cancellationToken)) {
                     var item = Activator.CreateInstance<T>();

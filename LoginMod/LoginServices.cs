@@ -4,10 +4,10 @@ namespace LoginMod;
 
 public class LoginServices {
     private readonly ILoginDb loginDb;
-    private readonly IQueryOrchestrator<ILoginDb> orchestrator;
+    private readonly IQueryComposer<ILoginDb> orchestrator;
     private readonly PasswordHashing passwordHashing;
 
-    public LoginServices(ILoginDb loginDb, IQueryOrchestrator<ILoginDb> orchestrator, PasswordHashing passwordHashing) {
+    public LoginServices(ILoginDb loginDb, IQueryComposer<ILoginDb> orchestrator, PasswordHashing passwordHashing) {
         this.loginDb = loginDb;
         this.orchestrator = orchestrator;
         this.passwordHashing = passwordHashing;
