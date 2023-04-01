@@ -14,9 +14,12 @@ public record struct QueryType {
     public const string From = "From";
     public const string Join = "Join";
     public const string Map = "Map";
-    public const string Produce = "Produce";
     public const string Sort = "Sort";
     public const string Take = "Take";
+
+    public const string Produce = "Produce";
+
+    public const string Insert = "Insert";
 
     private static readonly Dictionary<string, QueryType> cache = new();
 }

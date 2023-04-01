@@ -11,6 +11,17 @@ namespace UnitTests;
 public class DataTests {
     [TestMethod]
     public async Task DataTest1() {
+        var translator = new SqlExpressionTranslator();
+
+        Expression<Func<LocalLogin, bool>> condition = o => o.Username == "jeremy";
+        var sql = translator.Translate(condition);
+
+        Console.WriteLine(sql.Preview());
+        Console.WriteLine(sql.ParameterizeSql().commandText);
+    }
+
+    [TestMethod]
+    public async Task DataTest2() {
         using var connection = DependencyInjector.CreateConnection();
         IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
 
@@ -26,24 +37,82 @@ public class DataTests {
         var from = loginDb.LocalLogin;
         var filter = from.Filter(o => o.Username == "Jeremy");
         var map = filter.Map(o => o);
-        var produce = map.Produce();
 
-        var commands = composer.Compose(produce);
+        var commands = composer.Compose(map);
 
-        foreach (IQueryCommand<object> command in commands) {
+        foreach (IQueryCommand command in commands) {
             await command.ExecuteAsync();
             Console.WriteLine(JsonConvert.SerializeObject(command));
         }
     }
 
     [TestMethod]
-    public async Task DataTest2() {
-        var translator = new SqlExpressionTranslator();
+    public async Task IQueryToList() {
+        using var connection = DependencyInjector.CreateConnection();
+        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
 
-        Expression<Func<LocalLogin, bool>> condition = o => o.Username == "jeremy";
-        var sql = translator.Translate(condition);
+        var loginDatabase = new Database<ILoginDb>();
+        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
 
-        Console.WriteLine(sql.Preview());
-        Console.WriteLine(sql.ParameterizeSql().commandText);
+        ILoginDb loginDb = new LoginDb();
+        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+
+        // Act
+
+        var localLogins = await loginDb
+            .LocalLogin
+            .Filter(o => o.Username == "Jeremy")
+            .Map(o => o)
+            .ToListAsync(composer);
+        Console.WriteLine(JsonConvert.SerializeObject(localLogins));
+    }
+
+    [TestMethod]
+    public async Task IQueryToOptional() {
+        using var connection = DependencyInjector.CreateConnection();
+        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
+
+        var loginDatabase = new Database<ILoginDb>();
+        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
+
+        ILoginDb loginDb = new LoginDb();
+        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+
+        // Act
+
+        var localLogin = await loginDb
+            .LocalLogin
+            .Filter(o => o.Username == "Jeremy")
+            .Map(o => o)
+            .ToOptionalAsync(composer);
+        Console.WriteLine(JsonConvert.SerializeObject(localLogin));
+    }
+
+    [TestMethod]
+    public async Task IQueryToItem() {
+        using var connection = DependencyInjector.CreateConnection();
+        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
+
+        var loginDatabase = new Database<ILoginDb>();
+        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
+
+        ILoginDb loginDb = new LoginDb();
+        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+
+        // Act
+
+        var numberOfLoginsInserted = await loginDb
+            .LocalLogin
+            .InsertRange(new() { UserId = Guid.NewGuid(), Username = "Jeremy" }, new() { UserId = Guid.NewGuid(), Username = "Joe" })
+            .ExecuteAsync(composer);
+
+        var logins = await loginDb
+            .LocalLogin
+            .Filter(o => o.Username == "Jeremy")
+            .Map(o => o)
+            .ToItemAsync(composer);
+
+        Console.WriteLine("Inserted: " + JsonConvert.SerializeObject(numberOfLoginsInserted));
+        Console.WriteLine("Fetched: " + JsonConvert.SerializeObject(logins));
     }
 }

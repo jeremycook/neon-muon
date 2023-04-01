@@ -171,7 +171,7 @@ public readonly struct Sql
     /// <returns></returns>
     public static Sql IdentifierList(IEnumerable<string> texts)
     {
-        return Join(", ", texts.Select(t => new SqlLiteral(t) as object));
+        return Join(", ", texts.Select(t => new SqlIdentifier(t) as object));
     }
 
     public static Sql Literal(string text)

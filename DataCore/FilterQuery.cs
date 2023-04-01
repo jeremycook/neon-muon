@@ -8,7 +8,7 @@ public readonly struct FilterQuery<TDb, T1> : IQuery<TDb, T1> {
         Condition = condition;
     }
 
-    public QueryType Type => QueryType.Filter;
+    public QueryType QueryType => QueryType.Filter;
     public IQuery<TDb, T1> Query { get; }
     public Expression<Func<T1, bool>> Condition { get; }
 }

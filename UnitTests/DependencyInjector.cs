@@ -38,6 +38,10 @@ internal static class DependencyInjector {
         return services;
     });
 
+    /// <summary>
+    /// Creates an in-memory connection.
+    /// </summary>
+    /// <returns></returns>
     public static SqliteConnection CreateConnection() {
         var connectionStringBuilder = new SqliteConnectionStringBuilder() {
             DataSource = "UnitTests",

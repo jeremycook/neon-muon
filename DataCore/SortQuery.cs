@@ -9,7 +9,7 @@ public readonly struct SortQuery<TDb, T1, TProperty> : IQuery<TDb, T1> {
         Asc = asc;
     }
 
-    public QueryType Type => QueryType.Sort;
+    public QueryType QueryType => QueryType.Sort;
     public IQuery<TDb, T1> Query { get; }
     public Expression<Func<T1, TProperty>> Sort { get; }
     public SortDirection Asc { get; }

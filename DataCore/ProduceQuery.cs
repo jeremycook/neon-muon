@@ -1,10 +1,14 @@
 ﻿namespace DataCore;
 
-public struct ProduceQuery<TDb, T1> : IQuery<TDb, T1> {
+public static class ProduceQuery {
+    public static ProduceQuery<TDb, T1> Create<TDb, T1>(IQuery<TDb, T1> query) => new(query);
+}
+
+public readonly struct ProduceQuery<TDb, T1> : IQuery<TDb, T1> {
     public ProduceQuery(IQuery<TDb, T1> query) {
         Query = query;
     }
 
-    public QueryType Type => QueryType.Produce;
+    public QueryType QueryType => QueryType.Produce;
     public IQuery<TDb, T1> Query { get; }
 }

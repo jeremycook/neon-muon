@@ -67,7 +67,12 @@ public static class SqliteConnectionHelpers {
 
                         try {
                             if (value is not null && value.GetType() != prop.Prop.PropertyType) {
-                                value = Convert.ChangeType(value, prop.Prop.PropertyType);
+                                if (value is string text && prop.Prop.PropertyType == typeof(Guid)) {
+                                    value = Guid.Parse(text);
+                                }
+                                else {
+                                    value = Convert.ChangeType(value, prop.Prop.PropertyType);
+                                }
                             }
 
                             prop.Prop.SetValue(item, value);

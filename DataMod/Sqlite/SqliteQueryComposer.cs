@@ -16,34 +16,36 @@ public class SqliteQueryComposer<TDb> : IQueryComposer<TDb> {
     public IDbConnectionFactory<TDb> ConnectionFactory { get; }
     public IReadOnlyDatabase<TDb> Database { get; }
 
-    public IReadOnlyCollection<IQueryCommand<object>> Compose(IQuery<TDb> query) {
+    public IReadOnlyCollection<IQueryCommand> Compose(IQuery<TDb> query) {
         return StartVisit(query).ToArray();
     }
 
-    private IEnumerable<IQueryCommand<object>> StartVisit(IQuery<TDb> query) {
-        switch (query.Type.Name) {
+    private IEnumerable<IQueryCommand> StartVisit(IQuery<TDb> query) {
+        switch (query.QueryType.Name) {
 
             case QueryType.Produce:
-                var dynamicResult = Produce(query as dynamic);
-                var enumerable = (IEnumerable<IQueryCommand<object>>)dynamicResult;
-                foreach (var queryCommand in enumerable) {
+                var produceResult = Produce(query as dynamic);
+                foreach (var queryCommand in produceResult) {
                     yield return queryCommand;
                 }
                 break;
 
-            case QueryType.From:
-                // A From without a Produce does not do anything
-                // TODO: Throw instead?
-                yield break;
-
             default:
-                throw new NotSupportedException($"Unsupported query: {query}");
+                var result = Produce(query as dynamic);
+                foreach (var queryCommand in result) {
+                    yield return queryCommand;
+                }
+                break;
         }
     }
 
     private Sql From<T1>(FromQuery<TDb, T1> query) {
-        var sql = Interpolate($"FROM {Identifier(query.T1Type.Name)}");
+        var sql = Interpolate($"FROM {Table(query)}");
         return sql;
+    }
+
+    private static Sql Table<T1>(FromQuery<TDb, T1> query) {
+        return Identifier(query.T1Type.Name);
     }
 
     private Sql Filter<T1>(FilterQuery<TDb, T1> query) {
@@ -53,7 +55,25 @@ public class SqliteQueryComposer<TDb> : IQueryComposer<TDb> {
             return sql;
         }
         else {
-            throw new NotSupportedException($"Unsupported query: {query}");
+            throw new NotSupportedException($"Unable to filter: {query}");
+        }
+    }
+
+    private Sql Take<T1>(TakeQuery<TDb, T1> query) {
+        if (query.Query is FromQuery<TDb, T1> fromQuery) {
+            var sql = Interpolate($"{From(fromQuery)} LIMIT {Raw(query.Take.ToString())}");
+            return sql;
+        }
+        else if (query.Query is FilterQuery<TDb, T1> filterQuery) {
+            var sql = Interpolate($"{Filter(filterQuery)} LIMIT {Raw(query.Take.ToString())}");
+            return sql;
+        }
+        else if (query.Query.QueryType == QueryType.Map) {
+            var sql = Interpolate($"{Map(query.Query as dynamic)} LIMIT {Raw(query.Take.ToString())}");
+            return sql;
+        }
+        else {
+            throw new NotSupportedException($"Unable to take: {query}");
         }
     }
 
@@ -67,27 +87,62 @@ public class SqliteQueryComposer<TDb> : IQueryComposer<TDb> {
             return sql;
         }
         else {
-            throw new NotSupportedException($"Unsupported query: {query}");
+            throw new NotSupportedException($"Unable to map: {query.Query}");
         }
     }
 
-    private IEnumerable<IQueryCommand<List<T1>>> Produce<T1>(ProduceQuery<TDb, T1> query) {
+    private IEnumerable<IQueryCommand> Produce<T1>(ProduceQuery<TDb, T1> produceQuery) {
+        return Produce(produceQuery.Query);
+    }
+
+    private Sql InsertQuery<T1>(InsertQuery<TDb, T1> query) {
         if (query.Query is FromQuery<TDb, T1> fromQuery) {
+            var sql = Interpolate($"INSERT INTO {Table(fromQuery)} ({Columns(fromQuery)}) VALUES {Join(", ", query.Items.Select(Values))}");
+            return sql;
+        }
+        else {
+            throw new NotSupportedException($"Unable to insert with: {query}");
+        }
+    }
+
+    private Sql Columns<T1>(FromQuery<TDb, T1> _) {
+        return IdentifierList(typeof(T1).GetProperties().Select(p => p.Name));
+    }
+
+    private Sql Values<T1>(T1 item) {
+        return Interpolate($"({Join(", ", typeof(T1).GetProperties().Select(p => p.GetValue(item)))})");
+    }
+
+    private IEnumerable<IQueryCommand> Produce<T1>(IQuery<TDb, T1> query) {
+        // DQL
+        if (query is FromQuery<TDb, T1> fromQuery) {
             var sql = Interpolate($"SELECT * {From(fromQuery)}");
-            var command = new SqliteProduceQueryCommand<TDb, T1>(sql, ConnectionFactory);
+            var command = new SqliteListQueryCommand<TDb, T1>(sql, ConnectionFactory);
             yield return command;
         }
-        else if (query.Query is FilterQuery<TDb, T1> filterQuery) {
+        else if (query is FilterQuery<TDb, T1> filterQuery) {
             var sql = Interpolate($"SELECT * {Filter(filterQuery)}");
-            var command = new SqliteProduceQueryCommand<TDb, T1>(sql, ConnectionFactory);
+            var command = new SqliteListQueryCommand<TDb, T1>(sql, ConnectionFactory);
             yield return command;
         }
-        else if (query.Query.Type == QueryType.Map) {
-            dynamic mapQuery = query.Query;
-            Sql sql = Map(mapQuery);
-            var command = new SqliteProduceQueryCommand<TDb, T1>(sql, ConnectionFactory);
+        else if (query.QueryType == QueryType.Take) {
+            Sql sql = Take(query as dynamic);
+            var command = new SqliteListQueryCommand<TDb, T1>(sql, ConnectionFactory);
             yield return command;
         }
+        else if (query.QueryType == QueryType.Map) {
+            Sql sql = Map(query as dynamic);
+            var command = new SqliteListQueryCommand<TDb, T1>(sql, ConnectionFactory);
+            yield return command;
+        }
+
+        // DML
+        else if (query is InsertQuery<TDb, T1> insertQuery) {
+            Sql sql = InsertQuery(insertQuery);
+            var command = new SqliteExecuteNonQueryCommand<TDb>(sql, ConnectionFactory);
+            yield return command;
+        }
+
         else {
             throw new NotSupportedException($"Unsupported query: {query}");
         }

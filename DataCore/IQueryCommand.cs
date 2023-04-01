@@ -1,6 +1,6 @@
 ﻿namespace DataCore;
 
-public interface IQueryCommand<out TResponse> {
+public interface IQueryCommand {
     ValueTask ExecuteAsync(CancellationToken cancellationToken = default);
-    TResponse? Response { get; }
+    object? Response { get; }
 }

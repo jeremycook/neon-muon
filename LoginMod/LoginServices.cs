@@ -4,46 +4,46 @@ namespace LoginMod;
 
 public class LoginServices {
     private readonly ILoginDb loginDb;
-    private readonly IQueryComposer<ILoginDb> orchestrator;
+    private readonly IQueryComposer<ILoginDb> composer;
     private readonly PasswordHashing passwordHashing;
 
-    public LoginServices(ILoginDb loginDb, IQueryComposer<ILoginDb> orchestrator, PasswordHashing passwordHashing) {
+    public LoginServices(ILoginDb loginDb, IQueryComposer<ILoginDb> composer, PasswordHashing passwordHashing) {
         this.loginDb = loginDb;
-        this.orchestrator = orchestrator;
+        this.composer = composer;
         this.passwordHashing = passwordHashing;
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var component = await loginDb
+        var login = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToOptionalAsync(orchestrator, cancellationToken);
+            .ToOptionalAsync(composer, cancellationToken);
 
-        if (component is null) {
+        if (login is null) {
             return LoginConstants.Unknown;
         }
 
-        var result = passwordHashing.Verify(component.Hash, password);
+        var result = passwordHashing.Verify(login.Hash, password);
         switch (result) {
             case PasswordHashingVerify.Success:
 
-                return component;
+                return login;
 
             case PasswordHashingVerify.SuccessRehashNeeded:
 
-                var rehashedPassword = passwordHashing.Hash(component.Hash);
+                var rehashedPassword = passwordHashing.Hash(login.Hash);
 
                 // Rehash the password
                 _ = loginDb
                     .LocalLogin
-                    .Filter(x => x.UserId == component.UserId && x.Version == component.Version)
+                    .Filter(x => x.UserId == login.UserId && x.Version == login.Version)
                     .Update(x => new LocalLogin() {
                         Version = x.Version + 1,
                         Hash = rehashedPassword,
                     })
-                    .ExecuteAsync(cancellationToken);
+                    .ExecuteAsync(composer, cancellationToken);
 
-                return component;
+                return login;
 
             case PasswordHashingVerify.Failed:
 
@@ -59,7 +59,7 @@ public class LoginServices {
         var component = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToItemAsync(orchestrator, cancellationToken);
+            .ToItemAsync(composer, cancellationToken);
 
         if (component is not null) {
             // A user with that username already exists
@@ -78,7 +78,7 @@ public class LoginServices {
         await loginDb
             .LocalLogin
             .Insert(component)
-            .ExecuteAsync(1, cancellationToken);
+            .ExecuteAsync(1, composer, cancellationToken);
 
         return component;
     }

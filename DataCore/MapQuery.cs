@@ -8,7 +8,7 @@ public readonly struct MapQuery<TDb, T1, TMapped> : IQuery<TDb, TMapped> {
         Map = map;
     }
 
-    public QueryType Type => QueryType.Map;
+    public QueryType QueryType => QueryType.Map;
     public IQuery<TDb, T1> Query { get; }
     public Expression<Func<T1, TMapped>> Map { get; }
 }

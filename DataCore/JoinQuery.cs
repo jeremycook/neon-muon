@@ -11,7 +11,7 @@ public readonly struct JoinQuery<TDb, T1, T2> : IQuery<TDb, (T1, T2)>
         Condition = condition;
     }
 
-    public QueryType Type => QueryType.Join;
+    public QueryType QueryType => QueryType.Join;
     public IQuery<TDb, T1> Query1 { get; }
     public IQuery<TDb, T2> Query2 { get; }
     public Expression<Func<T1, T2, bool>> Condition { get; }

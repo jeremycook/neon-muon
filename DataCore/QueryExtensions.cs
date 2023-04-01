@@ -37,8 +37,7 @@ public static class QueryExtensions {
     }
 
     public static async ValueTask<List<T1>> ToListAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
-        var commands = composer.Compose(query
-            .Produce());
+        var commands = composer.Compose(query);
 
         if (commands.Count < 1) {
             throw new Exception();
@@ -59,36 +58,58 @@ public static class QueryExtensions {
         throw new Exception();
     }
 
-    public static async ValueTask<T1> ToItemAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> orchestrator, CancellationToken cancellationToken = default) {
+    public static async ValueTask<T1> ToItemAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
         var list = await query
             .Take(2)
-            .ToListAsync(orchestrator, cancellationToken);
+            .ToListAsync(composer, cancellationToken);
 
         return list.Single();
     }
 
-    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> orchestrator, CancellationToken cancellationToken = default) {
+    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
         var list = await query
             .Take(2)
-            .ToListAsync(orchestrator, cancellationToken);
+            .ToListAsync(composer, cancellationToken);
 
         return list.SingleOrDefault();
     }
 
 
     public static IQuery<TDb, T1> Insert<TDb, T1>(this IQuery<TDb, T1> query, T1 item) {
-        throw new NotImplementedException();
+        return InsertQuery.Create(query, item);
+    }
+
+    public static IQuery<TDb, T1> InsertRange<TDb, T1>(this IQuery<TDb, T1> query, params T1[] items) {
+        return InsertQuery.Create(query, items);
     }
 
     public static IQuery<TDb, T1> Update<TDb, T1>(this IQuery<TDb, T1> query, Expression<Func<T1, T1>> update) {
         throw new NotImplementedException();
     }
 
-    public static ValueTask<int> ExecuteAsync<TDb, T1>(this IQuery<TDb, T1> query, CancellationToken cancellationToken = default) {
-        throw new NotImplementedException();
+    public static async ValueTask<int> ExecuteAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
+        var commands = composer.Compose(query);
+
+        if (commands.Count <= 0) {
+            throw new Exception();
+        }
+
+        // Process commands that preceded the Produce we just added
+        foreach (var command in commands.Take(commands.Count - 1)) {
+            await command.ExecuteAsync(cancellationToken);
+        }
+
+        // Now process the Produce we just added
+        var lastCommand = commands.Last();
+        await lastCommand.ExecuteAsync(cancellationToken);
+        if (lastCommand.Response is int modifications) {
+            return modifications;
+        }
+
+        throw new Exception();
     }
 
-    public static ValueTask ExecuteAsync<TDb, T1>(this IQuery<TDb, T1> query, int modifications, CancellationToken cancellationToken = default) {
+    public static ValueTask ExecuteAsync<TDb, T1>(this IQuery<TDb, T1> query, int modifications, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
         throw new NotImplementedException();
     }
 }
