@@ -110,12 +110,12 @@ public class DataTests {
             .InsertRange(insertedLogins)
             .ExecuteAsync(composer);
 
-        var fetchedLogin = await loginDb
+        var fetchedLogins = await loginDb
             .LocalLogin
             .Filter(o => o.Username == "Jeremy")
             .Map(o => o)
-            .ToItemAsync(composer);
+            .ToListAsync(composer);
 
-        Assert.IsTrue(insertedLogins.Contains(fetchedLogin));
+        Assert.AreEqual(1, insertedLogins.Intersect(fetchedLogins).Count());
     }
 }
