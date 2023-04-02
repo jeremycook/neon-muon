@@ -101,18 +101,21 @@ public class DataTests {
 
         // Act
 
+        var insertedLogins = new LocalLogin[] {
+            new() { UserId = Guid.NewGuid(), Username = "Jeremy" },
+            new() { UserId = Guid.NewGuid(), Username = "Joe" }
+        };
         var numberOfLoginsInserted = await loginDb
             .LocalLogin
-            .InsertRange(new() { UserId = Guid.NewGuid(), Username = "Jeremy" }, new() { UserId = Guid.NewGuid(), Username = "Joe" })
+            .InsertRange(insertedLogins)
             .ExecuteAsync(composer);
 
-        var logins = await loginDb
+        var fetchedLogin = await loginDb
             .LocalLogin
             .Filter(o => o.Username == "Jeremy")
             .Map(o => o)
             .ToItemAsync(composer);
 
-        Console.WriteLine("Inserted: " + JsonConvert.SerializeObject(numberOfLoginsInserted));
-        Console.WriteLine("Fetched: " + JsonConvert.SerializeObject(logins));
+        Assert.IsTrue(insertedLogins.Contains(fetchedLogin));
     }
 }

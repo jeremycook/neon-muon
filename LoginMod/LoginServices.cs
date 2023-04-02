@@ -14,14 +14,16 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var login = await loginDb
+        var loginOption = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
             .ToOptionalAsync(composer, cancellationToken);
 
-        if (login is null) {
+        if (!loginOption.HasValue) {
             return LoginConstants.Unknown;
         }
+
+        var login = loginOption.Value;
 
         var result = passwordHashing.Verify(login.Hash, password);
         switch (result) {
@@ -56,19 +58,19 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
-        var component = await loginDb
+        var loginOption = await loginDb
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToItemAsync(composer, cancellationToken);
+            .ToOptionalAsync(composer, cancellationToken);
 
-        if (component is not null) {
+        if (loginOption.HasValue) {
             // A user with that username already exists
             return LoginConstants.Unknown;
         }
 
         var hashedPassword = passwordHashing.Hash(password);
 
-        component = new() {
+        var login = new LocalLogin() {
             UserId = Guid.NewGuid(),
             Version = 0,
             Username = username,
@@ -77,9 +79,9 @@ public class LoginServices {
 
         await loginDb
             .LocalLogin
-            .Insert(component)
+            .Insert(login)
             .ExecuteAsync(1, composer, cancellationToken);
 
-        return component;
+        return login;
     }
 }

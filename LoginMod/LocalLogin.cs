@@ -2,16 +2,16 @@
 
 namespace LoginMod;
 
-public class LocalLogin
-{
-    public LocalLogin() { }
-    public LocalLogin(LocalLogin source)
-    {
-        UserId = source.UserId;
-        Username = source.Username;
-        Hash = source.Hash;
-        Version = source.Version;
+public readonly record struct LocalLogin {
+    public LocalLogin(Guid userId, int version, string username, string hash) {
+        UserId = userId;
+        Version = version;
+        Username = username;
+        Hash = hash;
     }
+
+    public LocalLogin(LocalLogin source)
+        : this(source.UserId, source.Version, source.Username, source.Hash) { }
 
     [Key]
     public Guid UserId { get; init; }

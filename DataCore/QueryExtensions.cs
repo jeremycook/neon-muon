@@ -66,7 +66,8 @@ public static class QueryExtensions {
         return list.Single();
     }
 
-    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
+    public static async ValueTask<T1?> ToOptionalAsync<TDb, T1>(this IQuery<TDb, T1> query, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default)
+        where T1 : struct {
         var list = await query
             .Take(2)
             .ToListAsync(composer, cancellationToken);
