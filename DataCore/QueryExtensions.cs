@@ -72,7 +72,7 @@ public static class QueryExtensions {
             .Take(2)
             .ToListAsync(composer, cancellationToken);
 
-        return list.SingleOrDefault();
+        return list.Any() ? list.Single() : new T1?();
     }
 
 
@@ -108,9 +108,5 @@ public static class QueryExtensions {
         }
 
         throw new Exception();
-    }
-
-    public static ValueTask ExecuteAsync<TDb, T1>(this IQuery<TDb, T1> query, int modifications, IQueryComposer<TDb> composer, CancellationToken cancellationToken = default) {
-        throw new NotImplementedException();
     }
 }

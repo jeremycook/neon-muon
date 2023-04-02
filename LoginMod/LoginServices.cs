@@ -80,7 +80,7 @@ public class LoginServices {
         await loginDb
             .LocalLogin
             .Insert(login)
-            .ExecuteAsync(1, composer, cancellationToken);
+            .ExecuteAsync(composer, cancellationToken);
 
         return login;
     }

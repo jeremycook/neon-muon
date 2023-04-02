@@ -2,7 +2,6 @@ using DatabaseMod.Models;
 using DataCore;
 using DataMod.Sqlite;
 using LoginMod;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace UnitTests;
 

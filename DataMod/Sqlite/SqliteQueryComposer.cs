@@ -126,7 +126,7 @@ public class SqliteQueryComposer<TDb> : IQueryComposer<TDb> {
             yield return command;
         }
         else if (query.QueryType == QueryType.Take) {
-            Sql sql = Take(query as dynamic);
+            var sql = Interpolate($"SELECT * {Take(query as dynamic)}");
             var command = new SqliteListQueryCommand<TDb, T1>(sql, ConnectionFactory);
             yield return command;
         }

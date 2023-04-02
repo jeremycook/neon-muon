@@ -31,6 +31,17 @@ public class SqlExpressionTranslator {
             case MemberInitExpression memberInit:
                 return Sql.Join(", ", memberInit.Bindings.Select(GetBinding).Cast<object?>());
 
+            case MethodCallExpression methodCall when methodCall.Object is not null:
+                if (methodCall.Type == typeof(string) && methodCall.Arguments.Count == 0) {
+                    switch (methodCall.Method.Name) {
+                        case nameof(string.ToLower):
+                            return Sql.Interpolate($"lower({Translate(methodCall.Object)})");
+                        case nameof(string.ToUpper):
+                            return Sql.Interpolate($"upper({Translate(methodCall.Object)})");
+                    }
+                }
+                break;
+
             case ParameterExpression parameter:
                 // TODO: How should these be handled.
                 break;
