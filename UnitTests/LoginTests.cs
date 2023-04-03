@@ -2,6 +2,7 @@ using DatabaseMod.Models;
 using DataCore;
 using DataMod.Sqlite;
 using LoginMod;
+using Microsoft.Data.Sqlite;
 
 namespace UnitTests;
 
@@ -9,16 +10,16 @@ namespace UnitTests;
 public class LoginTests {
     [TestMethod]
     public async Task RegisterAndLogin() {
+        LoginDb loginDb = LoginDb.Instance;
+
+        var composer = new SqliteCommandComposer<LoginDb>(loginDb.Database);
+
         using var connection = DependencyInjector.CreateConnection();
-        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
+        IDbConnectionPool<LoginDb, SqliteConnection> connectionPool = new StaticDbConnectionPool<LoginDb, SqliteConnection>(connection);
 
-        var loginDatabase = new Database<ILoginDb>();
-        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
+        IQueryRunner<LoginDb> runner = new SqliteQueryRunner<LoginDb>(composer, connectionPool);
 
-        ILoginDb loginDb = new LoginDb();
-        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
-        PasswordHashing passwordHashing = new();
-        LoginServices loginServices = new(loginDb, composer, passwordHashing);
+        LoginServices loginServices = new(loginDb, runner);
 
         var newUser = await loginServices.Register("john", "P@ssword!");
         var wrongPassword = await loginServices.Find("john", "WrongP@ssword!");

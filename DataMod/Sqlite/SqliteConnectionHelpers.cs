@@ -13,11 +13,20 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
+        return connection.Execute(command);
+    }
+
+    public static int Execute(this SqliteConnection connection, SqliteCommand command) {
+        var lastConnection = command.Connection;
+        command.Connection = connection;
+
         try {
-            return command.ExecuteNonQuery();
+            var modifications = command.ExecuteNonQuery();
+            command.Connection = lastConnection;
+            return modifications;
         }
         catch (SqliteException ex) {
-            throw new Exception("An error occurred executing command: " + CommandText, ex);
+            throw new Exception("Error executing: " + command.CommandText, ex);
         }
     }
 
@@ -28,11 +37,20 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
+        return await connection.ExecuteAsync(command, cancellationToken);
+    }
+
+    public static async ValueTask<int> ExecuteAsync(this SqliteConnection connection, SqliteCommand command, CancellationToken cancellationToken = default) {
+        var lastConnection = command.Connection;
+        command.Connection = connection;
+
         try {
-            return await command.ExecuteNonQueryAsync(cancellationToken);
+            var modifications = await command.ExecuteNonQueryAsync(cancellationToken);
+            command.Connection = lastConnection;
+            return modifications;
         }
         catch (SqliteException ex) {
-            throw new Exception("An error occurred executing command: " + CommandText, ex);
+            throw new Exception("Error executing: " + command.CommandText, ex);
         }
     }
 
@@ -43,13 +61,29 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
+        return await command.ListAsync<T>(cancellationToken);
+    }
+
+    public static async ValueTask<List<T>> ListAsync<T>(this SqliteConnection connection, SqliteCommand command, CancellationToken cancellationToken = default) {
+        var lastConnection = command.Connection;
+        command.Connection = connection;
+
+        var list = await command.ListAsync<T>(cancellationToken);
+
+        command.Connection = lastConnection;
+
+        return list;
+    }
+
+    public static async ValueTask<List<T>> ListAsync<T>(this SqliteCommand command, CancellationToken cancellationToken = default) {
         var type = typeof(T);
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
         var list = new List<T>();
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken)) {
 
             var columns = await reader.GetColumnSchemaAsync(cancellationToken);
 
-            var primitive = columns.Count == 1 && columns[0].DataType == type;
+            var primitive = underlyingType.IsPrimitive || underlyingType == typeof(string) || underlyingType == typeof(Guid);
             if (primitive) {
                 while (await reader.ReadAsync(cancellationToken)) {
                     var value = reader.GetFieldValue<T>(0);

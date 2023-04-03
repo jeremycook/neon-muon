@@ -9,7 +9,7 @@ public static class NpgsqlSqlHelpers
     {
         return
             (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Prefix.Replace("\"", "\"\"") + "\"." : string.Empty) +
-            "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
+            (sqlIdentifier.Value == "*" ? "*" : "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"");
     }
 
     public static string Quote(this SqlLiteral sqlLiteral)

@@ -7,14 +7,14 @@ public static class SqliteSqlHelpers {
     public static string Quote(this SqlIdentifier sqlIdentifier) {
         return
             (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Prefix.Replace("\"", "\"\"") + "\"." : string.Empty) +
-            "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"";
+            (sqlIdentifier.Value == "*" ? "*" : "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"");
     }
 
     public static string Quote(this SqlLiteral sqlLiteral) {
         return "'" + sqlLiteral.Value.Replace("'", "''") + "'";
     }
 
-    public static (string commandText, SqliteParameter[] parameterValues) ParameterizeSql(this Sql sql) {
+    public static (string CommandText, SqliteParameter[] Parameters) ParameterizeSql(this Sql sql) {
         var tempValues = new List<object>();
         var formatArgs = new List<string>(sql.Arguments.Count);
 
@@ -40,12 +40,12 @@ public static class SqliteSqlHelpers {
         }
 
         string commandText = string.Format(sql.Format, args: formatArgs.ToArray());
-        var parameterValues = tempValues
+        var parameters = tempValues
             .Select((val, i) => val switch {
                 _ => new SqliteParameter("p" + i, val),
             })
             .ToArray();
-        return (commandText, parameterValues);
+        return (commandText, parameters);
     }
 
     private static string GetParameterizedSql(Sql sql, ref List<object> parameterValues) {

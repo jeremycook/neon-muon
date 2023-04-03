@@ -3,7 +3,6 @@ using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
 using DataCore;
-using DataCore.EF;
 using DataMod.Sqlite;
 using LoginApi;
 using LoginMod;
@@ -67,7 +66,7 @@ internal class Program {
                     currentDatabase.ContributeSqlite(connection);
 
                     var goalDatabase = new Database();
-                    goalDatabase.ContributeQueryContext(typeof(ILoginDb));
+                    goalDatabase.ContributeQueryContext(typeof(LoginDb));
                     goalDatabase.ContributeQueryContext(typeof(IContentDb));
 
                     var alterations = new List<DatabaseAlteration>();
@@ -97,14 +96,14 @@ internal class Program {
 
             // Login
             {
-                var database = new Database<ILoginDb>();
-                database.ContributeQueryContext(typeof(ILoginDb));
-                serviceCollection.AddSingleton<IReadOnlyDatabase<ILoginDb>>(database);
+                var database = new Database<LoginDb>();
+                database.ContributeQueryContext(typeof(LoginDb));
+                serviceCollection.AddSingleton<IReadOnlyDatabase<LoginDb>>(database);
 
                 serviceCollection.AddSingleton<PasswordHashing>();
-                serviceCollection.AddSingleton<IDbConnectionString<ILoginDb>, DbConnectionString<ILoginDb>>();
-                serviceCollection.AddScoped<IQueryComposer<ILoginDb>, SqliteQueryComposer<ILoginDb>>();
-                serviceCollection.AddScoped<ILoginDb, LoginDb>();
+                serviceCollection.AddSingleton<IDbConnectionString<LoginDb>, DbConnectionString<LoginDb>>();
+                serviceCollection.AddScoped<IDbCommandComposer<LoginDb>, SqliteCommandComposer<LoginDb>>();
+                serviceCollection.AddScoped<LoginDb, LoginDb>();
                 serviceCollection.AddScoped<LoginServices>();
             }
 
@@ -115,7 +114,7 @@ internal class Program {
                 serviceCollection.AddSingleton<IReadOnlyDatabase<IContentDb>>(database);
 
                 serviceCollection.AddSingleton<IDbConnectionString<IContentDb>, DbConnectionString<IContentDb>>();
-                serviceCollection.AddScoped<IQueryComposer<IContentDb>, SqliteQueryComposer<IContentDb>>();
+                serviceCollection.AddScoped<IDbCommandComposer<IContentDb>, SqliteCommandComposer<IContentDb>>();
                 serviceCollection.AddScoped<IContentDb, ContentDb>();
             }
 

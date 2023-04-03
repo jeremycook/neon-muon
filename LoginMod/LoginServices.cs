@@ -3,21 +3,19 @@
 namespace LoginMod;
 
 public class LoginServices {
-    private readonly ILoginDb loginDb;
-    private readonly IQueryComposer<ILoginDb> composer;
-    private readonly PasswordHashing passwordHashing;
+    private readonly LoginDb loginDb;
+    private readonly IQueryRunner<LoginDb> runner;
 
-    public LoginServices(ILoginDb loginDb, IQueryComposer<ILoginDb> composer, PasswordHashing passwordHashing) {
+    public LoginServices(LoginDb loginDb, IQueryRunner<LoginDb> runner) {
         this.loginDb = loginDb;
-        this.composer = composer;
-        this.passwordHashing = passwordHashing;
+        this.runner = runner;
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await loginDb
+        var loginOption = await runner.Nullable(loginDb
             .LocalLogin
-            .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToOptionalAsync(composer, cancellationToken);
+            .Filter(x => x.Username.ToLower() == username.ToLower()),
+            cancellationToken);
 
         if (!loginOption.HasValue) {
             return LoginConstants.Unknown;
@@ -25,7 +23,7 @@ public class LoginServices {
 
         var login = loginOption.Value;
 
-        var result = passwordHashing.Verify(login.Hash, password);
+        var result = PasswordHashing.Instance.Verify(login.Hash, password);
         switch (result) {
             case PasswordHashingVerify.Success:
 
@@ -33,17 +31,17 @@ public class LoginServices {
 
             case PasswordHashingVerify.SuccessRehashNeeded:
 
-                var rehashedPassword = passwordHashing.Hash(login.Hash);
+                var rehashedPassword = PasswordHashing.Instance.Hash(login.Hash);
 
                 // Rehash the password
-                _ = loginDb
+                _ = runner.Execute(loginDb
                     .LocalLogin
                     .Filter(x => x.UserId == login.UserId && x.Version == login.Version)
-                    .Update(x => new LocalLogin() {
+                    .Update(x => new LocalLogin(x) {
                         Version = x.Version + 1,
                         Hash = rehashedPassword,
-                    })
-                    .ExecuteAsync(composer, cancellationToken);
+                    }),
+                    cancellationToken);
 
                 return login;
 
@@ -58,29 +56,24 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await loginDb
+        var loginOption = await runner.Nullable(loginDb
             .LocalLogin
-            .Filter(x => x.Username.ToLower() == username.ToLower())
-            .ToOptionalAsync(composer, cancellationToken);
+            .Filter(x => x.Username.ToLower() == username.ToLower()),
+            cancellationToken);
 
         if (loginOption.HasValue) {
             // A user with that username already exists
             return LoginConstants.Unknown;
         }
 
-        var hashedPassword = passwordHashing.Hash(password);
+        var hashedPassword = PasswordHashing.Instance.Hash(password);
 
-        var login = new LocalLogin() {
-            UserId = Guid.NewGuid(),
-            Version = 0,
-            Username = username,
-            Hash = hashedPassword,
-        };
+        var login = new LocalLogin(Guid.NewGuid(), 0, username, hashedPassword);
 
-        await loginDb
+        await runner.Execute(loginDb
             .LocalLogin
-            .Insert(login)
-            .ExecuteAsync(composer, cancellationToken);
+            .Insert(login),
+            cancellationToken);
 
         return login;
     }

@@ -8,6 +8,10 @@ using System.Reflection;
 namespace DataCore;
 
 public static class QueryContextDatabaseExtensions {
+    public static void ContributeQueryContext<TDb>(this Database<TDb> database) {
+        database.ContributeQueryContext(typeof(TDb));
+    }
+
     public static void ContributeQueryContext(this Database database, Type queryContextType) {
         var defaultSchema = string.Empty;
 

@@ -44,7 +44,7 @@ internal static class DependencyInjector {
     /// <returns></returns>
     public static SqliteConnection CreateConnection() {
         var connectionStringBuilder = new SqliteConnectionStringBuilder() {
-            DataSource = "UnitTests",
+            DataSource = "UnitTests" + Random.Shared.Next(),
             Mode = SqliteOpenMode.Memory,
             Cache = SqliteCacheMode.Shared,
         };
@@ -60,10 +60,9 @@ internal static class DependencyInjector {
         connection.Open();
 
         var currentDatabase = new Database();
-        currentDatabase.ContributeSqlite(connection);
 
         var goalDatabase = new Database();
-        goalDatabase.ContributeQueryContext(typeof(ILoginDb));
+        goalDatabase.ContributeQueryContext(typeof(LoginDb));
 
         var alterations = new List<DatabaseAlteration>();
         foreach (var goalSchema in goalDatabase.Schemas) {

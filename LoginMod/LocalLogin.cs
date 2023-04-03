@@ -1,8 +1,19 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 
 namespace LoginMod;
 
 public readonly record struct LocalLogin {
+    [Obsolete]
+    public LocalLogin() { }
+
+    public LocalLogin(string username) {
+        UserId = Guid.NewGuid();
+        Version = 0;
+        Username = username;
+        Hash = PasswordHashing.Instance.Hash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)));
+    }
+
     public LocalLogin(Guid userId, int version, string username, string hash) {
         UserId = userId;
         Version = version;

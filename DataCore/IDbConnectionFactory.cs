@@ -2,20 +2,16 @@
 
 namespace DataCore;
 
-public interface IDbConnectionFactory<TDb> {
-    TDbConnection Get<TDbConnection>()
-        where TDbConnection : DbConnection;
+public interface IDbConnectionPool<TDb, TDbConnection> where TDbConnection : DbConnection {
+    PooledDbConnection<TDbConnection> Create();
 }
 
-public class StaticDbConnectionFactory<TDb> : IDbConnectionFactory<TDb> {
-    public StaticDbConnectionFactory(DbConnection connection) {
-        Connection = connection;
+public class StaticDbConnectionPool<TDb, TDbConnection> : IDbConnectionPool<TDb, TDbConnection> where TDbConnection : DbConnection {
+    private readonly TDbConnection connection;
+
+    public StaticDbConnectionPool(TDbConnection connection) {
+        this.connection = connection;
     }
 
-    public DbConnection Connection { get; }
-
-    public TDbConnection Get<TDbConnection>()
-        where TDbConnection : DbConnection {
-        return (TDbConnection)Connection;
-    }
+    public PooledDbConnection<TDbConnection> Create() => new(connection, disposeConnection: false);
 }

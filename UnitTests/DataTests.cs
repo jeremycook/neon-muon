@@ -2,120 +2,78 @@
 using DataCore;
 using DataMod.Sqlite;
 using LoginMod;
+using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
-using System.Linq.Expressions;
 
 namespace UnitTests;
 
 [TestClass]
 public class DataTests {
-    [TestMethod]
-    public async Task DataTest1() {
-        var translator = new SqlExpressionTranslator();
 
-        Expression<Func<LocalLogin, bool>> condition = o => o.Username == "jeremy";
-        var sql = translator.Translate(condition);
+    private readonly record struct Dto(Guid UserId, string Username);
 
-        Console.WriteLine(sql.Preview());
-        Console.WriteLine(sql.ParameterizeSql().commandText);
-    }
+    private readonly IReadOnlyDictionary<string, LocalLogin> NewLogins = new Dictionary<string, LocalLogin>() {
+        { "Jeremy", new("Jeremy") },
+        { "Joe", new("Joe") },
+    };
 
-    [TestMethod]
-    public async Task DataTest2() {
-        using var connection = DependencyInjector.CreateConnection();
-        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
+    private (LoginDb, IQueryRunner<LoginDb>) Arrange() {
+        var loginDb = LoginDb.Instance;
 
-        var loginDatabase = new Database<ILoginDb>();
-        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
+        var loginDatabase = new Database<LoginDb>();
+        loginDatabase.ContributeQueryContext();
+        var composer = new SqliteCommandComposer<LoginDb>(loginDatabase);
 
-        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+        var connection = DependencyInjector.CreateConnection();
+        var runner = new SqliteQueryRunner<LoginDb>(composer, new StaticDbConnectionPool<LoginDb, SqliteConnection>(connection));
 
-        ILoginDb loginDb = new LoginDb();
+        runner.Execute(loginDb
+            .LocalLogin
+            .InsertRange(NewLogins.Values));
 
-        // Act
-
-        var from = loginDb.LocalLogin;
-        var filter = from.Filter(o => o.Username == "Jeremy");
-        var map = filter.Map(o => o);
-
-        var commands = composer.Compose(map);
-
-        foreach (IQueryCommand command in commands) {
-            await command.ExecuteAsync();
-            Console.WriteLine(JsonConvert.SerializeObject(command));
-        }
+        return (loginDb, runner);
     }
 
     [TestMethod]
     public async Task IQueryToList() {
-        using var connection = DependencyInjector.CreateConnection();
-        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
+        var (loginDb, runner) = Arrange();
 
-        var loginDatabase = new Database<ILoginDb>();
-        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
-
-        ILoginDb loginDb = new LoginDb();
-        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
-
-        // Act
-
-        var localLogins = await loginDb
+        var list = await runner.List(loginDb
             .LocalLogin
-            .Filter(o => o.Username == "Jeremy")
-            .Map(o => o)
-            .ToListAsync(composer);
-        Console.WriteLine(JsonConvert.SerializeObject(localLogins));
+            .Filter(o => o.Username == "Jeremy"));
+
+        Console.WriteLine(JsonConvert.SerializeObject(list));
     }
 
     [TestMethod]
-    public async Task IQueryToOptional() {
-        using var connection = DependencyInjector.CreateConnection();
-        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
-
-        var loginDatabase = new Database<ILoginDb>();
-        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
-
-        ILoginDb loginDb = new LoginDb();
-        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+    public async Task IQueryToProperty() {
+        var (loginDb, runner) = Arrange();
 
         // Act
 
-        var localLogin = await loginDb
+        var list = await runner.List(loginDb
             .LocalLogin
             .Filter(o => o.Username == "Jeremy")
-            .Map(o => o)
-            .ToOptionalAsync(composer);
-        Console.WriteLine(JsonConvert.SerializeObject(localLogin));
+            .Map(o => o.UserId));
+
+        var jeremyId = list.Single();
+
+        // Assert
+
+        Assert.AreEqual(NewLogins["Jeremy"].UserId, jeremyId);
     }
 
     [TestMethod]
-    public async Task IQueryToItem() {
-        using var connection = DependencyInjector.CreateConnection();
-        IDbConnectionFactory<ILoginDb> connectionFactory = new StaticDbConnectionFactory<ILoginDb>(connection);
-
-        var loginDatabase = new Database<ILoginDb>();
-        loginDatabase.ContributeQueryContext(typeof(ILoginDb));
-
-        ILoginDb loginDb = new LoginDb();
-        IQueryComposer<ILoginDb> composer = new SqliteQueryComposer<ILoginDb>(connectionFactory, loginDatabase);
+    public async Task IQueryToDto() {
+        var (loginDb, runner) = Arrange();
 
         // Act
 
-        var insertedLogins = new LocalLogin[] {
-            new() { UserId = Guid.NewGuid(), Username = "Jeremy" },
-            new() { UserId = Guid.NewGuid(), Username = "Joe" }
-        };
-        var numberOfLoginsInserted = await loginDb
-            .LocalLogin
-            .InsertRange(insertedLogins)
-            .ExecuteAsync(composer);
-
-        var fetchedLogins = await loginDb
+        var dto = await runner.Nullable(loginDb
             .LocalLogin
             .Filter(o => o.Username == "Jeremy")
-            .Map(o => o)
-            .ToListAsync(composer);
+            .Map(o => new Dto(o.UserId, o.Username)));
 
-        Assert.AreEqual(1, insertedLogins.Intersect(fetchedLogins).Count());
+        Console.WriteLine(JsonConvert.SerializeObject(dto));
     }
 }

@@ -7,7 +7,9 @@ public class SqlExpressionTranslator {
     public virtual Sql Translate(Expression node) {
         switch (node) {
             case LambdaExpression lambda:
-                return Translate(lambda.Body);
+                return lambda.Parameters[0] == lambda.Body
+                    ? Sql.Identifier(lambda.Body.Type.Name, "*")
+                    : Translate(lambda.Body);
 
             case MemberExpression member:
                 switch (member.Expression) {
@@ -42,9 +44,12 @@ public class SqlExpressionTranslator {
                 }
                 break;
 
+            case NewExpression newExpression:
+                return Sql.Join(", ", newExpression.Constructor!.GetParameters().Select((p, i) => Sql.Interpolate($"{Translate(newExpression.Arguments[i])} {Sql.Identifier(p.Name!)}")));
+
             case ParameterExpression parameter:
-                // TODO: How should these be handled.
-                break;
+                // TODO: Should these be handled differently?
+                return Sql.Empty;
         }
 
         throw new NotSupportedException($"{node.GetType()}: {node.NodeType}");
