@@ -1,29 +1,29 @@
 ﻿using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using DataCore.Annotations;
 using DataCore;
+using DataCore.Annotations;
 using DataMod.Sqlite;
 using Microsoft.Data.Sqlite;
 
 namespace xUnitTests;
 
-public sealed class LoginDb {
-    public static LoginDb Instance { get; } = new();
+public sealed class UserContext {
+    public static IQuery<UserContext, User> Users => new FromQuery<UserContext, User>();
 
-    public IReadOnlyDatabase<LoginDb> Database { get; }
-    public IQuery<LoginDb, LocalLogin> LocalLogin => new FromQuery<LoginDb, LocalLogin>();
-
-    private LoginDb() {
-        var database = new Database<LoginDb>();
+    public static IReadOnlyDatabase<UserContext> Database { get; }
+    static UserContext() {
+        var database = new Database<UserContext>();
         database.ContributeQueryContext();
         Database = database;
     }
+
+    private UserContext() { throw new InvalidOperationException("Static only"); }
 }
 
 [PrimaryKey(nameof(UserId))]
-public readonly record struct LocalLogin(Guid UserId, int Version, string Username) {
-    public LocalLogin(string username) : this(Guid.NewGuid(), 0, username) {
+public readonly record struct User(Guid UserId, int Version, string Username) {
+    public User(string username) : this(Guid.NewGuid(), 0, username) {
         UserId = Guid.NewGuid();
         Version = 0;
         Username = username;
@@ -53,7 +53,7 @@ internal static class Shared {
         connection.Open();
 
         var currentDatabase = new Database();
-        var goalDatabase = LoginDb.Instance.Database;
+        var goalDatabase = UserContext.Database;
 
         var alterations = new List<DatabaseAlteration>();
         foreach (var goalSchema in goalDatabase.Schemas) {
