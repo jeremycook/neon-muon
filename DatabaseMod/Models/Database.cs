@@ -4,8 +4,7 @@ public interface IReadOnlyDatabase {
     IReadOnlyList<IReadOnlySchema> Schemas { get; }
 }
 
-public interface IReadOnlyDatabase<TDb> : IReadOnlyDatabase {
-}
+public interface IReadOnlyDatabase<TDb> : IReadOnlyDatabase { }
 
 public class Database : IReadOnlyDatabase {
     public List<Schema> Schemas { get; } = new();
@@ -13,5 +12,4 @@ public class Database : IReadOnlyDatabase {
     IReadOnlyList<IReadOnlySchema> IReadOnlyDatabase.Schemas => Schemas;
 }
 
-public class Database<TDb> : Database, IReadOnlyDatabase<TDb> {
-}
+public class Database<TDb> : Database, IReadOnlyDatabase<TDb> { }

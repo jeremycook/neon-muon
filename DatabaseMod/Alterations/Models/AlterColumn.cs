@@ -4,7 +4,7 @@ namespace DatabaseMod.Alterations.Models;
 
 public class AlterColumn : DatabaseAlteration
 {
-    public AlterColumn(string schemaName, string tableName, Column column, IReadOnlyCollection<AlterColumnModification> modifications)
+    public AlterColumn(string schemaName, string tableName, IReadOnlyColumn column, IReadOnlyCollection<AlterColumnModification> modifications)
         : base(nameof(AlterColumn))
     {
         if (!modifications.Any())
@@ -20,6 +20,6 @@ public class AlterColumn : DatabaseAlteration
 
     public string SchemaName { get; }
     public string TableName { get; }
-    public Column Column { get; }
+    public IReadOnlyColumn Column { get; }
     public IReadOnlyCollection<AlterColumnModification> Modifications { get; }
 }

@@ -1,4 +1,5 @@
 ﻿using DatabaseMod.Models;
+using DataCore.Annotations;
 using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -33,8 +34,10 @@ public static class QueryContextDatabaseExtensions {
 
                 var table = schema.Tables.GetOrAdd(new Table(tableType.GetCustomAttribute<TableAttribute>()?.Name ?? tableType.Name));
 
+                var primaryKey = tableType.GetCustomAttribute<PrimaryKeyAttribute>();
+
                 var keyProperties = properties
-                    .Where(o => o.GetCustomAttribute<KeyAttribute>() is not null)
+                    .Where(o => o.GetCustomAttribute<KeyAttribute>() is not null || primaryKey?.ColumnNames.Contains(o.Name) == true)
                     .ToList();
 
                 if (!keyProperties.Any()) {

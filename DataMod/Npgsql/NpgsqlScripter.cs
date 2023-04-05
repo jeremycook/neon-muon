@@ -102,7 +102,7 @@ END IF;
         return script;
     }
 
-    private static Sql ScriptAddColumnDefinition(Column column) {
+    private static Sql ScriptAddColumnDefinition(IReadOnlyColumn column) {
         return Join("", new object[]
         {
             Interpolate($"{Identifier(column.Name)} {ScriptStoreType(column.StoreType)} {Raw(column.IsNullable ? "NULL" : "NOT NULL")}"),
@@ -128,7 +128,7 @@ END IF;
         { StoreType.Timestamp, "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
     };
 
-    private static Sql ScriptColumnDefault(Column column) {
+    private static Sql ScriptColumnDefault(IReadOnlyColumn column) {
         if (!string.IsNullOrEmpty(column.DefaultValueSql)) {
             if (column.DefaultValueSql != string.Empty) {
                 return Interpolate($" DEFAULT {column.DefaultValueSql}");

@@ -4,7 +4,7 @@ namespace DatabaseMod.Alterations.Models;
 
 public class DropIndex : DatabaseAlteration
 {
-    public DropIndex(string schemaName, string tableName, TableIndex index)
+    public DropIndex(string schemaName, string tableName, IReadOnlyTableIndex index)
         : base(nameof(DropIndex))
     {
         SchemaName = schemaName;
@@ -14,7 +14,7 @@ public class DropIndex : DatabaseAlteration
 
     public string SchemaName { get; }
     public string TableName { get; }
-    public TableIndex Index { get; }
+    public IReadOnlyTableIndex Index { get; }
 
 
     public override string ToString()

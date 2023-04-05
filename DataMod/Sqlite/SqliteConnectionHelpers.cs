@@ -97,14 +97,29 @@ public static class SqliteConnectionHelpers {
                 Func<object?[]?, T> itemActivator;
                 (string? Name, int Ordinal, Type Type)[]? parameters;
 
-                if (underlyingType.IsValueType) {
+                // Grab the public constructor that best matches
+                // the database columns.
+                var ctor = type.GetConstructors()
+                    .Where(t => t.GetParameters().All(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+                    .OrderByDescending(c => c.GetParameters().Count(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+                    .FirstOrDefault();
+
+                if (ctor != null) {
+                    itemActivator = parameters => (T)ctor.Invoke(parameters);
+                    parameters = ctor.GetParameters()
+                        .Select((p, i) => ValueTuple.Create<string?, int, Type>(p.Name, p.Position, p.ParameterType))
+                        .ToArray();
+                }
+                else if (underlyingType.IsValueType) {
                     var typeArgs = underlyingType.GetGenericArguments();
                     var ValueTuple_Create_T = typeof(ValueTuple).GetMethods()
                         .Where(m => m.Name == "Create" && m.GetParameters().Length == typeArgs.Length)
                         .SingleOrDefault()
                         ?? throw new NotSupportedException($"ValueTuple.Create method not found with {typeArgs.Length} generic arguments.");
 
-                    var ValueTuple_Create = ValueTuple_Create_T.MakeGenericMethod(typeArgs);
+                    var ValueTuple_Create = typeArgs.Length > 0
+                        ? ValueTuple_Create_T.MakeGenericMethod(typeArgs)
+                        : ValueTuple_Create_T;
 
                     itemActivator = parameters => (T)ValueTuple_Create.Invoke(null, parameters)!;
                     parameters = ValueTuple_Create.GetParameters()
@@ -112,23 +127,9 @@ public static class SqliteConnectionHelpers {
                         .ToArray();
                 }
                 else {
-                    // Grab the public constructor that best matches
-                    // the database columns.
-                    var ctor = type.GetConstructors()
-                        .Where(t => t.GetParameters().All(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
-                        .OrderByDescending(c => c.GetParameters().Count(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
-                        .FirstOrDefault();
-
-                    if (ctor != null) {
-                        itemActivator = parameters => (T)ctor.Invoke(parameters);
-                        parameters = ctor.GetParameters()
-                            .Select((p, i) => ValueTuple.Create<string?, int, Type>(p.Name, p.Position, p.ParameterType))
-                            .ToArray();
-                    }
-                    else {
-                        itemActivator = parameters => Activator.CreateInstance<T>();
-                        parameters = Array.Empty<(string? Name, int Ordinal, Type Type)>();
-                    }
+                    throw new NotSupportedException();
+                    itemActivator = parameters => Activator.CreateInstance<T>();
+                    parameters = Array.Empty<(string? Name, int Ordinal, Type Type)>();
                 }
 
                 var settableProperties = type.GetProperties()

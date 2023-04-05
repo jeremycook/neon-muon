@@ -4,7 +4,7 @@ namespace DatabaseMod.Alterations.Models;
 
 public class CreateColumn : DatabaseAlteration
 {
-    public CreateColumn(string schemaName, string tableName, Column column)
+    public CreateColumn(string schemaName, string tableName, IReadOnlyColumn column)
         : base(nameof(CreateColumn))
     {
         SchemaName = schemaName;
@@ -14,5 +14,5 @@ public class CreateColumn : DatabaseAlteration
 
     public string SchemaName { get; }
     public string TableName { get; }
-    public Column Column { get; }
+    public IReadOnlyColumn Column { get; }
 }

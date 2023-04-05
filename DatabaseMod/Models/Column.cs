@@ -10,7 +10,7 @@ public interface IReadOnlyColumn {
     int Position { get; }
     StoreType StoreType { get; }
 
-    bool Same(Column column);
+    bool Same(IReadOnlyColumn column);
 }
 
 public class Column : IReadOnlyColumn {
@@ -35,7 +35,7 @@ public class Column : IReadOnlyColumn {
 
     public string? ComputedColumnSql { get; set; }
 
-    public bool Same(Column column) {
+    public bool Same(IReadOnlyColumn column) {
         return
             Position == column.Position &&
             Name == column.Name &&

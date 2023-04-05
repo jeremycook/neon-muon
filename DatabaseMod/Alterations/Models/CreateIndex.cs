@@ -4,7 +4,7 @@ namespace DatabaseMod.Alterations.Models;
 
 public class CreateIndex : DatabaseAlteration
 {
-    public CreateIndex(string schemaName, string tableName, TableIndex index)
+    public CreateIndex(string schemaName, string tableName, IReadOnlyTableIndex index)
         : base(nameof(CreateIndex))
     {
         SchemaName = schemaName;
@@ -14,5 +14,5 @@ public class CreateIndex : DatabaseAlteration
 
     public string SchemaName { get; }
     public string TableName { get; }
-    public TableIndex Index { get; }
+    public IReadOnlyTableIndex Index { get; }
 }

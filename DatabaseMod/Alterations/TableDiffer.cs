@@ -3,16 +3,13 @@ using DatabaseMod.Models;
 
 namespace DatabaseMod.Alterations;
 
-public static class TableDiffer
-{
-    public static List<DatabaseAlteration> DiffTables(string schemaName, Table? current, Table goal)
-    {
+public static class TableDiffer {
+    public static List<DatabaseAlteration> DiffTables(string schemaName, IReadOnlyTable? current, IReadOnlyTable goal) {
         var changes = new List<DatabaseAlteration>();
 
         string tableName = goal.Name;
 
-        if (current is null)
-        {
+        if (current is null) {
             var primaryKey =
                 goal.Indexes.FirstOrDefault(o => o.IndexType == TableIndexType.PrimaryKey)?.Columns ??
                 goal.Columns.Take(1).Select(o => o.Name).ToList();
@@ -31,13 +28,11 @@ public static class TableDiffer
 
         // Table changes
 
-        if (current.Name != goal.Name)
-        {
+        if (current.Name != goal.Name) {
             changes.Add(new RenameTable(schemaName, current.Name, goal.Name));
         }
 
-        if (!string.IsNullOrEmpty(goal.Owner) && current.Owner != goal.Owner)
-        {
+        if (!string.IsNullOrEmpty(goal.Owner) && current.Owner != goal.Owner) {
             changes.Add(new ChangeTableOwner(schemaName, tableName, goal.Owner));
         }
 
@@ -50,30 +45,24 @@ public static class TableDiffer
 
         var alteredColumns = goal.Columns.Except(newColumns)
             .Where(targetColumn => !targetColumn.Same(current.Columns.Single(column => column.Name == targetColumn.Name)));
-        foreach (var alteredColumn in alteredColumns)
-        {
+        foreach (var alteredColumn in alteredColumns) {
             var currentColumn = current.Columns.Single(column => column.Name == alteredColumn.Name);
 
             var modifications = new List<AlterColumnModification>();
-            if (alteredColumn.IsNullable != currentColumn.IsNullable)
-            {
+            if (alteredColumn.IsNullable != currentColumn.IsNullable) {
                 modifications.Add(AlterColumnModification.Nullability);
             }
-            if (alteredColumn.DefaultValueSql != currentColumn.DefaultValueSql)
-            {
+            if (alteredColumn.DefaultValueSql != currentColumn.DefaultValueSql) {
                 modifications.Add(AlterColumnModification.Default);
             }
-            if (alteredColumn.StoreType != currentColumn.StoreType)
-            {
+            if (alteredColumn.StoreType != currentColumn.StoreType) {
                 modifications.Add(AlterColumnModification.Type);
             }
-            if (alteredColumn.ComputedColumnSql != currentColumn.ComputedColumnSql)
-            {
+            if (alteredColumn.ComputedColumnSql != currentColumn.ComputedColumnSql) {
                 modifications.Add(AlterColumnModification.Generated);
             }
 
-            if (modifications.Any())
-            {
+            if (modifications.Any()) {
                 changes.Add(new AlterColumn(schemaName, tableName, alteredColumn, modifications));
             }
         }
