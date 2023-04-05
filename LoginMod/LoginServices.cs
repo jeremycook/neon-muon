@@ -3,16 +3,14 @@
 namespace LoginMod;
 
 public class LoginServices {
-    private readonly LoginDb loginDb;
-    private readonly IQueryRunner<LoginDb> runner;
+    private readonly IQueryRunner<LoginContext> Runner;
 
-    public LoginServices(LoginDb loginDb, IQueryRunner<LoginDb> runner) {
-        this.loginDb = loginDb;
-        this.runner = runner;
+    public LoginServices(IQueryRunner<LoginContext> runner) {
+        Runner = runner;
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await runner.Nullable(loginDb
+        var loginOption = await Runner.Nullable(LoginContext
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower()),
             cancellationToken);
@@ -34,7 +32,7 @@ public class LoginServices {
                 var rehashedPassword = PasswordHashing.Instance.Hash(login.Hash);
 
                 // Rehash the password
-                _ = runner.Execute(loginDb
+                _ = Runner.Execute(LoginContext
                     .LocalLogin
                     .Filter(x => x.UserId == login.UserId && x.Version == login.Version)
                     .Update(x => new LocalLogin(x) {
@@ -56,7 +54,7 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await runner.Nullable(loginDb
+        var loginOption = await Runner.Nullable(LoginContext
             .LocalLogin
             .Filter(x => x.Username.ToLower() == username.ToLower()),
             cancellationToken);
@@ -70,7 +68,7 @@ public class LoginServices {
 
         var login = new LocalLogin(Guid.NewGuid(), 0, username, hashedPassword);
 
-        await runner.Execute(loginDb
+        await Runner.Execute(LoginContext
             .LocalLogin
             .Insert(login),
             cancellationToken);

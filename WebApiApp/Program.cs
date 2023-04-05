@@ -66,8 +66,8 @@ internal class Program {
                     currentDatabase.ContributeSqlite(connection);
 
                     var goalDatabase = new Database();
-                    goalDatabase.ContributeQueryContext(typeof(LoginDb));
-                    goalDatabase.ContributeQueryContext(typeof(IContentDb));
+                    goalDatabase.ContributeQueryContext(typeof(LoginContext));
+                    goalDatabase.ContributeQueryContext(typeof(ContentContext));
 
                     var alterations = new List<DatabaseAlteration>();
                     foreach (var goalSchema in goalDatabase.Schemas) {
@@ -96,26 +96,26 @@ internal class Program {
 
             // Login
             {
-                var database = new Database<LoginDb>();
-                database.ContributeQueryContext(typeof(LoginDb));
-                serviceCollection.AddSingleton<IReadOnlyDatabase<LoginDb>>(database);
+                var database = new Database<LoginContext>();
+                database.ContributeQueryContext(typeof(LoginContext));
+                serviceCollection.AddSingleton<IReadOnlyDatabase<LoginContext>>(database);
 
                 serviceCollection.AddSingleton<PasswordHashing>();
-                serviceCollection.AddSingleton<IDbConnectionString<LoginDb>, DbConnectionString<LoginDb>>();
-                serviceCollection.AddScoped<IDbCommandComposer<LoginDb>, SqliteCommandComposer<LoginDb>>();
-                serviceCollection.AddScoped<LoginDb, LoginDb>();
+                serviceCollection.AddSingleton<IDbConnectionString<LoginContext>, DbConnectionString<LoginContext>>();
+                serviceCollection.AddScoped<IDbCommandComposer<LoginContext>, SqliteCommandComposer<LoginContext>>();
+                serviceCollection.AddScoped<LoginContext, LoginContext>();
                 serviceCollection.AddScoped<LoginServices>();
             }
 
             // Content
             {
-                var database = new Database<IContentDb>();
-                database.ContributeQueryContext(typeof(IContentDb));
-                serviceCollection.AddSingleton<IReadOnlyDatabase<IContentDb>>(database);
+                var database = new Database<ContentContext>();
+                database.ContributeQueryContext(typeof(ContentContext));
+                serviceCollection.AddSingleton<IReadOnlyDatabase<ContentContext>>(database);
 
-                serviceCollection.AddSingleton<IDbConnectionString<IContentDb>, DbConnectionString<IContentDb>>();
-                serviceCollection.AddScoped<IDbCommandComposer<IContentDb>, SqliteCommandComposer<IContentDb>>();
-                serviceCollection.AddScoped<IContentDb, ContentDb>();
+                serviceCollection.AddSingleton<IDbConnectionString<ContentContext>, DbConnectionString<ContentContext>>();
+                serviceCollection.AddScoped<IDbCommandComposer<ContentContext>, SqliteCommandComposer<ContentContext>>();
+                serviceCollection.AddScoped<ContentContext, ContentContext>();
             }
 
             app = builder.Build();

@@ -3,20 +3,18 @@
 namespace ContentMod;
 
 public class BlogSystem {
-    private readonly IContentDb contentDb;
-    private readonly IQueryRunner<IContentDb> runner;
+    private readonly IQueryRunner<ContentContext> Runner;
 
-    public BlogSystem(IContentDb contentDb, IQueryRunner<IContentDb> runner) {
-        this.contentDb = contentDb;
-        this.runner = runner;
+    public BlogSystem(IQueryRunner<ContentContext> runner) {
+        Runner = runner;
     }
 
     public async Task<List<(string Title, string Body)>> GetObjectAsync() {
-        var list = await runner.List(contentDb
-            .ContentTitle
-            .Join(contentDb.HtmlBody, (ct, hb) => ct.ContentId == hb.ContentId)
-            .Asc(ct_hb => ct_hb.Item1.Title)
-            .Map(ct_hb => ValueTuple.Create(ct_hb.Item1.Title, ct_hb.Item2.Body)));
+        var list = await Runner.List(ContentContext
+            .ContentTitles
+            .Join(ContentContext.HtmlBodies, (ct, hb) => ct.ContentId == hb.ContentId)
+            .Asc(((ContentTitle Title, HtmlBody Body) t) => t.Title.Title)
+            .Map(((ContentTitle Title, HtmlBody Body) t) => ValueTuple.Create(t.Title.Title, t.Body.Body)));
 
         return list;
     }
