@@ -33,15 +33,25 @@ public class SqlExpressionTranslator {
             case MemberInitExpression memberInit:
                 return Sql.Join(", ", memberInit.Bindings.Select(GetBinding).Cast<object?>());
 
-            case MethodCallExpression methodCall when methodCall.Object is not null:
-                if (methodCall.Type == typeof(string) && methodCall.Arguments.Count == 0) {
-                    switch (methodCall.Method.Name) {
-                        case nameof(string.ToLower):
-                            return Sql.Interpolate($"lower({Translate(methodCall.Object)})");
-                        case nameof(string.ToUpper):
-                            return Sql.Interpolate($"upper({Translate(methodCall.Object)})");
+            case MethodCallExpression methodCall:
+
+                if (methodCall.Object is not null) {
+                    // Instance method call
+
+                    if (methodCall.Type == typeof(string) &&
+                        methodCall.Arguments.Count == 0) {
+                        return methodCall.Method.Name switch {
+                            nameof(string.ToLower) => Sql.Interpolate($"lower({Translate(methodCall.Object)})"),
+                            nameof(string.ToUpper) => Sql.Interpolate($"upper({Translate(methodCall.Object)})"),
+                            _ => throw new NotImplementedException(),
+                        };
                     }
                 }
+                else {
+                    // Static method call
+                    return Sql.Join(", ", methodCall.Arguments.Select(Translate));
+                }
+
                 break;
 
             case NewExpression newExpression:

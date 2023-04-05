@@ -1,5 +1,6 @@
 ﻿using DataCore;
 using Microsoft.Data.Sqlite;
+using System;
 using System.Data;
 using System.Reflection;
 
@@ -61,21 +62,21 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
-        return await command.ListAsync<T>(cancellationToken);
+        return await ListAsync<T>(command, cancellationToken);
     }
 
     public static async ValueTask<List<T>> ListAsync<T>(this SqliteConnection connection, SqliteCommand command, CancellationToken cancellationToken = default) {
         var lastConnection = command.Connection;
         command.Connection = connection;
 
-        var list = await command.ListAsync<T>(cancellationToken);
+        var list = await ListAsync<T>(command, cancellationToken);
 
         command.Connection = lastConnection;
 
         return list;
     }
 
-    public static async ValueTask<List<T>> ListAsync<T>(this SqliteCommand command, CancellationToken cancellationToken = default) {
+    public static async ValueTask<List<T>> ListAsync<T>(SqliteCommand command, CancellationToken cancellationToken = default) {
         var type = typeof(T);
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
         var list = new List<T>();
@@ -93,22 +94,41 @@ public static class SqliteConnectionHelpers {
             else {
                 var columnNames = columns.Select(c => c.ColumnName).ToArray();
 
-                // Grab the public constructor that best matches
-                // the database columns.
-                var ctor = type.GetConstructors()
-                    .Where(t => t.GetParameters().All(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
-                    .OrderByDescending(c => c.GetParameters().Count(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
-                    .FirstOrDefault();
-
                 Func<object?[]?, T> itemActivator;
-                ParameterInfo[] parameters;
-                if (ctor != null) {
-                    itemActivator = parameters => (T)ctor.Invoke(parameters);
-                    parameters = ctor.GetParameters();
+                (string? Name, int Ordinal, Type Type)[]? parameters;
+
+                if (underlyingType.IsValueType) {
+                    var typeArgs = underlyingType.GetGenericArguments();
+                    var ValueTuple_Create_T = typeof(ValueTuple).GetMethods()
+                        .Where(m => m.Name == "Create" && m.GetParameters().Length == typeArgs.Length)
+                        .SingleOrDefault()
+                        ?? throw new NotSupportedException($"ValueTuple.Create method not found with {typeArgs.Length} generic arguments.");
+
+                    var ValueTuple_Create = ValueTuple_Create_T.MakeGenericMethod(typeArgs);
+
+                    itemActivator = parameters => (T)ValueTuple_Create.Invoke(null, parameters)!;
+                    parameters = ValueTuple_Create.GetParameters()
+                        .Select((p, i) => ValueTuple.Create<string?, int, Type>(null, p.Position, p.ParameterType))
+                        .ToArray();
                 }
                 else {
-                    itemActivator = parameters => Activator.CreateInstance<T>();
-                    parameters = Array.Empty<ParameterInfo>();
+                    // Grab the public constructor that best matches
+                    // the database columns.
+                    var ctor = type.GetConstructors()
+                        .Where(t => t.GetParameters().All(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+                        .OrderByDescending(c => c.GetParameters().Count(p => columnNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+                        .FirstOrDefault();
+
+                    if (ctor != null) {
+                        itemActivator = parameters => (T)ctor.Invoke(parameters);
+                        parameters = ctor.GetParameters()
+                            .Select((p, i) => ValueTuple.Create<string?, int, Type>(p.Name, p.Position, p.ParameterType))
+                            .ToArray();
+                    }
+                    else {
+                        itemActivator = parameters => Activator.CreateInstance<T>();
+                        parameters = Array.Empty<(string? Name, int Ordinal, Type Type)>();
+                    }
                 }
 
                 var settableProperties = type.GetProperties()
@@ -121,8 +141,11 @@ public static class SqliteConnectionHelpers {
                     .ToArray();
 
                 while (await reader.ReadAsync(cancellationToken)) {
-                    var parameterValues = parameters.Select(p => ConvertTo(reader.GetValue(p.Name!), p.ParameterType)).ToArray();
+                    var parameterValues =
+                        parameters.Select(p => ConvertTo(p.Name != null ? reader.GetValue(p.Name) : reader.GetValue(p.Ordinal), p.Type)).ToArray();
+
                     var item = itemActivator(parameterValues);
+
                     foreach (var (columnName, property) in settableColumns) {
                         try {
                             var value = reader.GetValue(columnName);
@@ -133,6 +156,7 @@ public static class SqliteConnectionHelpers {
                             throw new Exception($"Error setting value of {property.DeclaringType?.Name}.{property.Name}. {ex.GetBaseException().Message}", ex);
                         }
                     }
+
                     list.Add(item);
                 }
             }

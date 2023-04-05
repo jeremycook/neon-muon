@@ -1,9 +1,7 @@
-﻿using DatabaseMod.Models;
-using DataCore;
+﻿using DataCore;
 using DataMod.Sqlite;
 using LoginMod;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
 
 namespace UnitTests;
 
@@ -12,7 +10,7 @@ public class DataTests {
 
     private readonly record struct Dto(Guid UserId, string Username);
 
-    private readonly IReadOnlyDictionary<string, LocalLogin> NewLogins = new Dictionary<string, LocalLogin>() {
+    private readonly IReadOnlyDictionary<string, LocalLogin> Logins = new Dictionary<string, LocalLogin>() {
         { "Jeremy", new("Jeremy") },
         { "Joe", new("Joe") },
     };
@@ -20,16 +18,14 @@ public class DataTests {
     private (LoginDb, IQueryRunner<LoginDb>) Arrange() {
         var loginDb = LoginDb.Instance;
 
-        var loginDatabase = new Database<LoginDb>();
-        loginDatabase.ContributeQueryContext();
-        var composer = new SqliteCommandComposer<LoginDb>(loginDatabase);
+        var composer = new SqliteCommandComposer<LoginDb>(loginDb.Database);
 
         var connection = DependencyInjector.CreateConnection();
         var runner = new SqliteQueryRunner<LoginDb>(composer, new StaticDbConnectionPool<LoginDb, SqliteConnection>(connection));
 
         runner.Execute(loginDb
             .LocalLogin
-            .InsertRange(NewLogins.Values));
+            .InsertRange(Logins.Values));
 
         return (loginDb, runner);
     }
@@ -42,7 +38,8 @@ public class DataTests {
             .LocalLogin
             .Filter(o => o.Username == "Jeremy"));
 
-        Console.WriteLine(JsonConvert.SerializeObject(list));
+        Assert.AreEqual(1, list.Count);
+        Assert.AreEqual(new LocalLogin(Logins["Jeremy"]), list[0]);
     }
 
     [TestMethod]
@@ -58,9 +55,7 @@ public class DataTests {
 
         var jeremyId = list.Single();
 
-        // Assert
-
-        Assert.AreEqual(NewLogins["Jeremy"].UserId, jeremyId);
+        Assert.AreEqual(Logins["Jeremy"].UserId, jeremyId);
     }
 
     [TestMethod]
@@ -74,6 +69,20 @@ public class DataTests {
             .Filter(o => o.Username == "Jeremy")
             .Map(o => new Dto(o.UserId, o.Username)));
 
-        Console.WriteLine(JsonConvert.SerializeObject(dto));
+        Assert.AreEqual(new Dto(Logins["Jeremy"].UserId, Logins["Jeremy"].Username), dto);
+    }
+
+    [TestMethod]
+    public async Task IQueryToTuple() {
+        var (loginDb, runner) = Arrange();
+
+        // Act
+
+        var tuple = await runner.Nullable(loginDb
+            .LocalLogin
+            .Filter(o => o.Username == "Jeremy")
+            .Map(o => ValueTuple.Create(o.UserId, o.Username)));
+
+        Assert.AreEqual((Logins["Jeremy"].UserId, Logins["Jeremy"].Username), tuple);
     }
 }

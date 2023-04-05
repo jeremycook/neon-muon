@@ -2,11 +2,15 @@
 using DataCore;
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
+using System.Reflection;
 using static DataCore.Sql;
 
 namespace DataMod.Sqlite;
 
 public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
+
+    private static readonly Dictionary<string, MethodInfo> StaticMethods = typeof(SqliteCommandComposer<TDb>).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).ToDictionary(o => o.Name);
+
     public SqliteCommandComposer(IReadOnlyDatabase<TDb> database) {
         this.database = database;
     }
@@ -15,7 +19,10 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
     private readonly IReadOnlyDatabase<TDb> database;
 
     public SqliteCommand CreateCommand(IQuery<TDb> query) {
-        var sql = (Sql)Translate(query as dynamic);
+        Sql sql = query.QueryType switch {
+            QueryType.Map => CallMap(query),
+            _ => Translate(query as dynamic),
+        };
 
         var (commandText, parameterValues) = sql.ParameterizeSql();
 
@@ -29,14 +36,23 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         return CreateCommand(query);
     }
 
-    private Sql Translate<T1>(IQuery<TDb, T1> query) {
+    private static Sql CallMap(IQuery<TDb> mapQuery) {
+        var genericMethod = StaticMethods[nameof(Map)];
+        var typeArgs = mapQuery.GetType().GetGenericArguments();
+        var method = genericMethod.MakeGenericMethod(typeArgs[1], typeArgs[2]);
+
+        var result = method.Invoke(null, new[] { mapQuery });
+        return (Sql)result!;
+    }
+
+    private static Sql Translate<T>(IQuery<TDb, T> query) {
         Sql sql;
 
         // DQL
-        if (query is FromQuery<TDb, T1> fromQuery) {
+        if (query is FromQuery<TDb, T> fromQuery) {
             sql = Map(MapQuery.CreateIdentityMap(fromQuery));
         }
-        else if (query is FilterQuery<TDb, T1> filterQuery) {
+        else if (query is FilterQuery<TDb, T> filterQuery) {
             sql = Map(MapQuery.CreateIdentityMap(filterQuery));
         }
         else if (query.QueryType == QueryType.Take) {
@@ -47,7 +63,7 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
 
         // DML
-        else if (query is InsertQuery<TDb, T1> insertQuery) {
+        else if (query is InsertQuery<TDb, T> insertQuery) {
             sql = InsertQuery(insertQuery);
         }
 
@@ -58,19 +74,17 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         return sql;
     }
 
-    private Sql Translate<T1, TMapped>(MapQuery<TDb, T1, TMapped> query) => Map(query);
-
-    private Sql From<T1>(FromQuery<TDb, T1> query) {
+    private static Sql From<T>(FromQuery<TDb, T> query) {
         var sql = Interpolate($"FROM {Table(query)}");
         return sql;
     }
 
-    private static Sql Table<T1>(FromQuery<TDb, T1> query) {
+    private static Sql Table<T>(FromQuery<TDb, T> query) {
         return Identifier(query.T1Type.Name);
     }
 
-    private Sql Filter<T1>(FilterQuery<TDb, T1> query) {
-        if (query.Query is FromQuery<TDb, T1> fromQuery) {
+    private static Sql Filter<T>(FilterQuery<TDb, T> query) {
+        if (query.Query is FromQuery<TDb, T> fromQuery) {
             var condition = expressionTranslator.Translate(query.Condition);
             var sql = Interpolate($"{From(fromQuery)} WHERE {condition}");
             return sql;
@@ -80,12 +94,12 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
     }
 
-    private Sql Take<T1>(TakeQuery<TDb, T1> query) {
-        if (query.Query is FromQuery<TDb, T1> fromQuery) {
+    private static Sql Take<T>(TakeQuery<TDb, T> query) {
+        if (query.Query is FromQuery<TDb, T> fromQuery) {
             var sql = Interpolate($"{From(fromQuery)} LIMIT {Raw(query.Take.ToString())}");
             return sql;
         }
-        else if (query.Query is FilterQuery<TDb, T1> filterQuery) {
+        else if (query.Query is FilterQuery<TDb, T> filterQuery) {
             var sql = Interpolate($"{Filter(filterQuery)} LIMIT {Raw(query.Take.ToString())}");
             return sql;
         }
@@ -98,13 +112,13 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
     }
 
-    private Sql Map<T1, TMapped>(MapQuery<TDb, T1, TMapped> query) {
+    private static Sql Map<TSource, T>(MapQuery<TDb, TSource, T> query) {
         var mapSql = expressionTranslator.Translate(query.Map);
-        if (query.Query is FromQuery<TDb, T1> fromQuery) {
+        if (query.Query is FromQuery<TDb, TSource> fromQuery) {
             var sql = Interpolate($"SELECT {mapSql} {From(fromQuery)}");
             return sql;
         }
-        if (query.Query is FilterQuery<TDb, T1> filterQuery) {
+        if (query.Query is FilterQuery<TDb, TSource> filterQuery) {
             var sql = Interpolate($"SELECT {mapSql} {Filter(filterQuery)}");
             return sql;
         }
@@ -113,8 +127,8 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
     }
 
-    private Sql InsertQuery<T1>(InsertQuery<TDb, T1> query) {
-        if (query.Query is FromQuery<TDb, T1> fromQuery) {
+    private static Sql InsertQuery<T>(InsertQuery<TDb, T> query) {
+        if (query.Query is FromQuery<TDb, T> fromQuery) {
             var sql = Interpolate($"INSERT INTO {Table(fromQuery)} ({Columns(fromQuery)}) VALUES {Join(", ", query.Items.Select(Values))}");
             return sql;
         }
@@ -123,11 +137,11 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
     }
 
-    private Sql Columns<T1>(FromQuery<TDb, T1> _) {
-        return IdentifierList(typeof(T1).GetProperties().Select(p => p.Name));
+    private static Sql Columns<T>(FromQuery<TDb, T> _) {
+        return IdentifierList(typeof(T).GetProperties().Select(p => p.Name));
     }
 
-    private Sql Values<T1>(T1 item) {
-        return Interpolate($"({Join(", ", typeof(T1).GetProperties().Select(p => p.GetValue(item)))})");
+    private static Sql Values<T>(T item) {
+        return Interpolate($"({Join(", ", typeof(T).GetProperties().Select(p => p.GetValue(item)))})");
     }
 }

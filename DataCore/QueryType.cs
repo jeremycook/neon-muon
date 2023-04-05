@@ -1,25 +1,15 @@
 ﻿namespace DataCore;
 
-public record struct QueryType {
-    public static implicit operator QueryType(string name) => new(name);
+public enum QueryType {
+    From = 100,
+    Join = 101,
+    Filter = 102,
+    Sort = 103,
+    Skip = 104,
+    Take = 105,
+    Map = 106,
 
-    public string Name { get; }
-
-    public QueryType(string name) =>
-        Name = name;
-    public static QueryType Create(string name) =>
-        cache.TryGetValue(name, out var value) ? value : cache[name] = new(name);
-
-    public const string Filter = "Filter";
-    public const string From = "From";
-    public const string Join = "Join";
-    public const string Map = "Map";
-    public const string Sort = "Sort";
-    public const string Take = "Take";
-
-    public const string Produce = "Produce";
-
-    public const string Insert = "Insert";
-
-    private static readonly Dictionary<string, QueryType> cache = new();
+    Insert = 200,
+    Update = 201,
+    Delete = 202,
 }
