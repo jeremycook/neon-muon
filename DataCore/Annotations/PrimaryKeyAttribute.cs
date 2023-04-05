@@ -2,9 +2,9 @@
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = true)]
 public class PrimaryKeyAttribute : Attribute {
-    public PrimaryKeyAttribute(params string[] columnNames) {
-        ColumnNames = columnNames;
+    public PrimaryKeyAttribute(params string[] columns) {
+        Columns = columns;
     }
 
-    public IReadOnlyList<string> ColumnNames { get; }
+    public IReadOnlyList<string> Columns { get; }
 }

@@ -59,9 +59,11 @@ public static class SqliteDatabaseHelpers {
             //}
 
             var primaryKeyColumns = tableMapping.Where(o => o.IsPrimaryKey);
-            table.Indexes.GetOrAdd(new TableIndex("PK_" + table.Name, TableIndexType.PrimaryKey) {
-                Columns = primaryKeyColumns.Select(c => c.ColumnName).ToList(),
-            });
+            table.Indexes.GetOrAdd(new TableIndex(
+                "pk_" + table.Name,
+                TableIndexType.PrimaryKey,
+                primaryKeyColumns.Select(c => c.ColumnName)
+            ));
         }
     }
 

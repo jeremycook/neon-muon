@@ -28,40 +28,44 @@ public static class QueryContextDatabaseExtensions {
             }
 
             foreach (var tableType in schemaGroup) {
-                var properties = tableType.GetProperties()
+                var propertyMap = tableType.GetProperties()
                     .OrderBy(p => p.GetCustomAttribute<ColumnAttribute>()?.Order ?? 0)
-                    .ToImmutableArray();
+                    .ToImmutableSortedDictionary(p => p.Name, p => p);
+                var properties = propertyMap.Values;
 
                 var table = schema.Tables.GetOrAdd(new Table(tableType.GetCustomAttribute<TableAttribute>()?.Name ?? tableType.Name));
 
-                var primaryKey = tableType.GetCustomAttribute<PrimaryKeyAttribute>();
-
-                var keyProperties = properties
-                    .Where(o => o.GetCustomAttribute<KeyAttribute>() is not null || primaryKey?.ColumnNames.Contains(o.Name) == true)
-                    .ToList();
-
+                // Primary key
+                var keyProperties = tableType.GetCustomAttribute<PrimaryKeyAttribute>()?.Columns
+                    .Select(c => propertyMap[c])
+                    .ToArray().AsReadOnly();
+                keyProperties ??= properties
+                    .Where(o => o.GetCustomAttribute<KeyAttribute>() is not null)
+                    .ToArray().AsReadOnly();
                 if (!keyProperties.Any()) {
-                    var matches = properties.Where(o => o.Name == "Id" || o.Name == tableType.Name + "Id");
-                    if (matches.Count() == 1) {
-                        keyProperties.Add(matches.ElementAt(0));
+                    if (propertyMap.TryGetValue("Id", out var idProp)) {
+                        keyProperties = new[] { idProp }.AsReadOnly();
                     }
-                    // TODO: Throw?
+                    else if (propertyMap.TryGetValue(tableType.Name + "Id", out var classNameIdProp)) {
+                        keyProperties = new[] { classNameIdProp }.AsReadOnly();
+                    }
+                    else {
+                        throw new NotSupportedException($"The {tableType} does not have a primary key.");
+                    }
                 }
 
                 foreach (var (prop, i) in properties.Select((prop, i) => (prop, i))) {
                     var column = table.Columns.GetOrAdd(new Column(
                         name: prop.Name,
                         storeType: StoreTypeHelpers.ConvertClrTypeToStoreType(prop.PropertyType),
-                        isNullable: keyProperties.Contains(prop) ? false : true,
+                        isNullable: !keyProperties.Contains(prop),
                         defaultValueSql: null,
                         computedColumnSql: null) {
                         Position = i + 1,
                     });
                 }
 
-                var index = table.Indexes.GetOrAdd(new TableIndex("PK_" + table.Name, TableIndexType.PrimaryKey) {
-                    Columns = keyProperties.Select(c => c.Name).ToList(),
-                });
+                var index = table.Indexes.GetOrAdd(new TableIndex("pk_" + table.Name, TableIndexType.PrimaryKey, keyProperties.Select(c => c.Name)));
             }
         }
     }

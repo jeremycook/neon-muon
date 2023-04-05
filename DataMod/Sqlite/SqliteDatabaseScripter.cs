@@ -207,7 +207,7 @@ END IF;
         var columns = change.Columns.Select(ScriptAddColumnDefinition);
 
         if (change.PrimaryKey.Any()) {
-            columns = columns.Append(Interpolate($"CONSTRAINT {Identifier(change.SchemaName, "PK_" + change.TableName)} PRIMARY KEY({Join(", ", change.PrimaryKey.Select(Identifier))})"));
+            columns = columns.Append(Interpolate($"CONSTRAINT {Identifier(change.SchemaName, "pk_" + change.TableName)} PRIMARY KEY({Join(", ", change.PrimaryKey.Select(Identifier))})"));
         }
 
         return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");

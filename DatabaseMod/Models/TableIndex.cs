@@ -13,18 +13,19 @@ public interface IReadOnlyTableIndex {
 }
 
 public class TableIndex : IReadOnlyTableIndex {
-    public TableIndex(string? name, TableIndexType indexType) {
+    public TableIndex(string? name, TableIndexType indexType, IEnumerable<string> columns) {
         Name = name;
         IndexType = indexType;
+        Columns.AddRange(columns);
     }
 
     [StringLength(50)]
-    public string? Name { get; set; }
+    public string? Name { get; }
 
-    public TableIndexType IndexType { get; set; }
+    public TableIndexType IndexType { get; }
 
     [Required, MinLength(1)]
-    public List<string> Columns { get; set; } = new();
+    public List<string> Columns { get; } = new();
 
     IReadOnlyList<string> IReadOnlyTableIndex.Columns => Columns;
 

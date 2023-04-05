@@ -34,15 +34,19 @@ public static class EFDatabaseExtensions {
                     }
 
                     foreach (var tableIndex in tableMapping.Table.Indexes) {
-                        var index = table.Indexes.GetOrAdd(new TableIndex(tableIndex.Name, tableIndex.IsUnique ? TableIndexType.UniqueConstraint : TableIndexType.Index) {
-                            Columns = tableIndex.Columns.OrderBy(o => o.Order).Select(c => c.Name).ToList(),
-                        });
+                        var index = table.Indexes.GetOrAdd(new TableIndex(
+                            tableIndex.Name,
+                            tableIndex.IsUnique ? TableIndexType.UniqueConstraint : TableIndexType.Index,
+                            tableIndex.Columns.OrderBy(o => o.Order).Select(c => c.Name)
+                        ));
                     }
 
                     foreach (var uniqueConstraint in tableMapping.Table.UniqueConstraints) {
-                        var index = table.Indexes.GetOrAdd(new TableIndex(uniqueConstraint.Name, uniqueConstraint.GetIsPrimaryKey() ? TableIndexType.PrimaryKey : TableIndexType.UniqueConstraint) {
-                            Columns = uniqueConstraint.Columns.OrderBy(o => o.Order).Select(c => c.Name).ToList(),
-                        });
+                        var index = table.Indexes.GetOrAdd(new TableIndex(
+                            uniqueConstraint.Name,
+                            uniqueConstraint.GetIsPrimaryKey() ? TableIndexType.PrimaryKey : TableIndexType.UniqueConstraint,
+                            uniqueConstraint.Columns.OrderBy(o => o.Order).Select(c => c.Name)
+                        ));
                     }
                 }
             }
