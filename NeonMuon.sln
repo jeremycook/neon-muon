@@ -34,7 +34,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataCore", "DataCore\DataCo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EFMod", "EFMod\EFMod.csproj", "{3D9812C0-C585-4C15-ABF7-9348DEFB6F24}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "xUnitTests", "xUnitTests\xUnitTests.csproj", "{B4EB1485-5993-4155-8F05-00F1F16F84F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xUnitTests", "xUnitTests\xUnitTests.csproj", "{B4EB1485-5993-4155-8F05-00F1F16F84F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sqlil", "Sqlil\Sqlil.csproj", "{A9467545-21B1-407E-9628-49F8B4D9DAD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sqlil.Tests", "Sqlil.Tests\Sqlil.Tests.csproj", "{A965670F-36F7-4F00-9C1E-F34AB4503819}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -94,6 +98,14 @@ Global
 		{B4EB1485-5993-4155-8F05-00F1F16F84F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4EB1485-5993-4155-8F05-00F1F16F84F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4EB1485-5993-4155-8F05-00F1F16F84F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9467545-21B1-407E-9628-49F8B4D9DAD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9467545-21B1-407E-9628-49F8B4D9DAD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9467545-21B1-407E-9628-49F8B4D9DAD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9467545-21B1-407E-9628-49F8B4D9DAD8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A965670F-36F7-4F00-9C1E-F34AB4503819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A965670F-36F7-4F00-9C1E-F34AB4503819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A965670F-36F7-4F00-9C1E-F34AB4503819}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A965670F-36F7-4F00-9C1E-F34AB4503819}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
