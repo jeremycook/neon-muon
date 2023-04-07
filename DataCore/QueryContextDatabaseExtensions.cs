@@ -17,7 +17,7 @@ public static class QueryContextDatabaseExtensions {
         var defaultSchema = string.Empty;
 
         var tableTypes = queryContextType.GetProperties()
-            .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(IQuery<,>))
+            .Where(p => ImplementsInterface(p.PropertyType, typeof(IQuery<,>)))
             .Select(p => p.PropertyType.GetGenericArguments()[1])
             .ToList();
 
@@ -67,6 +67,30 @@ public static class QueryContextDatabaseExtensions {
 
                 var index = table.Indexes.GetOrAdd(new TableIndex("pk_" + table.Name, TableIndexType.PrimaryKey, keyProperties.Select(c => c.Name)));
             }
+        }
+    }
+
+    private static bool ImplementsInterface(Type implementation, Type interfaceType) {
+        if (interfaceType.IsGenericType) {
+            if (interfaceType.IsInterface) {
+                return implementation
+                    .GetInterfaces()
+                    .Any(iface => iface.IsGenericType && iface.GetGenericTypeDefinition() == interfaceType);
+            }
+            else {
+                var type = implementation;
+                while (type != typeof(object)) {
+                    if (type.IsGenericType && type.GetGenericTypeDefinition() == interfaceType) {
+                        return true;
+                    }
+                    type = type?.BaseType ?? typeof(object);
+                }
+                return false;
+            }
+            throw new ArgumentException($"The {nameof(interfaceType)} is not an interface type.", nameof(interfaceType));
+        }
+        else {
+            return implementation.IsAssignableTo(interfaceType);
         }
     }
 }

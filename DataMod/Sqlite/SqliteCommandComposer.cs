@@ -9,7 +9,9 @@ namespace DataMod.Sqlite;
 
 public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
 
-    private static readonly Dictionary<string, MethodInfo> StaticMethods = typeof(SqliteCommandComposer<TDb>).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).ToDictionary(o => o.Name);
+    private static readonly Dictionary<string, MethodInfo> StaticMethods = typeof(SqliteCommandComposer<TDb>)
+        .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+        .ToDictionary(o => o.Name + "`" + o.GetParameters()[0].ParameterType.GetGenericArguments().Length);
 
     public SqliteCommandComposer(IReadOnlyDatabase<TDb> database) {
         this.database = database;
@@ -36,15 +38,6 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         return CreateCommand(query);
     }
 
-    private static Sql CallMap(IQuery<TDb> mapQuery) {
-        var genericMethod = StaticMethods[nameof(Map)];
-        var typeArgs = mapQuery.GetType().GetGenericArguments();
-        var method = genericMethod.MakeGenericMethod(typeArgs[1], typeArgs[2]);
-
-        var result = method.Invoke(null, new[] { mapQuery });
-        return (Sql)result!;
-    }
-
     private static Sql Translate<T>(IQuery<TDb, T> query) {
         Sql sql;
 
@@ -54,6 +47,9 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
         else if (query is FilterQuery<TDb, T> filterQuery) {
             sql = Map(MapQuery.CreateIdentityMap(filterQuery));
+        }
+        else if (query.QueryType == QueryType.Join) {
+            sql = Map(MapQuery.CreateIdentityMap(query));
         }
         else if (query.QueryType == QueryType.Take) {
             sql = Map(MapQuery.CreateIdentityMap(query));
@@ -74,19 +70,46 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         return sql;
     }
 
+    private static Sql Table<T>(FromQuery<TDb, T> query) {
+        return Identifier(query.T1Type.Name);
+    }
+
     private static Sql From<T>(FromQuery<TDb, T> query) {
         var sql = Interpolate($"FROM {Table(query)}");
         return sql;
     }
 
-    private static Sql Table<T>(FromQuery<TDb, T> query) {
-        return Identifier(query.T1Type.Name);
+    private static Sql CallJoin(IQuery<TDb> joinQuery) {
+        var genericMethod = StaticMethods[nameof(Join) + "`" + joinQuery.GetType().GetGenericArguments().Length];
+        var typeArgs = joinQuery.GetType().GetGenericArguments();
+        var method = genericMethod.MakeGenericMethod(typeArgs.Skip(1).ToArray());
+
+        var result = method.Invoke(null, new[] { joinQuery });
+        return (Sql)result!;
+    }
+
+    private static Sql Join<T1, T2>(JoinQuery<TDb, T1, T2> query) {
+        var joinSql = expressionTranslator.Translate(query.Condition);
+        var sql = Interpolate($"FROM {Table(query.LeftQuery)} JOIN {Table(query.RightQuery)} ON {joinSql}");
+        return sql;
+    }
+
+    private static Sql Join<T1, T2, T3>(JoinQuery<TDb, T1, T2, T3> query) {
+        var joinSql = expressionTranslator.Translate(query.Condition);
+        var sql = Interpolate($"{Join(query.LeftQuery)} JOIN {Table(query.RightQuery)} ON {joinSql}");
+        return sql;
     }
 
     private static Sql Filter<T>(FilterQuery<TDb, T> query) {
         if (query.Query is FromQuery<TDb, T> fromQuery) {
             var condition = expressionTranslator.Translate(query.Condition);
             var sql = Interpolate($"{From(fromQuery)} WHERE {condition}");
+            return sql;
+        }
+        else if (query.Query.QueryType == QueryType.Join) {
+            var condition = expressionTranslator.Translate(query.Condition);
+            Sql joinSql = CallJoin(query.Query);
+            var sql = Interpolate($"{joinSql} WHERE {condition}");
             return sql;
         }
         else {
@@ -112,24 +135,39 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
         }
     }
 
+    private static Sql CallMap(IQuery<TDb> mapQuery) {
+        var genericMethod = StaticMethods[nameof(Map) + "`" + mapQuery.GetType().GetGenericArguments().Length];
+        var typeArgs = mapQuery.GetType().GetGenericArguments();
+        var method = genericMethod.MakeGenericMethod(typeArgs[1], typeArgs[2]);
+
+        var result = method.Invoke(null, new[] { mapQuery });
+        return (Sql)result!;
+    }
+
     private static Sql Map<TSource, T>(MapQuery<TDb, TSource, T> query) {
         var mapSql = expressionTranslator.Translate(query.Map);
+
         if (query.Query is FromQuery<TDb, TSource> fromQuery) {
             var sql = Interpolate($"SELECT {mapSql} {From(fromQuery)}");
             return sql;
         }
+
+        if (query.Query.QueryType == QueryType.Join) {
+            var sql = Interpolate($"SELECT {mapSql} {CallJoin(query.Query)}");
+            return sql;
+        }
+
         if (query.Query is FilterQuery<TDb, TSource> filterQuery) {
             var sql = Interpolate($"SELECT {mapSql} {Filter(filterQuery)}");
             return sql;
         }
-        else {
-            throw new NotSupportedException($"Unable to map: {query.Query}");
-        }
+
+        throw new NotSupportedException($"Unable to map: {query.Query}");
     }
 
     private static Sql InsertQuery<T>(InsertQuery<TDb, T> query) {
         if (query.Query is FromQuery<TDb, T> fromQuery) {
-            var sql = Interpolate($"INSERT INTO {Table(fromQuery)} ({Columns(fromQuery)}) VALUES {Join(", ", query.Items.Select(Values))}");
+            var sql = Interpolate($"INSERT INTO {Table(fromQuery)} ({Columns(fromQuery)}) VALUES {Sql.Join(", ", query.Items.Select(Values))}");
             return sql;
         }
         else {
@@ -142,6 +180,6 @@ public class SqliteCommandComposer<TDb> : IDbCommandComposer<TDb> {
     }
 
     private static Sql Values<T>(T item) {
-        return Interpolate($"({Join(", ", typeof(T).GetProperties().Select(p => p.GetValue(item)))})");
+        return Interpolate($"({Sql.Join(", ", typeof(T).GetProperties().Select(p => p.GetValue(item)))})");
     }
 }

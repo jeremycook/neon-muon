@@ -7,20 +7,43 @@ public class SqlExpressionTranslator {
     public virtual Sql Translate(Expression node) {
         switch (node) {
             case LambdaExpression lambda:
-                return lambda.Parameters[0] == lambda.Body
-                    ? Sql.Identifier(lambda.Body.Type.Name, "*")
-                    : Translate(lambda.Body);
+                if (lambda.Parameters[0] == lambda.Body) {
+                    if (lambda.Body.Type.Name.StartsWith("ValueTuple`")) {
+                        throw new NotImplementedException("ValueTuple support");
+                        //return Sql.Join(", ", lambda.Body.Type.GetProperties()
+                        //    .SelectMany((prop, i) => {
+                        //        var underType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+
+                        //        if (underType.IsPrimitive || underType == typeof(Guid) || underType == typeof(string)) {
+                        //            return new[] { prop.Name };
+                        //        }
+
+                        //        Sql.Identifier(lambda.Body.Type.Name, "*")
+
+                        //    });
+                    }
+                    else {
+                        return Sql.Identifier(lambda.Body.Type.Name, "*");
+                    }
+                }
+                else {
+                    return Translate(lambda.Body);
+                }
 
             case MemberExpression member:
                 switch (member.Expression) {
                     case ParameterExpression parameter:
                         // Since the parameter name is generally arbitrary (as in `o => o.Something`)
-                        // we will prefix with the type name instead. A more complicated translator would use
+                        // we will prefix with the type name instead. A more powerful translator would use
                         // additional context to decide what the prefix of the identifier should be.
                         return Sql.Identifier(parameter.Type.Name, member.Member.Name);
 
                     case ConstantExpression constant when member.Member is FieldInfo fi:
                         return Sql.Value(fi.GetValue(constant.Value));
+
+                    case MemberExpression innerMember:
+                        var sql = Translate(innerMember);
+                        return sql;
                 }
                 break;
 
@@ -62,7 +85,7 @@ public class SqlExpressionTranslator {
                 return Sql.Empty;
         }
 
-        throw new NotSupportedException($"{node.GetType()}: {node.NodeType}");
+        throw new NotSupportedException($"{node.GetType().Name}: {node.NodeType}");
     }
 
     private static Sql GetBinaryOperation(BinaryExpression binary) {
@@ -83,5 +106,24 @@ public class SqlExpressionTranslator {
             MemberAssignment assignment => Sql.Interpolate($"{Sql.Identifier(binding.Member.Name)} = {Translate(assignment.Expression)}"),
             _ => throw new NotSupportedException($"{binding.GetType()}: {binding.BindingType}"),
         };
+    }
+
+    private static bool IsPrimitive(Type type) {
+        return type.IsPrimitive || type == typeof(Guid) || type == typeof(string) || Nullable.GetUnderlyingType(type)?.IsPrimitive == true;
+    }
+
+    public static IEnumerable<string> GetResultColumn(Type type) {
+        var under = Nullable.GetUnderlyingType(type) ?? type;
+        if (under.Name.StartsWith("ValueTuple`")) {
+            return under.GetFields().SelectMany(f => IsPrimitive(f.FieldType)
+                ? new[] { f.Name }
+                : GetResultColumn(f.FieldType).Select(name => f.Name + "." + name));
+        }
+        else if (IsPrimitive(under)) {
+            throw new NotSupportedException();
+        }
+        else {
+            return under.GetProperties().Select(prop => prop.Name);
+        }
     }
 }

@@ -15,22 +15,38 @@ public class SqliteQueryRunner<TDb> : IQueryRunner<TDb> {
     public int Execute(IQuery<TDb> query) {
         using var accessor = connectionFactory.Create();
         using var command = composer.CreateCommand(query);
-        return accessor.Connection.Execute(command);
+
+        try {
+            return accessor.Connection.Execute(command);
+        }
+        catch (Exception ex) {
+            throw new Exception(ex.GetBaseException().Message + "\n" + command.CommandText, ex);
+        }
     }
 
     public async ValueTask<int> Execute(IQuery<TDb> query, CancellationToken cancellationToken = default) {
         using var accessor = connectionFactory.Create();
         using var command = composer.CreateCommand(query);
-        return await accessor.Connection.ExecuteAsync(command, cancellationToken);
+
+        try {
+            return await accessor.Connection.ExecuteAsync(command, cancellationToken);
+        }
+        catch (Exception ex) {
+            throw new Exception(ex.GetBaseException().Message + "\n" + command.CommandText, ex);
+        }
     }
 
     public async ValueTask<List<T1>> List<T1>(IQuery<TDb, T1> query, CancellationToken cancellationToken = default) {
         using var accessor = connectionFactory.Create();
         using var command = composer.CreateCommand(query);
 
-        var list = await accessor.Connection.ListAsync<T1>(command, cancellationToken);
-
-        return list;
+        try {
+            var list = await accessor.Connection.ListAsync<T1>(command, cancellationToken);
+            return list;
+        }
+        catch (Exception ex) {
+            throw new Exception(ex.GetBaseException().Message + "\n" + command.CommandText, ex);
+        }
     }
 
     public async ValueTask<T1?> Nullable<T1>(IQuery<TDb, T1> query, CancellationToken cancellationToken = default)

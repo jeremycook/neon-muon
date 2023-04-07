@@ -3,8 +3,12 @@
 namespace DataCore;
 
 public static class QueryExtensions {
-    public static IQuery<TDb, (T1, T2)> Join<TDb, T1, T2>(this IQuery<TDb, T1> query1, IQuery<TDb, T2> query2, Expression<Func<T1, T2, bool>> condition) {
+    public static JoinQuery<TDb, T1, T2> Join<TDb, T1, T2>(this FromQuery<TDb, T1> query1, FromQuery<TDb, T2> query2, Expression<Func<T1, T2, bool>> condition) {
         return new JoinQuery<TDb, T1, T2>(query1, query2, condition);
+    }
+
+    public static JoinQuery<TDb, T1, T2, T3> Join<TDb, T1, T2, T3>(this JoinQuery<TDb, T1, T2> leftQuery, FromQuery<TDb, T3> rightQuery, Expression<Func<T1, T2, T3, bool>> condition) {
+        return new JoinQuery<TDb, T1, T2, T3>(leftQuery, rightQuery, condition);
     }
 
     public static IQuery<TDb, T1> Filter<TDb, T1>(this IQuery<TDb, T1> query, Expression<Func<T1, bool>> condition) {

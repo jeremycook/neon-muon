@@ -4,10 +4,10 @@ using DataCore;
 namespace ContentMod;
 
 public sealed class ContentContext {
-    public static IQuery<ContentContext, AuthorInfo> AuthorInfos => new FromQuery<ContentContext, AuthorInfo>();
-    public static IQuery<ContentContext, ContentTitle> ContentTitles => new FromQuery<ContentContext, ContentTitle>();
-    public static IQuery<ContentContext, HtmlBody> HtmlBodies => new FromQuery<ContentContext, HtmlBody>();
-    public static IQuery<ContentContext, PublicationInfo> PublicationInfos => new FromQuery<ContentContext, PublicationInfo>();
+    public static FromQuery<ContentContext, AuthorInfo> AuthorInfos => new();
+    public static FromQuery<ContentContext, ContentTitle> ContentTitles => new();
+    public static FromQuery<ContentContext, HtmlBody> HtmlBodies => new();
+    public static FromQuery<ContentContext, PublicationInfo> PublicationInfos => new();
 
     public static IReadOnlyDatabase<ContentContext> Database { get; }
     static ContentContext() {
