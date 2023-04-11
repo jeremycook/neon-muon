@@ -44,45 +44,52 @@ public class Shared {
         join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId
         select ValueTuple.Create(user, userRole);
 
-    //public static LambdaExpression multiJoinAnon { get; } = () =>
-    //    UserContext.Users
-    //        .Join(UserContext.UserRoles, user => user.UserId, userRole => userRole.UserId, (user, userRole) => ValueTuple.Create(user, userRole))
-    //        .Join(UserContext.Roles, )
-    //    join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId
-    //    join role in UserContext.Roles on userRole.RoleId equals role.RoleId
-    //    select new { user.Username, role.Name };
+    // SELECT user.Username "user.Username", role.Name "role.Name" FROM (User) user JOIN (UserRole) userRole ON user.UserId = userRole.UserId
+    public static LambdaExpression joinSubquery { get; } = () =>
+        from user in UserContext.Users
+        join role in (
+            from userRole in UserContext.UserRoles
+            join role in UserContext.Roles on userRole.RoleId equals role.RoleId
+            select new { userRole.UserId, role.Name }
+        ) on user.UserId equals role.UserId
+        select new { user.Username, Role = role.Name };
+
+    public static LambdaExpression multiJoinAnonM { get; } = () =>
+        UserContext.Users
+            .Join(UserContext.UserRoles, user => user.UserId, userRole => userRole.UserId, (user, userRole) => ValueTuple.Create(user, userRole))
+            .Join(UserContext.Roles, ((User user, UserRole userRole) _) => _.userRole.RoleId, role => role.RoleId, ((User user, UserRole userRole) _, Role role) => new { _.user.Username, Role = role.Name });
 
     public static LambdaExpression multiJoinAnon { get; } = () =>
-        from user in UserContext.Users
-        join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId
-        join role in UserContext.Roles on userRole.RoleId equals role.RoleId
-        select new { user.Username, role.Name };
+            from user in UserContext.Users
+            join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId
+            join role in UserContext.Roles on userRole.RoleId equals role.RoleId
+            select new { user.Username, role.Name };
 
-    public static LambdaExpression groupJoinM = (string username) =>
-        UserContext.Users
-            .GroupJoin(UserContext.UserRoles, user => user.UserId, userRole => userRole.UserId, (user, userRoles) => new {
-                user.Username,
-                userRoles,
-            });
+    //public static LambdaExpression groupJoinM = (string username) =>
+    //    UserContext.Users
+    //        .GroupJoin(UserContext.UserRoles, user => user.UserId, userRole => userRole.UserId, (user, userRoles) => new {
+    //            user.Username,
+    //            userRoles,
+    //        });
 
-    public static LambdaExpression groupJoin = (string username) =>
-        from user in UserContext.Users
-        join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId into userRoleGroup
-        select new {
-            user.Username,
-            userRoleGroup,
-        };
+    //public static LambdaExpression groupJoin = (string username) =>
+    //    from user in UserContext.Users
+    //    join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId into userRoleGroup
+    //    select new {
+    //        user.Username,
+    //        userRoleGroup,
+    //    };
 
-    public static LambdaExpression complex = (string username) =>
-        from user in UserContext.Users
-        where user.Username.ToLower() == username.ToLower()
-        join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId into userRoleGroup
-        select new {
-            user.Username,
-            Roles = from userRole in userRoleGroup
-                    join role in UserContext.Roles on userRole.RoleId equals role.RoleId
-                    select role.Name,
-        };
+    //public static LambdaExpression complex = (string username) =>
+    //    from user in UserContext.Users
+    //    where user.Username.ToLower() == username.ToLower()
+    //    join userRole in UserContext.UserRoles on user.UserId equals userRole.UserId into userRoleGroup
+    //    select new {
+    //        user.Username,
+    //        Roles = from userRole in userRoleGroup
+    //                join role in UserContext.Roles on userRole.RoleId equals role.RoleId
+    //                select role.Name,
+    //    };
 }
 
 public sealed class UserContext {

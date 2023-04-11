@@ -2,6 +2,14 @@
 
 public interface ISqlil { }
 
+public readonly record struct SqlQuery(IReadOnlyList<ISqlil> Parts) : ISqlil {
+    public static SqlQuery Create(IReadOnlyList<ISqlil> Parts) => new(Parts);
+
+    public override string ToString() {
+        return string.Join(' ', Parts);
+    }
+}
+
 public readonly record struct SqlTable(Type Table) : ISqlil {
     public static SqlTable Create(Type Table) => new(Table);
 

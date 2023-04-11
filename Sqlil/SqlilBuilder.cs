@@ -1,6 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Sqlil;
 
@@ -24,10 +26,23 @@ public class SqlilBuilder {
                 yield break;
             }
 
-            else {
-                var prefix = Parameter((ParameterExpression)expression.Expression, expression).Single();
-                yield return SqlIdentifier.Create(prefix.Identifier, property.Name);
+            else if (expression.Expression is ParameterExpression parameter) {
+                var parameterName = GetParameterName(parameter);
+                yield return SqlIdentifier.Create(parameterName, property.Name);
                 yield break;
+            }
+
+            else if (expression.Expression is MemberExpression member) {
+                var memberSql = Process(member, expression).ToImmutableArray();
+                if (memberSql.Length == 1 && memberSql[0] is SqlIdentifier identifier) {
+                    yield return SqlIdentifier.Create(identifier.Identifier, property.Name);
+                    yield break;
+                }
+                else {
+                    var query = SqlQuery.Create(memberSql);
+                    yield return SqlAlias.Create(query, property.Name);
+                    yield break;
+                }
             }
         }
 
@@ -41,6 +56,12 @@ public class SqlilBuilder {
         else {
             throw new NotImplementedException($"{nameof(MemberAccess)}: {expression.NodeType} {expression.GetType().Name} support has not been implemented.");
         }
+    }
+
+    private static string GetParameterName(ParameterExpression parameter) {
+        return parameter.Name is not null && parameter.Name.StartsWith('<')
+            ? '_' + Convert.ToHexString(MD5.HashData(Encoding.ASCII.GetBytes(parameter.Name))[0..8])
+            : parameter.Name ?? string.Empty;
     }
 
     static IEnumerable<ISqlil> Lambda(LambdaExpression expression, Expression? context) {
@@ -77,8 +98,11 @@ public class SqlilBuilder {
         }
     }
 
-    static IEnumerable<SqlIdentifier> Parameter(ParameterExpression expression, Expression context) {
-        yield return SqlIdentifier.Create(expression.Name);
+    static IEnumerable<SqlIdentifier> Parameter(ParameterExpression expression, Expression _) {
+        var parameterName = GetParameterName(expression);
+        if (parameterName != string.Empty) {
+            yield return SqlIdentifier.Create(parameterName);
+        }
     }
 
     static IEnumerable<ISqlil> Quote(UnaryExpression expression, Expression context) {
@@ -133,15 +157,15 @@ public class SqlilBuilder {
 
                     if (expression.Arguments.Count != 5) throw new Exception("Expected 5 arguments");
 
-                    var outer = (MemberExpression)expression.Arguments[0];
-                    var inner = (MemberExpression)expression.Arguments[1];
+                    var outer = expression.Arguments[0];
+                    var inner = expression.Arguments[1];
                     var outerKeySelector = (UnaryExpression)expression.Arguments[2];
                     var innerKeySelector = (UnaryExpression)expression.Arguments[3];
                     var resultSelector = (UnaryExpression)expression.Arguments[4];
 
                     var resultSelectorOperand = (LambdaExpression)resultSelector.Operand;
-                    var outerAlias = resultSelectorOperand.Parameters[0].Name;
-                    var innerAlias = resultSelectorOperand.Parameters[1].Name;
+                    var outerAlias = resultSelectorOperand.Parameters[0].Name ?? throw new NullReferenceException("outerAlias");
+                    var innerAlias = resultSelectorOperand.Parameters[1].Name ?? throw new NullReferenceException("innerAlias");
 
                     // Expand o => [something]
                     var selectElements = Process(resultSelector, expression);
@@ -149,13 +173,25 @@ public class SqlilBuilder {
 
                     yield return SqlKeyword.Create("FROM");
 
-                    var fromSql = Process(outer, expression).Single();
-                    yield return SqlAlias.Create(fromSql, outerAlias);
+                    var outerSql = Process(outer, expression).ToImmutableArray();
+                    if (outerSql.Length == 1 && outerSql[0] is SqlTable) {
+                        yield return SqlAlias.Create(outerSql[0], outerAlias);
+                    }
+                    else {
+                        var query = SqlQuery.Create(outerSql);
+                        yield return SqlAlias.Create(query, outerAlias);
+                    }
 
                     yield return SqlKeyword.Create("JOIN");
 
-                    var joinSql = Process(inner, expression).Single();
-                    yield return SqlAlias.Create(joinSql, innerAlias);
+                    var innerSql = Process(inner, expression).ToImmutableArray();
+                    if (innerSql.Length == 1 && innerSql[0] is SqlTable) {
+                        yield return SqlAlias.Create(innerSql[0], innerAlias);
+                    }
+                    else {
+                        var query = SqlQuery.Create(innerSql);
+                        yield return SqlAlias.Create(query, innerAlias);
+                    }
 
                     yield return SqlKeyword.Create("ON");
 
@@ -196,16 +232,14 @@ public class SqlilBuilder {
         IEnumerable<ISqlil> results = expression switch {
 
             ParameterExpression parameter => GetResultColumn(parameter.Type)
-                .Select(p => SqlIdentifier.Create(parameter.Name, p))
-                .Select(selector => SqlAlias.Create(
-                    selector,
-                    selector.Prefix != string.Empty ? $"{selector.Prefix}.{selector.Identifier}" : selector.Identifier
-                ))
-                .Cast<ISqlil>(),
+                .Select(p => SqlIdentifier.Create(parameter.Name, p) as ISqlil)
+                .ToImmutableArray(),
 
-            MemberExpression member => Process(member.Expression, member)
-                .Select(p => SqlAlias.Create(p, member.Member.Name))
-                .Cast<ISqlil>(), // TODO: Need member.Name?
+            MemberExpression member => member.Expression is ParameterExpression innerParameter
+                ? ImmutableArray.Create(SqlIdentifier.Create(innerParameter.Name, member.Member.Name) as ISqlil)
+                : Process(member.Expression, member)
+                    .Select(p => SqlAlias.Create(p, member.Member.Name) as ISqlil)
+                    .ToImmutableArray(), // TODO: Need member.Name?
 
             _ => throw new NotImplementedException($"{nameof(GetSelectors)}: {expression.NodeType} {expression.GetType().Name} support has not been implemented."),
         };

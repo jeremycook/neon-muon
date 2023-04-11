@@ -2,6 +2,7 @@
 using Spectre.Console.Json;
 using Sqlil;
 using Sqlil.Tests;
+using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Text.Json;
 
@@ -9,10 +10,20 @@ internal class Program {
     private static void Main(string[] args) {
 
         var builder = new SqlilBuilder();
-        var sqlil = builder.Build(Shared.multiJoinAnon);
 
-        var sql = string.Join(" ", sqlil);
-        Console.WriteLine(sql);
+        var expressions = typeof(Shared).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
+            .Select(f => new { f.Name, Lambda = (LambdaExpression)f.GetValue(null)! })
+            .ToImmutableArray();
+
+        var table = new Table();
+        table.AddColumns(new[] { "Name", "SQL" });
+
+        foreach (var item in expressions) {
+            var sqlil = builder.Build(item.Lambda);
+            table.AddRow(new[] { item.Name, string.Join(" ", sqlil) });
+        }
+
+        AnsiConsole.Write(table);
 
         //RunTests();
     }
