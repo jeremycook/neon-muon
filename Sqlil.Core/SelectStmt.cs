@@ -1,4 +1,6 @@
-﻿namespace Sqlil.Core;
+﻿using System.Linq.Expressions;
+
+namespace Sqlil.Core;
 
 /// <summary>
 /// https://www.sqlite.org/lang_select.html
@@ -18,29 +20,37 @@ public record class SelectStmt(
         StableList<OrderingTerm>? OrderingTerms = null,
         Expr? Limit = null,
         Expr? Offset = null
-    ) => new(
-        Recursive: default,
-        CommonTableExpressions: StableList<CommonTableExpression>.Empty,
-        SelectCores: StableList.Create(SelectCore),
-        CompoundOperator: default,
-        OrderingTerms: OrderingTerms ?? StableList<OrderingTerm>.Empty,
-        Limit: Limit,
-        Offset: Offset
-    );
+    ) {
+        if (SelectCore is null) {
+            throw new ArgumentNullException(nameof(SelectCore));
+        }
+
+        return new(
+            Recursive: default,
+            CommonTableExpressions: StableList<CommonTableExpression>.Empty,
+            SelectCores: StableList.Create(SelectCore),
+            CompoundOperator: default,
+            OrderingTerms: OrderingTerms ?? StableList<OrderingTerm>.Empty,
+            Limit: Limit,
+            Offset: Offset
+        );
+    }
 
     public static SelectStmt Create(
         SelectCore SelectCore,
         params OrderingTerm[] OrderingTerms
-    ) => Create(
-        SelectCore: SelectCore,
-        OrderingTerms: OrderingTerms != null ? StableList.Create<OrderingTerm>(OrderingTerms) : StableList<OrderingTerm>.Empty
-    );
+    ) {
+        if (OrderingTerms is null) {
+            throw new ArgumentNullException(nameof(OrderingTerms));
+        }
 
-    private static SelectStmt Create(SelectCore SelectCore, object OrderingTerms) {
-        throw new NotImplementedException();
+        return Create(
+            SelectCore: SelectCore,
+            OrderingTerms: StableList.Create(OrderingTerms)
+        );
     }
 
-    public override string ToString() => string.Join("\n",
+    public override string ToString() => string.Join("\n", new[] {
         CommonTableExpressions.Any()
             ? "WITH " + (Recursive ? "RECURSIVE " : string.Empty) + string.Join(",\n", CommonTableExpressions)
             : string.Empty,
@@ -54,7 +64,7 @@ public record class SelectStmt(
         Limit != null
             ? "LIMIT " + Limit + (Offset != null ? " OFFSET " + Offset : string.Empty)
             : string.Empty
-    );
+    }.Where(x => x != string.Empty));
 }
 
 /// <summary>
@@ -68,12 +78,8 @@ public record class CommonTableExpression(
 ) {
     public override string ToString() =>
         TableName + " "
-        + (ColumnNames.Any()
-            ? string.Join(",\n\t", ColumnNames) + " "
-            : string.Empty)
-        + (Materialized
-            ? "MATERIALIZED "
-            : string.Empty)
+        + (ColumnNames.Any() ? string.Join(",\n\t", ColumnNames) + " " : string.Empty)
+        + (Materialized ? "MATERIALIZED " : string.Empty)
         + "(" + SelectStmt + ")";
 }
 
@@ -89,15 +95,17 @@ public record class SelectCoreNormal(
     Expr? Having,
     StableList<(string WindowName, WindowDefn WindowDefn)> Windows
 ) : SelectCore {
+
     public static SelectCoreNormal Create(
-        TableOrSubqueryTable Table
+        TableOrSubquery TableOrSubquery,
+        Expr? Where = null
     ) =>
         new(
             Distinct: false,
             ResultColumns: StableList.Create<ResultColumn>(ResultColumnAsterisk.Create()),
-            TableOrSubqueries: StableList.Create<TableOrSubquery>(Table),
+            TableOrSubqueries: StableList.Create<TableOrSubquery>(TableOrSubquery),
             JoinClause: null,
-            Where: null,
+            Where: Where,
             GroupBys: StableList<Expr>.Empty,
             Having: null,
             Windows: StableList<(string, WindowDefn)>.Empty
@@ -105,14 +113,15 @@ public record class SelectCoreNormal(
 
     public static SelectCoreNormal Create(
         StableList<ResultColumn> ResultColumns,
-        TableOrSubqueryTable Table
+        TableOrSubqueryTable Table,
+        Expr? Where = null
     ) =>
         new(
             Distinct: false,
             ResultColumns: ResultColumns,
             TableOrSubqueries: StableList.Create<TableOrSubquery>(Table),
             JoinClause: null,
-            Where: null,
+            Where: Where,
             GroupBys: StableList<Expr>.Empty,
             Having: null,
             Windows: StableList<(string, WindowDefn)>.Empty
@@ -184,12 +193,53 @@ public record class OrderingTerm(
 /// </summary>
 public interface Expr { }
 
-public record class ExprLiteralInteger(
-    int Value
+public record class ExprBindParameter(
+    Type Type,
+    string? SuggestedName = null
 ) : Expr {
-    public static ExprLiteralInteger Create(int Value) => new(Value);
+    public static ExprBindParameter Create(
+        Type Type,
+        string? SuggestedName = null
+    ) => new(
+        Type: Type,
+        SuggestedName: SuggestedName
+    );
 
-    public override string ToString() => Value.ToString();
+    public override string ToString() {
+        return
+            "@(" +
+            (SuggestedName != null ? (SuggestedName + " AS ") : string.Empty) +
+            Type.Name + ")";
+    }
+}
+
+public record class ExprBinary(
+    string Operator,
+    Expr Left,
+    Expr Right,
+    ExpressionType? OperatorExpressionType = null
+) : Expr {
+    public static ExprBinary Create(ExpressionType Operator, Expr Left, Expr Right) => new(OperatorMap[Operator], Left, Right, OperatorExpressionType: Operator);
+    public static ExprBinary Create(string Operator, Expr Left, Expr Right) => new(Operator, Left, Right);
+
+    public override string ToString() => OperatorExpressionType switch {
+
+        ExpressionType.AndAlso or
+        ExpressionType.OrElse => "(" + Left + " " + Operator + " " + Right + ")",
+
+        _ => Left + " " + Operator + " " + Right
+    };
+
+    public static readonly Dictionary<ExpressionType, string> OperatorMap = new() {
+        {ExpressionType.NotEqual, "<>"},
+        {ExpressionType.Equal, "="},
+        {ExpressionType.Subtract, "-"},
+        {ExpressionType.Add, "+"},
+        {ExpressionType.Multiply, "*"},
+        {ExpressionType.Divide, "/"},
+        {ExpressionType.AndAlso, "AND"},
+        {ExpressionType.OrElse, "OR"},
+    };
 }
 
 public record class ExprColumn(
@@ -198,18 +248,61 @@ public record class ExprColumn(
     Identifier? SchemaName = null
 ) : Expr {
     public static ExprColumn Create(
-    Identifier ColumnName,
-    Identifier? TableName = null,
-    Identifier? SchemaName = null
+        Identifier ColumnName
     ) => new(
-        ColumnName: ColumnName,
+        ColumnName: ColumnName
+    );
+
+    public static ExprColumn Create(
+        Identifier TableName,
+        Identifier ColumnName
+    ) => new(
         TableName: TableName,
-        SchemaName: SchemaName
+        ColumnName: ColumnName
+    );
+
+    public static ExprColumn Create(
+        Identifier SchemaName,
+        Identifier TableName,
+        Identifier ColumnName
+    ) => new(
+        SchemaName: SchemaName,
+        TableName: TableName,
+        ColumnName: ColumnName
     );
 
     public override string ToString() {
         return Identifier.Join(SchemaName, TableName, ColumnName);
     }
+}
+
+public record class ExprLiteralInteger(
+    int Value
+) : Expr {
+    public static ExprLiteralInteger Create(int Value) => new(Value);
+
+    public override string ToString() => Value.ToString();
+}
+
+public record class ExprLiteralString(
+    string Value
+) : Expr {
+    public static ExprLiteralString Create(string Value) => new(Value);
+
+    public override string ToString() => "'" + Value.Replace("'", "''") + "'";
+}
+
+public record class ExprUnary(
+    ExpressionType Operator,
+    Expr Operand
+) : Expr {
+    public static ExprUnary Create(ExpressionType Operator, Expr Operand) => new(Operator, Operand);
+
+    public override string ToString() => OperatorMap[Operator] + " " + Operand;
+
+    public static readonly Dictionary<ExpressionType, string> OperatorMap = new() {
+        {ExpressionType.Not, "NOT"},
+    };
 }
 
 /// <summary>

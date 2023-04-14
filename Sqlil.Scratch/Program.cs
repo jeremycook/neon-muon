@@ -1,97 +1,57 @@
-﻿using Spectre.Console;
-using Sqlil.Core;
+﻿using Sqlil.Core.ExpressionTranslation;
 
-var examples = new[] {
-    new { Desc = "Simple", Sql = SelectStmt.Create(
-        SelectCore: SelectCoreNormal.Create(
-            StableList.Create<ResultColumn>(
-                ResultColumnExpr.Create(
-                    ExprColumn.Create("SomeColumn", "SomeAlias"),
-                    Identifier.Create("SomeColumnAlias")
-                )
-            ),
-            TableOrSubqueryTable.Create("SomeTable", "SomeSchema", "SomeAlias")
-        ),
-        OrderingTerms: StableList.Create(OrderingTerm.Create(ExprColumn.Create("SomeColumn"))),
-        Limit: ExprLiteralInteger.Create(Value: 50),
-        Offset: ExprLiteralInteger.Create(Value: 100)
-    )},
-};
+namespace Sqlil.Scratch;
 
-examples.Dump();
+internal class Program {
+    private static void Main(string[] args) {
 
-(StableList.Create(1, 2, 3) == StableList.Create(1, 2, 3)).Dump();
-(StableList.Create(1, 2, 3) == StableList.Create(1, 2, 3, 4)).Dump("Not Equal");
+        // new[] {
+        //     new { Desc = "Simple", Sql = SelectStmt.Create(
+        //         SelectCore: SelectCoreNormal.Create(
+        //             StableList.Create<ResultColumn>(
+        //                 ResultColumnExpr.Create(
+        //                     ExprColumn.Create("SomeColumn", "SomeAlias"),
+        //                     Identifier.Create("SomeColumnAlias")
+        //                 )
+        //             ),
+        //             TableOrSubqueryTable.Create("SomeTable", "SomeSchema", "SomeAlias")
+        //         ),
+        //         OrderingTerms: StableList.Create(OrderingTerm.Create(ExprColumn.Create("SomeColumn"))),
+        //         Limit: ExprLiteralInteger.Create(Value: 50),
+        //         Offset: ExprLiteralInteger.Create(Value: 100)
+        //     )},
+        // }.Dump();
 
-// (ImmutableList.Create(OrderingTerm.Create(ExprColumn.Create("SomeColumn"))) == ImmutableList.Create(OrderingTerm.Create(ExprColumn.Create("SomeColumn")))).Dump("Equal");
+        // Lambda.Translate(() => UserContext
+        //     .Users
+        //     .OrderByDescending(u => u.Birthday)
+        //     .Select(user => user.Username)
+        //     .Skip(100)
+        //     .Take(50)
+        // , default).Dump();
 
-public static class RenderableExtensions {
+        // Lambda.Translate(() => UserContext
+        //     .Users
+        //     .OrderBy(u => u.Birthday)
+        //     .Select(user => new { user.Username, user.Birthday })
+        //     .Skip(100)
+        //     .Take(50)
+        // , default).Dump();
 
-    public static T Dump<T>(this T item, string? label = null) {
-        Spectre.Console.Rendering.IRenderable content;
-        if (item == null) {
-            content = new Text("NULL", new Style(decoration: Decoration.Italic));
-        }
-        else if (item is Spectre.Console.Rendering.IRenderable r) {
-            content = r;
-        }
-        else if (typeof(T).IsArray) {
-            content = ToRenderableGrid(item as dynamic);
-        }
-        else {
-            content = new Text(item?.ToString() ?? string.Empty);
-        }
+        // Lambda.Translate((int number) => (1 + number) * 3, default).Dump();
 
-        var panel = new Panel(content);
-        if (label != null) {
-            panel.Header = new(label);
-        }
-
-        AnsiConsole.Write(panel);
-        AnsiConsole.WriteLine();
-
-        return item;
-    }
-
-    public static Grid ToRenderableGrid<T>(this IEnumerable<T> items) {
-        Type type = typeof(T);
-
-        var properties =
-            type.GetProperties().Select(o => new { o.Name, GetValue = (Func<T, object?>)(x => o.GetValue(x)) })
-            .Concat(type.GetFields().Select(o => new { o.Name, GetValue = (Func<T, object?>)(x => o.GetValue(x)) }))
-            .ToArray();
-
-        var grid = new Grid();
-        grid.AddColumns(properties.Length);
-        if (type.Name.StartsWith("ValueTuple`") == true) {
-        }
-        else {
-            grid.AddRow(properties.Select(p => p.Name).ToArray());
-        }
-
-        foreach (var item in items) {
-            grid.AddRow(properties.Select(p => p.GetValue(item)?.ToString() ?? string.Empty).ToArray());
-        }
-
-        return grid;
-    }
-
-    public static Table ToRenderableTable<T>(this IEnumerable<T> items) {
-        Type type = typeof(T);
-
-        var properties =
-            type.GetProperties().Select(o => new { o.Name, GetValue = (Func<T, object?>)(x => o.GetValue(x)) })
-            .Concat(type.GetFields().Select(o => new { o.Name, GetValue = (Func<T, object?>)(x => o.GetValue(x)) }))
-            .ToArray();
-
-        var grid = new Table();
-
-        grid.AddColumns(properties.Select(p => p.Name).ToArray());
-
-        foreach (var item in items) {
-            grid.AddRow(properties.Select(p => p.GetValue(item)?.ToString() ?? string.Empty).ToArray());
-        }
-
-        return grid;
+        Lambda.Translate((bool isActive) => UserContext
+            .Users
+            .Where(us => us.IsActive == isActive && (
+                us.Username == "Jeremy" ||
+                us.Username.StartsWith("J") ||
+                us.Username.Contains("erem") ||
+                us.Username.EndsWith("y")
+            ))
+            .OrderByDescending(u => u.Birthday)
+            .Select(user => new { user.Username, user.IsActive })
+            .Skip(100)
+            .Take(50)
+        , default).Dump();
     }
 }

@@ -4,6 +4,10 @@ using System.Collections.Immutable;
 namespace Sqlil.Core;
 
 public static class StableList {
+    public static StableList<T> ToStableList<T>(this IEnumerable<T> enumerable) {
+        return new(enumerable.ToImmutableList());
+    }
+
     public static StableList<T> Create<T>(params T[] array) {
         return new(ImmutableList.Create(array));
     }
