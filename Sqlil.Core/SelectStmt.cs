@@ -116,13 +116,13 @@ public record class SelectCoreNormal(
 
     public static SelectCoreNormal Create(
         StableList<ResultColumn> ResultColumns,
-        TableOrSubqueryTable Table,
+        TableOrSubquery TableOrSubquery,
         Expr? Where = null
     ) =>
         new(
             Distinct: false,
             ResultColumns: ResultColumns,
-            TableOrSubqueries: StableList.Create<TableOrSubquery>(Table),
+            TableOrSubqueries: StableList.Create<TableOrSubquery>(TableOrSubquery),
             JoinClause: null,
             Where: Where,
             GroupBys: StableList<Expr>.Empty,

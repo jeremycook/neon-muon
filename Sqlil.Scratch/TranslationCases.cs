@@ -7,6 +7,10 @@ public static class TranslationCases {
     
     public static object Math { get; } = Lambda.Translate((int number) => (1 + number) * 3, default);
 
+    public static object SelectIdentity { get; } = Lambda.Translate(() => UserContext
+        .Users.Select(u => u)
+    , default);
+
     public static object SelectProperty { get; } = Lambda.Translate(() => UserContext
         .Users
         .OrderByDescending(u => u.Birthday)
