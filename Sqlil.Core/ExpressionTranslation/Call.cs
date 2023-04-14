@@ -14,7 +14,7 @@ internal class Call {
                 nameof(Queryable.OrderByDescending) => OrderByDescending(expression, context),
                 nameof(Queryable.Skip) => Skip(expression, context),
                 nameof(Queryable.Take) => Take(expression, context),
-                _ => throw new NotSupportedException($"Method not supported {expression.Method}.", new ExpressionNotSupportedException(expression)),
+                _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
             };
             return result;
         }
@@ -22,7 +22,7 @@ internal class Call {
         else if (expression.Method.DeclaringType == typeof(ValueTuple)) {
             var result = expression.Method.Name switch {
                 nameof(ValueTuple.Create) => CreateTuple(expression, context),
-                _ => throw new NotSupportedException($"Method not supported {expression.Method}.", new ExpressionNotSupportedException(expression)),
+                _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
             };
             return result;
         }
@@ -40,22 +40,22 @@ internal class Call {
     private static ExprBinary TranslateStringMethod(MethodCallExpression expression, TranslationContext context) {
         ExprBinary result = expression.Method.Name switch {
 
-            nameof(string.Contains) => ExprBinary.Create("LIKE",
+            nameof(string.Contains) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)AnExpression.Translate(expression.Object!, context),
                 ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), ExprBinary.Create(ExpressionType.Add, (Expr)AnExpression.Translate(expression.Arguments[0], context), ExprLiteralString.Create("%")))
             ),
 
-            nameof(string.StartsWith) => ExprBinary.Create("LIKE",
+            nameof(string.StartsWith) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)AnExpression.Translate(expression.Object!, context),
                 ExprBinary.Create(ExpressionType.Add, (Expr)AnExpression.Translate(expression.Arguments[0], context), ExprLiteralString.Create("%"))
             ),
 
-            nameof(string.EndsWith) => ExprBinary.Create("LIKE",
+            nameof(string.EndsWith) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)AnExpression.Translate(expression.Object!, context),
                 ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), (Expr)AnExpression.Translate(expression.Arguments[0], context))
             ),
 
-            _ => throw new NotSupportedException($"Method not supported {expression.Method}.", new ExpressionNotSupportedException(expression)),
+            _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
         };
         return result;
     }
@@ -89,6 +89,7 @@ internal class Call {
     /// <returns></returns>
     private static SelectStmt Select(MethodCallExpression expression, TranslationContext context) {
         if (expression.Arguments.Count == 2) {
+
             // IQueryable<TResult> Select<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, int, TResult>> selector)
             var currentContext = context with {
                 ParameterName = AnExpression.GetParameterName(expression.Arguments[1]),
@@ -98,71 +99,36 @@ internal class Call {
 
             if (source is SelectStmt selectStmt) {
 
-                // var aliasedExprColumn = tableOrSubqueryTable.TableAlias != null
-                //     ? exprColumn with { TableName = tableOrSubqueryTable.TableAlias }
-                //     : exprColumn with { TableName = tableOrSubqueryTable.TableName, SchemaName = tableOrSubqueryTable.SchemaName };
-
                 if (selectStmt.SelectCores.Count == 1 &&
                     selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal &&
                     selectCoreNormal.ResultColumns.Count == 1 &&
                     selectCoreNormal.ResultColumns[0] is ResultColumnAsterisk) {
 
-                    if (selector is Expr expr) {
+                    var result = selector switch {
 
-                        var result = selectStmt with {
+                        StableList<ResultColumn> resultColumnList => selectStmt with {
                             SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
-                                ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr)),
+                                ResultColumns = resultColumnList,
                             })
-                        };
-                        return result;
-                    }
+                        },
 
-                    else if (selector is StableList<Expr> exprList) {
-
-                        var result = selectStmt with {
+                        StableList<Expr> exprList => selectStmt with {
                             SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
                                 ResultColumns = StableList.Create<ResultColumn>(exprList.Select(e => ResultColumnExpr.Create(e)).ToArray()),
                             })
-                        };
-                        return result;
-                    }
+                        },
+
+                        Expr expr => selectStmt with {
+                            SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
+                                ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr)),
+                            })
+                        },
+
+                        _ => throw new ExpressionNotSupportedException($"Selector not supported {selector.GetType()}: {selector}.", expression),
+                    };
+                    return result;
                 }
-
-                throw new ExpressionNotSupportedException(expression);
             }
-
-            else {
-                throw new ExpressionNotSupportedException(expression);
-            }
-
-
-            // if (source is SelectStmt selectStmt &&
-            //     selector is Expr expr) {
-
-            //     // var result = new SelectStmt(
-            //     //     Recursive: false,
-            //     //     CommonTableExpressions: StableList.Create(new CommonTableExpression(
-            //     //         TableName: "_" + source.GetHashCode(),
-            //     //         ColumnNames: StableList<Identifier>.Empty,
-            //     //         Materialized: false,
-            //     //         SelectStmt: selectStmt
-            //     //     )),
-            //     //     SelectCores: StableList.Create(SelectCoreNormal.Create(StableList.Create<ResultColumn>(ResultColumnExpr.Create()))))
-            //     // )
-
-            //     // if (selectStmt.SelectCores.Count == 1 &&
-            //     //     selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal &&
-            //     //     selectCoreNormal.ResultColumns.Count == 1 &&
-            //     //     selectCoreNormal.ResultColumns[0] is ResultColumnAsterisk) {
-
-            //     //     var result = selectStmt with {
-            //     //         SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
-            //     //             ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr))
-            //     //         })
-            //     //     };
-            //     //     return result;
-            //     // }
-            // }
         }
 
         throw new ExpressionNotSupportedException(expression);

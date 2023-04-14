@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 namespace Sqlil.Core;
 
@@ -55,7 +56,9 @@ public record class SelectStmt(
             ? "WITH " + (Recursive ? "RECURSIVE " : string.Empty) + string.Join(",\n", CommonTableExpressions)
             : string.Empty,
         string.Join(
-            $"\n{(CompoundOperator == CompoundOperator.UnionAll ? "UNION ALL" : CompoundOperator.ToString().ToUpper())} ",
+            $"\n{(CompoundOperator == CompoundOperator.UnionAll
+                ? "UNION ALL"
+                : CompoundOperator.ToString().ToUpper())} ",
             SelectCores
         ),
         OrderingTerms.Any()
@@ -214,32 +217,79 @@ public record class ExprBindParameter(
 }
 
 public record class ExprBinary(
-    string Operator,
+    BinaryOperator Operator,
     Expr Left,
-    Expr Right,
-    ExpressionType? OperatorExpressionType = null
+    Expr Right
 ) : Expr {
-    public static ExprBinary Create(ExpressionType Operator, Expr Left, Expr Right) => new(OperatorMap[Operator], Left, Right, OperatorExpressionType: Operator);
-    public static ExprBinary Create(string Operator, Expr Left, Expr Right) => new(Operator, Left, Right);
 
-    public override string ToString() => OperatorExpressionType switch {
+    public static ExprBinary Create(BinaryOperator Operator, Expr Left, Expr Right)
+        => new(Operator, Left, Right);
 
-        ExpressionType.AndAlso or
-        ExpressionType.OrElse => "(" + Left + " " + Operator + " " + Right + ")",
+    public static ExprBinary Create(ExpressionType ExpressionOperator, Expr Left, Expr Right)
+        => new(ExpressionToOperator[ExpressionOperator], Left, Right);
 
-        _ => Left + " " + Operator + " " + Right
+    public override string ToString() => Operator switch {
+
+        BinaryOperator.AndAlso or
+        BinaryOperator.OrElse => "(" + Left + " " + OperatorToSql[Operator] + " " + Right + ")",
+
+        _ => Left + " " + OperatorToSql[Operator] + " " + Right
     };
 
-    public static readonly Dictionary<ExpressionType, string> OperatorMap = new() {
-        {ExpressionType.NotEqual, "<>"},
-        {ExpressionType.Equal, "="},
-        {ExpressionType.Subtract, "-"},
-        {ExpressionType.Add, "+"},
-        {ExpressionType.Multiply, "*"},
-        {ExpressionType.Divide, "/"},
-        {ExpressionType.AndAlso, "AND"},
-        {ExpressionType.OrElse, "OR"},
+    private static readonly Dictionary<BinaryOperator, string> OperatorToSql = new() {
+        {BinaryOperator.AndAlso, "AND"},
+        {BinaryOperator.OrElse, "OR"},
+
+        {BinaryOperator.NotEqual, "<>"},
+        {BinaryOperator.Equal, "="},
+        {BinaryOperator.LessThan, "<"},
+        {BinaryOperator.LessThanOrEqual, "<="},
+        {BinaryOperator.GreaterThan, ">"},
+        {BinaryOperator.GreaterThanOrEqual, ">="},
+
+        {BinaryOperator.Add, "+"},
+        {BinaryOperator.Subtract, "-"},
+        {BinaryOperator.Multiply, "*"},
+        {BinaryOperator.Divide, "/"},
+
+        {BinaryOperator.Like, "LIKE"},
     };
+
+    private static readonly Dictionary<ExpressionType, BinaryOperator> ExpressionToOperator = new() {
+        {ExpressionType.AndAlso, BinaryOperator.AndAlso},
+        {ExpressionType.OrElse, BinaryOperator.OrElse},
+
+        {ExpressionType.NotEqual, BinaryOperator.AndAlso},
+        {ExpressionType.Equal, BinaryOperator.Equal},
+        {ExpressionType.LessThan, BinaryOperator.LessThan},
+        {ExpressionType.LessThanOrEqual, BinaryOperator.LessThanOrEqual},
+        {ExpressionType.GreaterThan, BinaryOperator.GreaterThan},
+        {ExpressionType.GreaterThanOrEqual, BinaryOperator.GreaterThanOrEqual},
+
+        {ExpressionType.Add, BinaryOperator.Add},
+        {ExpressionType.Subtract, BinaryOperator.Subtract},
+        {ExpressionType.Multiply, BinaryOperator.Multiply},
+        {ExpressionType.Divide, BinaryOperator.Divide},
+    };
+}
+
+public enum BinaryOperator {
+    AndAlso,
+    OrElse,
+
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+
+    Like,
 }
 
 public record class ExprColumn(
@@ -293,16 +343,27 @@ public record class ExprLiteralString(
 }
 
 public record class ExprUnary(
-    ExpressionType Operator,
+    UnaryOperator Operator,
     Expr Operand
 ) : Expr {
-    public static ExprUnary Create(ExpressionType Operator, Expr Operand) => new(Operator, Operand);
+    public static ExprUnary Create(UnaryOperator Operator, Expr Operand)
+        => new(Operator, Operand);
+    public static ExprUnary Create(ExpressionType Operator, Expr Operand)
+        => new(ExpressionTypeToOperator[Operator], Operand);
 
-    public override string ToString() => OperatorMap[Operator] + " " + Operand;
+    public override string ToString() => OperatorToString[Operator] + " " + Operand;
 
-    public static readonly Dictionary<ExpressionType, string> OperatorMap = new() {
-        {ExpressionType.Not, "NOT"},
+    private static readonly Dictionary<UnaryOperator, string> OperatorToString = new() {
+        {UnaryOperator.Not, "NOT"},
     };
+
+    private static readonly Dictionary<ExpressionType, UnaryOperator> ExpressionTypeToOperator = new() {
+        {ExpressionType.Not, UnaryOperator.Not},
+    };
+}
+
+public enum UnaryOperator {
+    Not,
 }
 
 /// <summary>
@@ -324,8 +385,10 @@ public record class ResultColumnExpr(
         new(Expr: Expr, ColumnAlias: ColumnAlias);
 
     public override string ToString() =>
-        Expr.ToString()
-        + (ColumnAlias != null ? " " + ColumnAlias : string.Empty);
+        Expr.ToString() +
+        (ColumnAlias != null && (Expr is not ExprColumn exprColumn || exprColumn.ColumnName != ColumnAlias)
+            ? " " + ColumnAlias
+            : string.Empty);
 }
 
 public record class ResultColumnTable(
@@ -414,7 +477,9 @@ public record class JoinConstraintUsing(StableList<Identifier> ColumnName)
 public record class WindowDefn { }
 
 public record class Identifier(string Name) {
-    public static implicit operator Identifier(string Name) => new(Name);
+
+    [return: NotNullIfNotNull(nameof(Name))]
+    public static implicit operator Identifier?(string? Name) => Name != null ? new(Name) : null;
 
     public static Identifier Create(string Name) => new(Name);
 

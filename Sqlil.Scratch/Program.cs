@@ -49,7 +49,7 @@ internal class Program {
                 us.Username.EndsWith("y")
             ))
             .OrderByDescending(u => u.Birthday)
-            .Select(user => new { user.Username, user.IsActive })
+            .Select(user => new { user.Username, Disabled = !user.IsActive })
             .Skip(100)
             .Take(50)
         , default).Dump();
