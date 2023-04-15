@@ -1,4 +1,3 @@
-using Sqlil.Core;
 using Sqlil.Core.ExpressionTranslation;
 
 namespace Sqlil.Scratch;
