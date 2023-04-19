@@ -6,8 +6,8 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddSingleton(typeof(LoginUI._Imports).Assembly);
-builder.Services.AddSingleton(typeof(ContentUI._Imports).Assembly);
+builder.Services.AddSingleton(typeof(LoginUI.Startup).Assembly);
+builder.Services.AddSingleton(typeof(ContentUI.Component1).Assembly);
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 

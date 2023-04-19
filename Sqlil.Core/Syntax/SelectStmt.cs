@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
-namespace Sqlil.Core;
+namespace Sqlil.Core.Syntax;
 
 /// <summary>
 /// https://www.sqlite.org/lang_select.html
