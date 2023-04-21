@@ -1,5 +1,6 @@
 using Sqlil.Core.Syntax;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Sqlil.Core.ExpressionTranslation;
 
@@ -22,18 +23,47 @@ public static class AnExpression {
         return result;
     }
 
-    internal static string GetParameterName(Expression expression) {
-        var result = expression switch {
+    internal static TableName GetParameterName(Expression expression) {
+        TableName result = expression switch {
 
-            ParameterExpression parameter => parameter.Name is not null && parameter.Name.StartsWith('<')
-                ? "__" + parameter.Name.GetHashCode()
-                : parameter.Name ?? string.Empty,
+            ParameterExpression parameter =>
+                parameter.Name is not null && parameter.Name.StartsWith('<')
+                    ? TableName.Create("__HC" + parameter.Name.GetHashCode(), parameter.Type)
+                    : TableName.Create(parameter.Name ?? string.Empty, parameter.Type),
 
-            UnaryExpression unary => GetParameterName(unary.Operand),
+            UnaryExpression unary =>
+                GetParameterName(unary.Operand),
 
-            LambdaExpression lambda => GetParameterName(lambda.Parameters[0]),
+            LambdaExpression lambda =>
+                GetParameterName(lambda.Parameters[0]),
 
-            // MemberExpression member when member.Expression is not null => GetParameterName(member.Expression),
+            MemberExpression member when member.Expression is not null =>
+                GetParameterName(member.Expression),
+
+            // NewExpression newExpression => newExpression.
+
+            _ => throw new ExpressionNotSupportedException(expression),
+        };
+
+        return result;
+    }
+
+    internal static ColumnName GetColumnName(Expression expression) {
+        ColumnName result = expression switch {
+
+            ParameterExpression parameter =>
+                parameter.Name is not null && parameter.Name.StartsWith('<')
+                    ? ColumnName.Create("__HC" + parameter.Name.GetHashCode(), parameter.Type)
+                    : ColumnName.Create(parameter.Name ?? string.Empty, parameter.Type),
+
+            UnaryExpression unary =>
+                GetColumnName(unary.Operand),
+
+            LambdaExpression lambda =>
+                GetColumnName(lambda.Parameters[0]),
+
+            MemberExpression member when member.Expression is not null =>
+                GetColumnName(member.Expression),
 
             // NewExpression newExpression => newExpression.
 
@@ -72,5 +102,14 @@ public static class AnExpression {
                 ? implementation
                 : null;
         }
+    }
+
+    internal static Type GetMemberType(MemberInfo memberInfo) {
+        var result = memberInfo switch {
+            PropertyInfo propertyInfo => propertyInfo.PropertyType,
+            FieldInfo fieldInfo => fieldInfo.FieldType,
+            _ => throw new NotImplementedException(memberInfo?.ToString())
+        };
+        return result;
     }
 }

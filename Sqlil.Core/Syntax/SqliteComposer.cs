@@ -4,7 +4,7 @@ namespace Sqlil.Core.Syntax;
 
 public readonly record struct ParameterizedSql(StableList<SqlSegment> Segments) {
     public ParameterizedSql(SqlSegment SqlSegment) : this(StableList.Create<SqlSegment>(SqlSegment)) { }
-    public ParameterizedSql(string CommandText) : this(new SqlText(CommandText)) { }
+    public ParameterizedSql(string CommandText) : this(new SqlRaw(CommandText)) { }
     public ParameterizedSql(IEnumerable<SqlSegment> Segments) : this(Segments.Select(x => x switch {
         SqlSegment sqlSegment => sqlSegment,
         // string text => new SqlText(text) as SqlSegment,
@@ -17,14 +17,30 @@ public readonly record struct ParameterizedSql(StableList<SqlSegment> Segments) 
 public interface SqlSegment {
 }
 
-public readonly record struct SqlText(string Text) : SqlSegment {
-}
+/// <summary>
+/// Raw SQL to be rendered as-is to command text.
+/// </summary>
+public readonly record struct SqlRaw(
+    string Text
+) : SqlSegment { }
 
-public readonly record struct SqlInput(Type Type, string SuggestedName) : SqlSegment {
-}
+/// <summary>
+/// Both a marker for passing input parameters,
+/// and hints for rendering to command text.
+/// </summary>
+public readonly record struct SqlInput(
+    Type Type,
+    string SuggestedName
+) : SqlSegment { }
 
-public readonly record struct SqlOutput(Type Type, string SuggestedName) : SqlSegment {
-}
+/// <summary>
+/// This is a marker that is used when materializing results,
+/// but should not render to command text.
+/// </summary>
+public readonly record struct SqlOutput(
+    Type Type,
+    string SuggestedName
+) : SqlSegment { }
 
 public static class ParameterizedSqlHelpers {
 
@@ -40,7 +56,7 @@ public static class ParameterizedSqlHelpers {
 
         segments.AddRange(source.Take(1).SelectMany(x => x.Segments));
         foreach (var item in source.Skip(1)) {
-            segments.Add(new SqlText(separator));
+            segments.Add(new SqlRaw(separator));
             segments.AddRange(item.Segments);
         }
 
@@ -61,7 +77,7 @@ public static class ParameterizedSqlHelpers {
 
         segments.AddRange(source.Take(1).SelectMany(x => x.Segments));
         foreach (var item in source.Skip(1)) {
-            segments.Add(new SqlText(separator));
+            segments.Add(new SqlRaw(separator));
             segments.AddRange(item.Segments);
         }
 
@@ -74,20 +90,20 @@ public static class ParameterizedSqlHelpers {
 public class SqliteComposer {
     public virtual ParameterizedSql Compose(object input) {
         ParameterizedSql composition = input switch {
-            SelectStmt selectStmt => SelectStmt(selectStmt),
+            SelectStmt selectStmt => SelectStmt(selectStmt, true),
             _ => throw new NotImplementedException(),
         };
         return composition;
     }
 
-    protected virtual ParameterizedSql SelectStmt(SelectStmt selectStmt) {
+    protected virtual ParameterizedSql SelectStmt(SelectStmt selectStmt, bool topLevel) {
         List<ParameterizedSql> results = new();
 
         if (selectStmt.CommonTableExpressions.Any()) {
             var commonTableExpressions = Join(" ",
                 "WITH",
                 selectStmt.Recursive ? "RECURSIVE" : Empty,
-                selectStmt.CommonTableExpressions.Select(CommonTableExpression)
+                selectStmt.CommonTableExpressions.Select(x => CommonTableExpression(x))
             );
             results.Add(commonTableExpressions);
         }
@@ -96,7 +112,7 @@ public class SqliteComposer {
             var separator = selectStmt.CompoundOperator == CompoundOperator.UnionAll
                 ? "\nUNION ALL "
                 : "\n" + selectStmt.CompoundOperator.ToString().ToUpper() + " ";
-            var selectCoresSql = selectStmt.SelectCores.Select(SelectCore).Join(separator);
+            var selectCoresSql = selectStmt.SelectCores.Select(x => SelectCore(x, topLevel)).Join(separator);
             results.Add(selectCoresSql);
         }
 
@@ -110,34 +126,41 @@ public class SqliteComposer {
     }
 
     private ParameterizedSql CommonTableExpression(CommonTableExpression commonTableExpression) {
-        var selectStmtSql = SelectStmt(commonTableExpression.SelectStmt);
-
         var result = Join(" ",
             Identifier(commonTableExpression.TableName),
-            commonTableExpression.ColumnNames.Select(Identifier).Join(" "),
+            commonTableExpression.ColumnNames.Select(Identifier).Join(", "),
             commonTableExpression.Materialized ? "MATERIALIZED" : Empty,
-            "(", selectStmtSql, ")"
+            Join("", "(", SelectStmt(commonTableExpression.SelectStmt, false), ")")
         );
         return result;
     }
 
     private ParameterizedSql Identifier(Identifier identifier) {
-        return new("\"" + identifier.Name.Replace("\"\"", "\"") + "\"");
+        ParameterizedSql result = new("\"" + identifier.Name.Replace("\"\"", "\"") + "\"");
+        return result;
     }
 
-    private ParameterizedSql SelectCore(SelectCore selectCore) {
+    private ParameterizedSql OutIdentifier(TypedIdentifier typedIdentifier) {
+        ParameterizedSql result = Join("",
+            Identifier(typedIdentifier),
+            new ParameterizedSql(new SqlOutput(typedIdentifier.Type, typedIdentifier.Name))
+        );
+        return result;
+    }
+
+    private ParameterizedSql SelectCore(SelectCore selectCore, bool topLevel) {
         ParameterizedSql result = selectCore switch {
-            SelectCoreNormal selectCoreNormal => SelectCoreNormal(selectCoreNormal),
+            SelectCoreNormal selectCoreNormal => SelectCoreNormal(selectCoreNormal, topLevel),
             _ => throw new NotImplementedException(selectCore?.ToString()),
         };
         return result;
     }
 
-    private ParameterizedSql SelectCoreNormal(SelectCoreNormal selectCoreNormal) {
+    private ParameterizedSql SelectCoreNormal(SelectCoreNormal selectCoreNormal, bool topLevel) {
         var results = new List<ParameterizedSql>();
 
         // ALL is implied when distinct is false
-        var resultColumnsSql = selectCoreNormal.ResultColumns.Select(ResultColumn);
+        var resultColumnsSql = selectCoreNormal.ResultColumns.Select(x => ResultColumn(x, topLevel));
         results.Add(Join(" ",
             "SELECT",
             selectCoreNormal.Distinct ? "DISTINCT" : Empty,
@@ -181,10 +204,10 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql ResultColumn(ResultColumn resultColumn) {
+    private ParameterizedSql ResultColumn(ResultColumn resultColumn, bool topLevel) {
         ParameterizedSql result = resultColumn switch {
             ResultColumnAsterisk resultColumnAsterisk => ResultColumnAsterisk(resultColumnAsterisk),
-            ResultColumnExpr resultColumnExpr => ResultColumnExpr(resultColumnExpr),
+            ResultColumnExpr resultColumnExpr => ResultColumnExpr(resultColumnExpr, topLevel),
             ResultColumnTable resultColumnTable => ResultColumnTable(resultColumnTable),
             _ => throw new NotImplementedException(resultColumn.ToString()),
         };
@@ -195,16 +218,47 @@ public class SqliteComposer {
         return new("*");
     }
 
-    private ParameterizedSql ResultColumnExpr(ResultColumnExpr resultColumnExpr) {
+    private ParameterizedSql ResultColumnExpr(ResultColumnExpr resultColumnExpr, bool topLevel) {
         var results = new List<ParameterizedSql>();
 
-        ParameterizedSql exprSql = Expr(resultColumnExpr.Expr);
+        var exprSql = Expr(resultColumnExpr.Expr);
         results.Add(exprSql);
 
-        if (resultColumnExpr.ColumnAlias != null &&
-            (resultColumnExpr.Expr is not ExprColumn exprColumn || exprColumn.ColumnName != resultColumnExpr.ColumnAlias)) {
-            var columnAlias = Identifier(resultColumnExpr.ColumnAlias);
-            results.Add(columnAlias);
+        if (topLevel) {
+            // Top-level result columns get special treatment to enable typed materialization
+
+            if (resultColumnExpr.ColumnAlias != null) {
+                // The column alias will provide the output information
+                var typedColumnAlias = OutIdentifier(resultColumnExpr.ColumnAlias);
+                results.Add(typedColumnAlias);
+            }
+            else {
+                // Try to infer the output information from the expression
+                if (resultColumnExpr.Expr is ExprColumn exprColumn) {
+                    // Base it on the column
+                    var typedColumnAlias = OutIdentifier(exprColumn.ColumnName);
+                    results.Add(typedColumnAlias);
+                }
+                else {
+                    // Create an alias and infer it from the expression
+                    var typedColumnAlias = OutIdentifier(new ColumnName("__rce" + resultColumnExpr.Expr.GetHashCode(), resultColumnExpr.Expr.Type));
+                    results.Add(typedColumnAlias);
+                }
+            }
+        }
+        else {
+            // Only provide the alias when needed to inner-queries
+
+            if (resultColumnExpr.ColumnAlias != null) {
+                if (resultColumnExpr.Expr is not ExprColumn exprColumn || exprColumn.ColumnName != resultColumnExpr.ColumnAlias) {
+                    var columnAlias = Identifier(resultColumnExpr.ColumnAlias);
+
+                    results.Add(columnAlias);
+                }
+                else {
+                    // The column alias is ignored since it matches the column name being provided
+                }
+            }
         }
 
         var result = results.Join(" ");

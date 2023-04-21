@@ -14,7 +14,7 @@ public static class SyntaxHelpers {
             return valueString;
         }
 
-        else if (sqlSegmentsOrSegment is Identifier valueIdentifier) {
+        else if (sqlSegmentsOrSegment is ColumnName valueIdentifier) {
             return valueIdentifier.ToString();
         }
 
@@ -29,7 +29,7 @@ public static class SyntaxHelpers {
                 if (item is string text) {
                     sb.Append(text);
                 }
-                else if (item is Identifier identifier) {
+                else if (item is ColumnName identifier) {
                     sb.Append(identifier.ToString());
                 }
                 else if (item is ExprBindParameter) {
@@ -60,7 +60,7 @@ public static class SyntaxHelpers {
             if (item is string) {
                 return new object[] { item };
             }
-            else if (item is Identifier) {
+            else if (item is ColumnName) {
                 return new object[] { item };
             }
             else if (item is ExprBindParameter) {

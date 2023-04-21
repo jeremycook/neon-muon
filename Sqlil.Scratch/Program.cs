@@ -12,14 +12,17 @@ SqliteComposer sqliteComposer = new();
 var parameterizedSql = sqliteComposer.Compose(translation);
 
 var i = 1;
-Console.WriteLine("(" + string.Join(", ", parameterizedSql.Segments.OfType<SqlOutput>()) + ") Exec(" + string.Join(", ", parameterizedSql.Segments.OfType<SqlInput>()) + ") {");
+Console.WriteLine($@"Outputs: 
+  {string.Join(",\n  ", parameterizedSql.Segments.OfType<SqlOutput>())}
+Inputs:
+  {string.Join(",\n  ", parameterizedSql.Segments.OfType<SqlInput>())}
+Command Text:");
 Console.WriteLine("  " + string.Concat(parameterizedSql.Segments.Select(x => x switch {
-    SqlText text => text.Text,
-    SqlInput sql => "@" + (sql.SuggestedName != string.Empty ? sql.SuggestedName : "p") + i++,
-    SqlOutput sql => "#" + (sql.SuggestedName != string.Empty ? sql.SuggestedName : "p") + i++,
+    SqlRaw raw => raw.Text,
+    SqlInput input => "@" + (input.SuggestedName != string.Empty ? input.SuggestedName : "p") + i++,
+    SqlOutput output => string.Empty,
     _ => throw new NotSupportedException(x?.ToString())
 })).ReplaceLineEndings("\n  "));
-Console.WriteLine("}");
 Console.WriteLine();
 
 // System.Text.Json.JsonSerializer.Serialize(translation).Dump();

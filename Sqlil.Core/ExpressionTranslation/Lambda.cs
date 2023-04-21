@@ -9,15 +9,14 @@ public static class Lambda {
             // In:  o => o
             // Out: o.Prop1, o.Prop2
 
-            Identifier tableName =
+            TableName tableName =
                 context.ParameterName ??
-                expression.Parameters[0].Name ??
-                throw new NullReferenceException("table name");
+                TableName.Create(expression.Parameters[0].Name ?? string.Empty, expression.Parameters[0].Type);
 
             var result = StableList.Create<ResultColumn>(
                 expression.ReturnType.GetProperties()
                     .Select((prop, i) => {
-                        return ResultColumnExpr.Create(ExprColumn.Create(tableName, prop.Name));
+                        return ResultColumnExpr.Create(ExprColumn.Create(tableName, ColumnName.Create(prop.Name, prop.PropertyType)));
                     })
                     .ToArray()
             );

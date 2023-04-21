@@ -11,20 +11,20 @@ internal class MemberAccess {
             if (AnExpression.IsType(property.PropertyType, typeof(IQueryable<>)) is Type iqueryable) {
                 // TODO: Get schema
                 Type tableType = iqueryable.GetGenericArguments()[0];
-                return TableOrSubqueryTable.Create(tableType.Name, TableAlias: context.ParameterName);
+                return TableOrSubqueryTable.Create(TableName.Create(tableType.Name, tableType), TableAlias: context.ParameterName);
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
                 // parameterName.PropertyName
-                var prefix = context.ParameterName ?? Identifier.Create(AnExpression.GetParameterName(parameter));
-                return ExprColumn.Create(prefix, Identifier.Create(property.Name));
+                var prefix = context.ParameterName ?? AnExpression.GetParameterName(parameter);
+                return ExprColumn.Create(prefix, ColumnName.Create(property.Name, property.PropertyType));
             }
 
             else if (expression.Expression is MemberExpression member) {
                 var result = AnExpression.Translate(member, context);
-                if (result is Identifier identifier) {
+                if (result is ColumnName identifier) {
                     // parameterName.MemberIdentifier
-                    return ExprColumn.Create(Identifier.Create(property.Name), identifier);
+                    return ExprColumn.Create(TableName.Create(property.Name, property.PropertyType), identifier);
                 }
                 else {
                     throw new ExpressionNotSupportedException(expression);
