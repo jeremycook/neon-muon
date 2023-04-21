@@ -270,17 +270,19 @@ public record class ExprBinary(
         => new(Operator, Left, Right);
 
     public static ExprBinary Create(ExpressionType ExpressionOperator, Expr Left, Expr Right)
-        => new(ExpressionToOperator[ExpressionOperator], Left, Right);
+        => new(BinaryConstants.ExpressionToOperator[ExpressionOperator], Left, Right);
 
     public object[] ToSqlSegments() => Operator switch {
 
         BinaryOperator.AndAlso or
-        BinaryOperator.OrElse => SyntaxHelpers.Concat("(", Left.ToSqlSegments(), " ", OperatorToSql[Operator], " ", Right.ToSqlSegments(), ")"),
+        BinaryOperator.OrElse => SyntaxHelpers.Concat("(", Left.ToSqlSegments(), " ", BinaryConstants.OperatorToSql[Operator], " ", Right.ToSqlSegments(), ")"),
 
-        _ => SyntaxHelpers.Concat(Left.ToSqlSegments(), " ", OperatorToSql[Operator], " ", Right.ToSqlSegments())
+        _ => SyntaxHelpers.Concat(Left.ToSqlSegments(), " ", BinaryConstants.OperatorToSql[Operator], " ", Right.ToSqlSegments())
     };
+}
 
-    private static readonly Dictionary<BinaryOperator, string> OperatorToSql = new() {
+public static class BinaryConstants {
+    public static readonly Dictionary<BinaryOperator, string> OperatorToSql = new() {
         {BinaryOperator.AndAlso, "AND"},
         {BinaryOperator.OrElse, "OR"},
 
@@ -299,7 +301,7 @@ public record class ExprBinary(
         {BinaryOperator.Like, "LIKE"},
     };
 
-    private static readonly Dictionary<ExpressionType, BinaryOperator> ExpressionToOperator = new() {
+    public static readonly Dictionary<ExpressionType, BinaryOperator> ExpressionToOperator = new() {
         {ExpressionType.AndAlso, BinaryOperator.AndAlso},
         {ExpressionType.OrElse, BinaryOperator.OrElse},
 
@@ -397,17 +399,20 @@ public record class ExprUnary(
     public static ExprUnary Create(UnaryOperator Operator, Expr Operand)
         => new(Operator, Operand);
     public static ExprUnary Create(ExpressionType Operator, Expr Operand)
-        => new(ExpressionTypeToOperator[Operator], Operand);
+        => new(UnaryConstants.ExpressionTypeToOperator[Operator], Operand);
 
     public object[] ToSqlSegments() {
-        return SyntaxHelpers.Concat(OperatorToString[Operator], " ", Operand.ToSqlSegments());
+        return SyntaxHelpers.Concat(UnaryConstants.OperatorToString[Operator], " ", Operand.ToSqlSegments());
     }
 
-    private static readonly Dictionary<UnaryOperator, string> OperatorToString = new() {
+}
+
+public static class UnaryConstants {
+    public static readonly Dictionary<UnaryOperator, string> OperatorToString = new() {
         {UnaryOperator.Not, "NOT"},
     };
 
-    private static readonly Dictionary<ExpressionType, UnaryOperator> ExpressionTypeToOperator = new() {
+    public static readonly Dictionary<ExpressionType, UnaryOperator> ExpressionTypeToOperator = new() {
         {ExpressionType.Not, UnaryOperator.Not},
     };
 }

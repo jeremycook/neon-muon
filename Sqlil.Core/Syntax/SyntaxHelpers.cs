@@ -100,7 +100,7 @@ public static class SyntaxHelpers {
     /// <returns></returns>
     internal static object[] Join(string separator, IEnumerable<object?> items) {
         IEnumerable<object> nonNull = items
-            .Where(x => x != null && x != Empty)!;
+            .Where(x => x != null && x != Empty && !string.Empty.Equals(x))!;
 
         var result =
             nonNull.Take(1)
