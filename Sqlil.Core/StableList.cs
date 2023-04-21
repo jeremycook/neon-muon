@@ -41,6 +41,12 @@ public class StableList<T> : IReadOnlyList<T> {
         return List.GetEnumerator();
     }
 
+    public override string ToString() {
+        return base.ToString() + (List.Any()
+            ? " { " + string.Join(", ", List) + " }"
+            : string.Empty);
+    }
+
     public override int GetHashCode() {
         unchecked {
             if (HashCode == null) {

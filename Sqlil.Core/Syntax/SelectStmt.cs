@@ -51,23 +51,37 @@ public record class SelectStmt(
         );
     }
 
-    public override string ToString() => string.Join("\n", new[] {
-        CommonTableExpressions.Any()
-            ? "WITH " + (Recursive ? "RECURSIVE " : string.Empty) + string.Join(",\n", CommonTableExpressions)
-            : string.Empty,
-        string.Join(
-            $"\n{(CompoundOperator == CompoundOperator.UnionAll
-                ? "UNION ALL"
-                : CompoundOperator.ToString().ToUpper())} ",
-            SelectCores
-        ),
-        OrderingTerms.Any()
-            ? "ORDER BY " + string.Join(", ", OrderingTerms)
-            : string.Empty,
-        Limit != null
-            ? "LIMIT " + Limit + (Offset != null ? " OFFSET " + Offset : string.Empty)
-            : string.Empty
-    }.Where(x => x != string.Empty));
+    public object[] ToSqlSegments() {
+        var commonTableExpressions = CommonTableExpressions.Any()
+            ? SyntaxHelpers.Concat(
+                "WITH ",
+                Recursive ? "RECURSIVE " : SyntaxHelpers.Empty,
+                SyntaxHelpers.Join(",\n", CommonTableExpressions.Select(cte => cte.ToSqlSegments()))
+            )
+            : SyntaxHelpers.Empty;
+
+        var selectCores = SyntaxHelpers.Join(
+            CompoundOperator == CompoundOperator.UnionAll
+                ? "\nUNION ALL "
+                : "\n" + CompoundOperator.ToString().ToUpper() + " ",
+            SelectCores.Select(sc => sc.ToSqlSegments())
+        );
+
+        var orderingTerms = OrderingTerms.Any()
+            ? SyntaxHelpers.Concat("ORDER BY ", SyntaxHelpers.Join(", ", OrderingTerms.Select(ot => ot.ToSqlSegments())))
+            : SyntaxHelpers.Empty;
+
+        var limit = Limit != null
+            ? SyntaxHelpers.Concat("LIMIT ", Limit.ToSqlSegments(), (Offset != null ? SyntaxHelpers.Concat(" OFFSET ", Offset.ToSqlSegments()) : SyntaxHelpers.Empty))
+            : SyntaxHelpers.Empty;
+
+        return SyntaxHelpers.Join("\n",
+            commonTableExpressions,
+            selectCores,
+            orderingTerms,
+            limit
+        );
+    }
 }
 
 /// <summary>
@@ -79,14 +93,17 @@ public record class CommonTableExpression(
     bool Materialized,
     SelectStmt SelectStmt
 ) {
-    public override string ToString() =>
-        TableName + " "
-        + (ColumnNames.Any() ? string.Join(",\n\t", ColumnNames) + " " : string.Empty)
-        + (Materialized ? "MATERIALIZED " : string.Empty)
-        + "(" + SelectStmt + ")";
+    public object[] ToSqlSegments() => SyntaxHelpers.Join(" ",
+        TableName,
+        (ColumnNames.Any() ? SyntaxHelpers.Join(",\n", ColumnNames) : SyntaxHelpers.Empty),
+        Materialized ? "MATERIALIZED" : string.Empty,
+        "(", SelectStmt, ")"
+    );
 }
 
-public interface SelectCore { }
+public interface SelectCore {
+    object[] ToSqlSegments();
+}
 
 public record class SelectCoreNormal(
     bool Distinct,
@@ -130,30 +147,58 @@ public record class SelectCoreNormal(
             Windows: StableList<(string, WindowDefn)>.Empty
         );
 
-    public override string ToString() =>
-        string.Join(
-            "\n",
-            values: new string[]
-            {
-                // ALL is implied when distinct is false
-                "SELECT "
-                    + (Distinct ? "DISTINCT " : string.Empty)
-                    + string.Join(",\n\t", ResultColumns),
-                // Invalid SQL will result if both of these are set
-                TableOrSubqueries.Any()
-                    ? "FROM " + string.Join(", ", TableOrSubqueries)
-                    : string.Empty,
-                JoinClause != null ? "FROM " + string.Join(",\n\t", JoinClause) : string.Empty,
-                Where != null ? "WHERE " + Where : string.Empty,
-                GroupBys.Any() ? "GROUP BY " + string.Join(",\n\t", GroupBys) : string.Empty,
-                Having != null ? "HAVING " + Having : string.Empty,
-                Windows.Any() ? "WINDOW " + string.Join(",\n\t", Windows) : string.Empty,
-            }.Where(x => x != string.Empty)
+    public object[] ToSqlSegments() {
+        // ALL is implied when distinct is false
+        var select = "SELECT" + (Distinct ? " DISTINCT" : string.Empty);
+
+        var columns = SyntaxHelpers.Join(",\n", ResultColumns.Select(rc => rc.ToSqlSegments()));
+
+        // Invalid SQL will result if both TableOrSubqueries and JoinClause are set
+        var tableOrSubqueries = TableOrSubqueries.Any()
+            ? SyntaxHelpers.Concat("FROM ", SyntaxHelpers.Join(", ", TableOrSubqueries.Select(tos => tos.ToSqlSegments())))
+            : SyntaxHelpers.Empty;
+
+        var joinClause = JoinClause != null
+            ? SyntaxHelpers.Concat("FROM ", JoinClause.ToSqlSegments())
+            : SyntaxHelpers.Empty;
+
+        var where = Where != null
+            ? SyntaxHelpers.Concat("WHERE ", Where.ToSqlSegments())
+            : SyntaxHelpers.Empty;
+
+        var groupBys = GroupBys.Any()
+            ? SyntaxHelpers.Concat("GROUP BY ", SyntaxHelpers.Join(",\n", GroupBys.Select(x => x.ToSqlSegments())))
+            : SyntaxHelpers.Empty;
+
+        var having = Having != null
+            ? SyntaxHelpers.Concat("HAVING ", Having.ToSqlSegments())
+            : SyntaxHelpers.Empty;
+
+        var windows = Windows.Any()
+            ? throw new NotImplementedException("WINDOW")
+            : SyntaxHelpers.Empty;
+
+        var result = SyntaxHelpers.Join("\n",
+            select,
+            columns,
+            tableOrSubqueries,
+            joinClause,
+            where,
+            groupBys,
+            having,
+            windows
         );
+        return result;
+    }
 }
 
 public record class SelectCoreValues(StableList<StableList<Expr>> Values)
-    : SelectCore { }
+    : SelectCore {
+
+    public object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
 public enum CompoundOperator {
     UnionAll = 0,
@@ -183,18 +228,20 @@ public record class OrderingTerm(
         NullsLast: NullsLast
     );
 
-    public override string ToString() {
-        return Expr
-        + (CollationName != null ? " COLLATE " + CollationName : string.Empty)
-        + (Desc ? " DESC" : string.Empty)
-        + (NullsLast ? " NULL LAST" : string.Empty);
-    }
+    public object[] ToSqlSegments() => SyntaxHelpers.Join(" ",
+        Expr.ToSqlSegments(),
+        CollationName != null ? SyntaxHelpers.Concat("COLLATE ", CollationName) : string.Empty,
+        Desc ? "DESC" : string.Empty,
+        NullsLast ? "NULL LAST" : string.Empty
+    );
 }
 
 /// <summary>
 /// https://www.sqlite.org/syntax/expr.html
 /// </summary>
-public interface Expr { }
+public interface Expr {
+    object[] ToSqlSegments();
+}
 
 public record class ExprBindParameter(
     Type Type,
@@ -208,11 +255,8 @@ public record class ExprBindParameter(
         SuggestedName: SuggestedName
     );
 
-    public override string ToString() {
-        return
-            "@(" +
-            (SuggestedName != null ? (SuggestedName + " AS ") : string.Empty) +
-            Type.Name + ")";
+    public object[] ToSqlSegments() {
+        return SyntaxHelpers.Concat(this);
     }
 }
 
@@ -228,12 +272,12 @@ public record class ExprBinary(
     public static ExprBinary Create(ExpressionType ExpressionOperator, Expr Left, Expr Right)
         => new(ExpressionToOperator[ExpressionOperator], Left, Right);
 
-    public override string ToString() => Operator switch {
+    public object[] ToSqlSegments() => Operator switch {
 
         BinaryOperator.AndAlso or
-        BinaryOperator.OrElse => "(" + Left + " " + OperatorToSql[Operator] + " " + Right + ")",
+        BinaryOperator.OrElse => SyntaxHelpers.Concat("(", Left.ToSqlSegments(), " ", OperatorToSql[Operator], " ", Right.ToSqlSegments(), ")"),
 
-        _ => Left + " " + OperatorToSql[Operator] + " " + Right
+        _ => SyntaxHelpers.Concat(Left.ToSqlSegments(), " ", OperatorToSql[Operator], " ", Right.ToSqlSegments())
     };
 
     private static readonly Dictionary<BinaryOperator, string> OperatorToSql = new() {
@@ -321,7 +365,7 @@ public record class ExprColumn(
         ColumnName: ColumnName
     );
 
-    public override string ToString() {
+    public object[] ToSqlSegments() {
         return Identifier.Join(SchemaName, TableName, ColumnName);
     }
 }
@@ -331,7 +375,9 @@ public record class ExprLiteralInteger(
 ) : Expr {
     public static ExprLiteralInteger Create(int Value) => new(Value);
 
-    public override string ToString() => Value.ToString();
+    public object[] ToSqlSegments() {
+        return SyntaxHelpers.Concat(Value.ToString());
+    }
 }
 
 public record class ExprLiteralString(
@@ -339,7 +385,9 @@ public record class ExprLiteralString(
 ) : Expr {
     public static ExprLiteralString Create(string Value) => new(Value);
 
-    public override string ToString() => "'" + Value.Replace("'", "''") + "'";
+    public object[] ToSqlSegments() {
+        return SyntaxHelpers.Concat("'" + Value.Replace("'", "''") + "'");
+    }
 }
 
 public record class ExprUnary(
@@ -351,7 +399,9 @@ public record class ExprUnary(
     public static ExprUnary Create(ExpressionType Operator, Expr Operand)
         => new(ExpressionTypeToOperator[Operator], Operand);
 
-    public override string ToString() => OperatorToString[Operator] + " " + Operand;
+    public object[] ToSqlSegments() {
+        return SyntaxHelpers.Concat(OperatorToString[Operator], " ", Operand.ToSqlSegments());
+    }
 
     private static readonly Dictionary<UnaryOperator, string> OperatorToString = new() {
         {UnaryOperator.Not, "NOT"},
@@ -369,12 +419,16 @@ public enum UnaryOperator {
 /// <summary>
 /// https://www.sqlite.org/syntax/result-column.html
 /// </summary>
-public interface ResultColumn { }
+public interface ResultColumn {
+    object[] ToSqlSegments();
+}
 
 public record class ResultColumnAsterisk() : ResultColumn {
     public static ResultColumnAsterisk Create() => new();
 
-    public override string ToString() => "*";
+    public object[] ToSqlSegments() {
+        return new[] { "*" };
+    }
 }
 
 public record class ResultColumnExpr(
@@ -384,11 +438,12 @@ public record class ResultColumnExpr(
     public static ResultColumnExpr Create(Expr Expr, Identifier? ColumnAlias = null) =>
         new(Expr: Expr, ColumnAlias: ColumnAlias);
 
-    public override string ToString() =>
-        Expr.ToString() +
-        (ColumnAlias != null && (Expr is not ExprColumn exprColumn || exprColumn.ColumnName != ColumnAlias)
-            ? " " + ColumnAlias
-            : string.Empty);
+    public object[] ToSqlSegments() => SyntaxHelpers.Concat(
+        Expr.ToSqlSegments(),
+        ColumnAlias != null && (Expr is not ExprColumn exprColumn || exprColumn.ColumnName != ColumnAlias)
+            ? SyntaxHelpers.Concat(" ", ColumnAlias)
+            : SyntaxHelpers.Empty
+    );
 }
 
 public record class ResultColumnTable(
@@ -397,13 +452,15 @@ public record class ResultColumnTable(
     public static ResultColumnTable Create(Identifier TableName) =>
         new(TableName: TableName);
 
-    public override string ToString() => $"{TableName}.*";
+    public object[] ToSqlSegments() => SyntaxHelpers.Concat(TableName, ".*");
 }
 
 /// <summary>
 /// https://www.sqlite.org/syntax/table-or-subquery.html
 /// </summary>
-public interface TableOrSubquery { }
+public interface TableOrSubquery {
+    object[] ToSqlSegments();
+}
 
 public record class TableOrSubqueryTable(
     Identifier TableName,
@@ -423,10 +480,11 @@ public record class TableOrSubqueryTable(
         IndexName: IndexName
     );
 
-    public override string ToString() =>
-        Identifier.Join(SchemaName, TableName)
-        + (TableAlias != null ? " " + TableAlias : string.Empty)
-        + (IndexName != null ? " INDEXED BY " + TableAlias : string.Empty);
+    public object[] ToSqlSegments() => SyntaxHelpers.Join(" ",
+        Identifier.Join(SchemaName, TableName),
+        TableAlias != null ? TableAlias : SyntaxHelpers.Empty,
+        IndexName != null ? SyntaxHelpers.Concat("INDEXED BY ", IndexName) : SyntaxHelpers.Empty
+    );
 }
 
 public record class TableOrSubqueryFunction(
@@ -434,18 +492,34 @@ public record class TableOrSubqueryFunction(
     StableList<Expr> Arguments,
     Identifier? SchemaName = null,
     Identifier? TableAlias = null
-) : TableOrSubquery { }
+) : TableOrSubquery {
+    public object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
 public record class TableOrSubquerySelectStmts(
     StableList<SelectStmt> SelectStmts,
     Identifier? TableAlias = null
-) : TableOrSubquery { }
+) : TableOrSubquery {
+    public object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
 public record class TableOrSubqueryTableOrSubqueries(
     StableList<TableOrSubquery> TableOrSubqueries
-) : TableOrSubquery { }
+) : TableOrSubquery {
+    public object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
-public record class TableOrSubqueryJoin(JoinClause JoinClause) : TableOrSubquery { }
+public record class TableOrSubqueryJoin(JoinClause JoinClause) : TableOrSubquery {
+    public object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
 public record class JoinClause(
     TableOrSubquery TableOrSubquery,
@@ -454,7 +528,11 @@ public record class JoinClause(
         TableOrSubquery TableOrSubquery,
         JoinConstraint JoinConstraint
     )> Joins
-) { }
+) {
+    internal object[] ToSqlSegments() {
+        throw new NotImplementedException();
+    }
+}
 
 public enum JoinOperator {
     Comma = 0,
@@ -483,9 +561,11 @@ public record class Identifier(string Name) {
 
     public static Identifier Create(string Name) => new(Name);
 
-    public override string ToString() => "\"" + Name.Replace("\"\"", "\"") + "\"";
+    public override string ToString() {
+        return "\"" + Name.Replace("\"\"", "\"") + "\"";
+    }
 
-    public static string Join(params Identifier?[] args) {
-        return string.Join('.', args.SkipWhile(x => x == null));
+    public static object[] Join(params Identifier?[] args) {
+        return SyntaxHelpers.Join(".", args.Select(x => x?.ToString()));
     }
 }

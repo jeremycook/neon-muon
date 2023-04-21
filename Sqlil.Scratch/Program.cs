@@ -1,4 +1,10 @@
-﻿using Sqlil.Scratch;
+﻿using Sqlil.Core.Syntax;
+using Sqlil.Scratch;
 
-TranslationCases.Where.Dump();
-TranslationCases.SelectIdentity.Dump();
+var translation = TranslationCases.Where.Dump();
+Console.WriteLine(translation);
+
+var commandText = SyntaxHelpers.GenerateCommandText(((SelectStmt)translation).ToSqlSegments());
+Console.WriteLine(commandText);
+
+// System.Text.Json.JsonSerializer.Serialize(translation).Dump();
