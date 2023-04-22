@@ -14,15 +14,16 @@ public readonly record struct ParameterizedSql(StableList<SqlSegment> Segments) 
     public static ParameterizedSql Empty { get; } = new(string.Empty);
 }
 
-public interface SqlSegment {
-}
+public interface SqlSegment { }
+
+public interface SqlRenderable : SqlSegment { }
 
 /// <summary>
 /// Raw SQL to be rendered as-is to command text.
 /// </summary>
 public readonly record struct SqlRaw(
     string Text
-) : SqlSegment { }
+) : SqlRenderable { }
 
 /// <summary>
 /// Both a marker for passing input parameters,
@@ -31,7 +32,7 @@ public readonly record struct SqlRaw(
 public readonly record struct SqlInput(
     Type Type,
     string SuggestedName
-) : SqlSegment { }
+) : SqlRenderable { }
 
 /// <summary>
 /// This is a marker that is used when materializing results,
@@ -52,11 +53,13 @@ public static class ParameterizedSqlHelpers {
         var source = items
             .Where(item => item != Empty);
 
-        var segments = new List<SqlSegment>(2 * source.Count() - 1);
+        var segments = new List<SqlSegment>();
 
         segments.AddRange(source.Take(1).SelectMany(x => x.Segments));
         foreach (var item in source.Skip(1)) {
-            segments.Add(new SqlRaw(separator));
+            if (item.Segments.Any(x => x is SqlRenderable)) {
+                segments.Add(new SqlRaw(separator));
+            }
             segments.AddRange(item.Segments);
         }
 
@@ -73,11 +76,13 @@ public static class ParameterizedSqlHelpers {
             })
             .Where(item => item != Empty);
 
-        var segments = new List<SqlSegment>(2 * source.Count() - 1);
+        var segments = new List<SqlSegment>();
 
         segments.AddRange(source.Take(1).SelectMany(x => x.Segments));
         foreach (var item in source.Skip(1)) {
-            segments.Add(new SqlRaw(separator));
+            if (item.Segments.Any(x => x is SqlRenderable)) {
+                segments.Add(new SqlRaw(separator));
+            }
             segments.AddRange(item.Segments);
         }
 
@@ -140,11 +145,8 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql OutIdentifier(TypedIdentifier typedIdentifier) {
-        ParameterizedSql result = Join("",
-            Identifier(typedIdentifier),
-            new ParameterizedSql(new SqlOutput(typedIdentifier.Type, typedIdentifier.Name))
-        );
+    private ParameterizedSql SqlOutput(TypedIdentifier typedIdentifier) {
+        ParameterizedSql result = new ParameterizedSql(new SqlOutput(typedIdentifier.Type, typedIdentifier.Name));
         return result;
     }
 
@@ -224,39 +226,36 @@ public class SqliteComposer {
         var exprSql = Expr(resultColumnExpr.Expr);
         results.Add(exprSql);
 
+        if (resultColumnExpr.ColumnAlias != null) {
+            if (resultColumnExpr.Expr is not ExprColumn exprColumn || exprColumn.ColumnName != resultColumnExpr.ColumnAlias) {
+                var columnAlias = Identifier(resultColumnExpr.ColumnAlias);
+
+                results.Add(columnAlias);
+            }
+            else {
+                // The column alias is ignored since it matches the column name being provided
+            }
+        }
+
         if (topLevel) {
-            // Top-level result columns get special treatment to enable typed materialization
+            // Top-level result columns get special treatment with typed SqlOutput
 
             if (resultColumnExpr.ColumnAlias != null) {
                 // The column alias will provide the output information
-                var typedColumnAlias = OutIdentifier(resultColumnExpr.ColumnAlias);
-                results.Add(typedColumnAlias);
+                var sqlOutput = SqlOutput(resultColumnExpr.ColumnAlias);
+                results.Add(sqlOutput);
             }
             else {
                 // Try to infer the output information from the expression
                 if (resultColumnExpr.Expr is ExprColumn exprColumn) {
                     // Base it on the column
-                    var typedColumnAlias = OutIdentifier(exprColumn.ColumnName);
-                    results.Add(typedColumnAlias);
+                    var sqlOutput = SqlOutput(exprColumn.ColumnName);
+                    results.Add(sqlOutput);
                 }
                 else {
                     // Create an alias and infer it from the expression
-                    var typedColumnAlias = OutIdentifier(new ColumnName("__rce" + resultColumnExpr.Expr.GetHashCode(), resultColumnExpr.Expr.Type));
-                    results.Add(typedColumnAlias);
-                }
-            }
-        }
-        else {
-            // Only provide the alias when needed to inner-queries
-
-            if (resultColumnExpr.ColumnAlias != null) {
-                if (resultColumnExpr.Expr is not ExprColumn exprColumn || exprColumn.ColumnName != resultColumnExpr.ColumnAlias) {
-                    var columnAlias = Identifier(resultColumnExpr.ColumnAlias);
-
-                    results.Add(columnAlias);
-                }
-                else {
-                    // The column alias is ignored since it matches the column name being provided
+                    var sqlOutput = SqlOutput(new ColumnName("__so" + resultColumnExpr.Expr.GetHashCode(), resultColumnExpr.Expr.Type));
+                    results.Add(sqlOutput);
                 }
             }
         }
