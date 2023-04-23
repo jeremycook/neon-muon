@@ -29,16 +29,25 @@ public readonly record struct SqlRaw(
 /// Both a marker for passing input parameters,
 /// and hints for rendering to command text.
 /// </summary>
-public readonly record struct SqlInput(
+public readonly record struct SqlInputParameter(
     Type Type,
     string SuggestedName
+) : SqlRenderable { }
+
+/// <summary>
+/// Both a marker for passing an input parameter,
+/// and a hint for rendering to command text.
+/// </summary>
+public readonly record struct SqlConstantParameter(
+    Type Type,
+    object? Value
 ) : SqlRenderable { }
 
 /// <summary>
 /// This is a marker that is used when materializing results,
 /// but should not render to command text.
 /// </summary>
-public readonly record struct SqlOutput(
+public readonly record struct SqlColumn(
     Type Type,
     string SuggestedName
 ) : SqlSegment { }
@@ -146,7 +155,7 @@ public class SqliteComposer {
     }
 
     private ParameterizedSql SqlOutput(TypedIdentifier typedIdentifier) {
-        ParameterizedSql result = new ParameterizedSql(new SqlOutput(typedIdentifier.Type, typedIdentifier.Name));
+        ParameterizedSql result = new ParameterizedSql(new SqlColumn(typedIdentifier.Type, typedIdentifier.Name));
         return result;
     }
 
@@ -354,10 +363,10 @@ public class SqliteComposer {
     private ParameterizedSql Expr(Expr expr) {
         ParameterizedSql result = expr switch {
             ExprBinary exprBinary => ExprBinary(exprBinary),
+            ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
             ExprColumn exprColumn => ExprColumn(exprColumn),
-            ExprLiteralInteger exprLiteralInteger => ExprLiteralInteger(exprLiteralInteger),
-            ExprLiteralString exprLiteralString => ExprLiteralString(exprLiteralString),
+            ExprLiteralString exprLiteral => ExprLiteral(exprLiteral),
             ExprUnary exprUnary => ExprUnary(exprUnary),
             _ => throw new NotImplementedException(expr.ToString()),
         };
@@ -372,8 +381,13 @@ public class SqliteComposer {
         return result;
     }
 
+    private ParameterizedSql ExprBindConstant(ExprBindConstant exprBindConstant) {
+        var result = new ParameterizedSql(new SqlConstantParameter(exprBindConstant.Type, exprBindConstant.Value));
+        return result;
+    }
+
     private ParameterizedSql ExprBindParameter(ExprBindParameter exprBindParameter) {
-        var result = new ParameterizedSql(StableList.Create<SqlSegment>(new SqlInput(exprBindParameter.Type, exprBindParameter.SuggestedName ?? string.Empty)));
+        var result = new ParameterizedSql(new SqlInputParameter(exprBindParameter.Type, exprBindParameter.SuggestedName ?? string.Empty));
         return result;
     }
 
@@ -386,12 +400,8 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql ExprLiteralInteger(ExprLiteralInteger exprLiteralInteger) {
-        return new(exprLiteralInteger.Value.ToString());
-    }
-
-    private ParameterizedSql ExprLiteralString(ExprLiteralString exprLiteralString) {
-        return new("'" + exprLiteralString.Value.Replace("'", "''") + "'");
+    private ParameterizedSql ExprLiteral(ExprLiteralString exprLiteral) {
+        return new("'" + exprLiteral.Value.Replace("'", "''") + "'");
     }
 
     private ParameterizedSql ExprUnary(ExprUnary exprUnary) {

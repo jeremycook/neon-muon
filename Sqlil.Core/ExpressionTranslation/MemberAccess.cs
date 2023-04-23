@@ -9,13 +9,12 @@ internal class MemberAccess {
         if (expression.Member is PropertyInfo property) {
 
             if (AnExpression.IsType(property.PropertyType, typeof(IQueryable<>)) is Type iqueryable) {
-                // TODO: Get schema
+                // TODO? Get schema
                 Type tableType = iqueryable.GetGenericArguments()[0];
                 return TableOrSubqueryTable.Create(TableName.Create(tableType.Name, tableType), TableAlias: context.ParameterName);
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
-                // parameterName.PropertyName
                 var prefix = context.ParameterName ?? AnExpression.GetParameterName(parameter);
                 return ExprColumn.Create(prefix, ColumnName.Create(property.Name, property.PropertyType));
             }
@@ -23,13 +22,10 @@ internal class MemberAccess {
             else if (expression.Expression is MemberExpression member) {
                 var result = AnExpression.Translate(member, context);
                 if (result is ColumnName identifier) {
-                    // parameterName.MemberIdentifier
                     return ExprColumn.Create(TableName.Create(property.Name, property.PropertyType), identifier);
                 }
                 else {
                     throw new ExpressionNotSupportedException(expression);
-                    // var query = SqlQuery.Create(result);
-                    // return SqlAlias.Create(query, property.Name);
                 }
             }
 
@@ -38,13 +34,48 @@ internal class MemberAccess {
             }
         }
 
-        else if (expression.Expression is not null) {
-            var result = AnExpression.Translate(expression.Expression, context);
-            return result;
+        else if (expression.Member is FieldInfo fieldInfo) {
+
+            if (AnExpression.IsType(fieldInfo.FieldType, typeof(IQueryable<>)) is Type iqueryable) {
+                // TODO? Get schema
+                Type tableType = iqueryable.GetGenericArguments()[0];
+                return TableOrSubqueryTable.Create(TableName.Create(tableType.Name, tableType), TableAlias: context.ParameterName);
+            }
+
+            else if (expression.Expression is ParameterExpression parameter) {
+                var prefix = context.ParameterName ?? AnExpression.GetParameterName(parameter);
+                return ExprColumn.Create(prefix, ColumnName.Create(fieldInfo.Name, fieldInfo.FieldType));
+            }
+
+            else if (expression.Expression is MemberExpression member) {
+                var result = AnExpression.Translate(member, context);
+                if (result is ColumnName identifier) {
+                    return ExprColumn.Create(TableName.Create(fieldInfo.Name, fieldInfo.FieldType), identifier);
+                }
+                else {
+                    throw new ExpressionNotSupportedException(expression);
+                }
+            }
+
+            else if (expression.Expression is ConstantExpression constant) {
+                // TODO: Add fieldInfo.Name
+                var value = fieldInfo.GetValue(constant.Value);
+                var result = ExprBindConstant.Create(fieldInfo.FieldType, value);
+                return result;
+            }
+
+            else {
+                throw new ExpressionNotSupportedException(expression);
+            }
         }
 
+        // else if (expression.Expression is not null) {
+        //     var result = AnExpression.Translate(expression.Expression, context);
+        //     return result;
+        // }
+
         else {
-            throw new ExpressionNotSupportedException(expression);
+            throw new ExpressionNotSupportedException($"The {expression.Member} member is not supported.", expression);
         }
     }
 }

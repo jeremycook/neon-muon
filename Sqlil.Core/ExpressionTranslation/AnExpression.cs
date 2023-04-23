@@ -8,6 +8,7 @@ public static class AnExpression {
     public static object Translate(Expression expression, TranslationContext context) {
         var result = expression.NodeType switch {
             ExpressionType.Constant => Constant.Translate((ConstantExpression)expression),
+            ExpressionType.Convert => Convert((UnaryExpression)expression, context),
             ExpressionType.Lambda => Lambda.Translate((LambdaExpression)expression, context),
             ExpressionType.Parameter => Parameter.Translate((ParameterExpression)expression),
             ExpressionType.Call => Call.Translate((MethodCallExpression)expression, context),
@@ -20,6 +21,12 @@ public static class AnExpression {
                 _ => throw new ExpressionNotSupportedException(expression)
             }
         };
+        return result;
+    }
+
+    private static object Convert(UnaryExpression expression, TranslationContext context) {
+        // TODO? Encode the conversion
+        var result = Translate(expression.Operand, context);
         return result;
     }
 

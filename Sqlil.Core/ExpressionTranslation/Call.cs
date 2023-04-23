@@ -131,6 +131,33 @@ internal class Call {
                 }
             }
 
+            else if (source is SelectCoreNormal selectCoreNormal) {
+
+                var result = selector switch {
+
+                    StableList<ResultColumn> resultColumnList => SelectStmt.Create(
+                        selectCoreNormal with {
+                            ResultColumns = resultColumnList,
+                        }
+                    ),
+
+                    StableList<Expr> exprList => SelectStmt.Create(
+                        selectCoreNormal with {
+                            ResultColumns = StableList.Create<ResultColumn>(exprList.Select(e => ResultColumnExpr.Create(e)).ToArray()),
+                        }
+                    ),
+
+                    Expr expr => SelectStmt.Create(
+                        selectCoreNormal with {
+                            ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr)),
+                        }
+                    ),
+
+                    _ => throw new ExpressionNotSupportedException($"Selector not supported {selector.GetType()}: {selector}.", expression),
+                };
+                return result;
+            }
+
             else if (source is TableOrSubquery tableOrSubquery) {
                 var result = selector switch {
                     ResultColumn resultColumn => SelectStmt.Create(SelectCoreNormal.Create(StableList.Create(resultColumn), tableOrSubquery)),
@@ -139,6 +166,8 @@ internal class Call {
                 };
                 return result;
             }
+
+            throw new ExpressionNotSupportedException(expression);
         }
 
         throw new ExpressionNotSupportedException(expression);

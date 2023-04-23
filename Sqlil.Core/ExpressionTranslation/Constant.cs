@@ -5,16 +5,13 @@ namespace Sqlil.Core.ExpressionTranslation;
 
 public static class Constant {
     public static object Translate(ConstantExpression expression) {
-        if (expression.Value is int integer) {
-            return ExprLiteralInteger.Create(integer);
-        }
-
-        else if (expression.Value is string text) {
-            return ExprLiteralString.Create(text);
+        if (expression.Type.IsPrimitive ||
+            expression.Type == typeof(string)) {
+            return ExprBindConstant.Create(expression.Type, expression.Value);
         }
 
         else {
-            throw new ExpressionNotSupportedException(expression);
+            throw new ExpressionNotSupportedException($"The {expression.Type} type is not supported.", expression);
         }
     }
 }

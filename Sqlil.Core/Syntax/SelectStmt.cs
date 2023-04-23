@@ -159,6 +159,26 @@ public record class ExprBindParameter(
     );
 }
 
+public record class ExprBindConstant(
+    Type Type,
+    object? Value
+) : Expr {
+    public static ExprBindConstant Create(
+        Type Type,
+        object? Value
+    ) => new(
+        Type: Type,
+        Value: Value
+    );
+
+    public static ExprBindConstant Create(
+        int Value
+    ) => new(
+        Type: typeof(int),
+        Value: Value
+    );
+}
+
 public record class ExprBinary(
     BinaryOperator Operator,
     Expr Left,
@@ -262,19 +282,10 @@ public record class ExprColumn(
     );
 }
 
-public record class ExprLiteralInteger(
-    int Value
-) : Expr {
-    public Type Type => typeof(int);
-
-    public static ExprLiteralInteger Create(int Value) => new(Value);
-}
-
 public record class ExprLiteralString(
     string Value
 ) : Expr {
     public Type Type => typeof(string);
-
     public static ExprLiteralString Create(string Value) => new(Value);
 }
 
