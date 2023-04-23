@@ -103,6 +103,6 @@ UPDATE "User" SET "Birthday" = '2023-04-21';
         }
         list.Add(values);
     }
-    System.Text.Json.JsonSerializer.Serialize(list).Dump();
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(list));
 }
 

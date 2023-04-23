@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Immutable;
 
-namespace Sqlil.Core;
+namespace Sqlil.Core.Syntax;
 
 public static class StableList {
     public static StableList<T> ToStableList<T>(this IEnumerable<T> enumerable) {
@@ -67,12 +67,12 @@ public class StableList<T> : IReadOnlyList<T> {
         }
 
         return GetHashCode() == other.GetHashCode()
-            && Enumerable.SequenceEqual(this, other);
+            && this.SequenceEqual(other);
     }
 
     public static bool operator ==(StableList<T> left, StableList<T> right) {
         return left.GetHashCode() == right.GetHashCode()
-            && Enumerable.SequenceEqual(left, right);
+            && left.SequenceEqual(right);
     }
 
     public static bool operator !=(StableList<T> left, StableList<T> right) {
