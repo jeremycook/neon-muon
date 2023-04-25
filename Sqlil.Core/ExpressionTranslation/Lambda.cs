@@ -3,8 +3,15 @@ using System.Linq.Expressions;
 
 namespace Sqlil.Core.ExpressionTranslation;
 
-public static class Lambda {
-    public static object Translate(LambdaExpression expression, TranslationContext context) {
+public partial class SelectStmtTranslator {
+
+    public static SelectStmtTranslator Singleton { get; } = new();
+
+    public static SelectStmt ConvertToSelectStmt(LambdaExpression expression) {
+        return (SelectStmt)Singleton.Lambda(expression, default);
+    }
+
+    protected virtual object Lambda(LambdaExpression expression, TranslationContext context) {
         if (expression.Parameters.Count == 1 && expression.Parameters[0] == expression.Body) {
             // In:  o => o
             // Out: o.Prop1, o.Prop2
@@ -23,7 +30,7 @@ public static class Lambda {
             return result;
         }
         else {
-            object result = AnExpression.Translate(expression.Body, context);
+            object result = Translate(expression.Body, context);
             return result;
         }
     }

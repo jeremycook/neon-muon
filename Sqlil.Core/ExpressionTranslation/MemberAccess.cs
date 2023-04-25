@@ -4,23 +4,23 @@ using System.Reflection;
 
 namespace Sqlil.Core.ExpressionTranslation;
 
-internal class MemberAccess {
-    internal static object Translate(MemberExpression expression, TranslationContext context) {
+public partial class SelectStmtTranslator {
+    public virtual object MemberAccess(MemberExpression expression, TranslationContext context) {
         if (expression.Member is PropertyInfo property) {
 
-            if (AnExpression.IsType(property.PropertyType, typeof(IQueryable<>)) is Type iqueryable) {
+            if (IsType(property.PropertyType, typeof(IQueryable<>)) is Type iqueryable) {
                 // TODO? Get schema
                 Type tableType = iqueryable.GetGenericArguments()[0];
                 return TableOrSubqueryTable.Create(TableName.Create(tableType.Name, tableType), TableAlias: context.ParameterName);
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
-                var prefix = context.ParameterName ?? AnExpression.GetParameterName(parameter);
+                var prefix = context.ParameterName ?? GetParameterName(parameter);
                 return ExprColumn.Create(prefix, ColumnName.Create(property.Name, property.PropertyType));
             }
 
             else if (expression.Expression is MemberExpression member) {
-                var result = AnExpression.Translate(member, context);
+                var result = Translate(member, context);
                 if (result is ColumnName identifier) {
                     return ExprColumn.Create(TableName.Create(property.Name, property.PropertyType), identifier);
                 }
@@ -36,19 +36,19 @@ internal class MemberAccess {
 
         else if (expression.Member is FieldInfo fieldInfo) {
 
-            if (AnExpression.IsType(fieldInfo.FieldType, typeof(IQueryable<>)) is Type iqueryable) {
+            if (IsType(fieldInfo.FieldType, typeof(IQueryable<>)) is Type iqueryable) {
                 // TODO? Get schema
                 Type tableType = iqueryable.GetGenericArguments()[0];
                 return TableOrSubqueryTable.Create(TableName.Create(tableType.Name, tableType), TableAlias: context.ParameterName);
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
-                var prefix = context.ParameterName ?? AnExpression.GetParameterName(parameter);
+                var prefix = context.ParameterName ?? GetParameterName(parameter);
                 return ExprColumn.Create(prefix, ColumnName.Create(fieldInfo.Name, fieldInfo.FieldType));
             }
 
             else if (expression.Expression is MemberExpression member) {
-                var result = AnExpression.Translate(member, context);
+                var result = Translate(member, context);
                 if (result is ColumnName identifier) {
                     return ExprColumn.Create(TableName.Create(fieldInfo.Name, fieldInfo.FieldType), identifier);
                 }

@@ -54,7 +54,7 @@ public static class DbConnectionExtensions {
     }
 
     public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
-        var translation = Lambda.Translate(query, default);
+        var translation = SelectStmtTranslator.ConvertToSelectStmt(query);
 
         SqliteComposer sqliteComposer = new();
         var parameterizedSql = sqliteComposer.Compose(translation);

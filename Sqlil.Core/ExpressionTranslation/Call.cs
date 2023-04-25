@@ -3,8 +3,8 @@ using System.Linq.Expressions;
 
 namespace Sqlil.Core.ExpressionTranslation;
 
-internal class Call {
-    internal static object Translate(MethodCallExpression expression, TranslationContext context) {
+public partial class SelectStmtTranslator {
+    protected virtual object Call(MethodCallExpression expression, TranslationContext context) {
 
         if (expression.Method.DeclaringType == typeof(Queryable)) {
             object result = expression.Method.Name switch {
@@ -38,22 +38,22 @@ internal class Call {
         }
     }
 
-    private static ExprBinary TranslateStringMethod(MethodCallExpression expression, TranslationContext context) {
+    protected virtual ExprBinary TranslateStringMethod(MethodCallExpression expression, TranslationContext context) {
         ExprBinary result = expression.Method.Name switch {
 
             nameof(string.Contains) => ExprBinary.Create(BinaryOperator.Like,
-                (Expr)AnExpression.Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), ExprBinary.Create(ExpressionType.Add, (Expr)AnExpression.Translate(expression.Arguments[0], context), ExprLiteralString.Create("%")))
+                (Expr)Translate(expression.Object!, context),
+                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), ExprBinary.Create(ExpressionType.Add, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%")))
             ),
 
             nameof(string.StartsWith) => ExprBinary.Create(BinaryOperator.Like,
-                (Expr)AnExpression.Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, (Expr)AnExpression.Translate(expression.Arguments[0], context), ExprLiteralString.Create("%"))
+                (Expr)Translate(expression.Object!, context),
+                ExprBinary.Create(ExpressionType.Add, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%"))
             ),
 
             nameof(string.EndsWith) => ExprBinary.Create(BinaryOperator.Like,
-                (Expr)AnExpression.Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), (Expr)AnExpression.Translate(expression.Arguments[0], context))
+                (Expr)Translate(expression.Object!, context),
+                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), (Expr)Translate(expression.Arguments[0], context))
             ),
 
             _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
@@ -61,13 +61,13 @@ internal class Call {
         return result;
     }
 
-    private static SelectCoreNormal Where(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectCoreNormal Where(MethodCallExpression expression, TranslationContext context) {
 
         if (expression.Arguments.Count == 2) {
 
             // IQueryable<TSource> Where<TSource>(this IQueryable<TSource> source, Expression<Func<TSource, bool>> predicate)
-            var source = AnExpression.Translate(expression.Arguments[0], context);
-            var predicate = AnExpression.Translate(expression.Arguments[1], context);
+            var source = Translate(expression.Arguments[0], context);
+            var predicate = Translate(expression.Arguments[1], context);
 
             if (source is TableOrSubquery tableOrSubquery &&
                 predicate is Expr expr) {
@@ -88,15 +88,15 @@ internal class Call {
     /// </summary>
     /// <param name="expression"></param>
     /// <returns></returns>
-    private static SelectStmt Select(MethodCallExpression expression, TranslationContext context) {
+    public virtual SelectStmt Select(MethodCallExpression expression, TranslationContext context) {
         if (expression.Arguments.Count == 2) {
 
             // IQueryable<TResult> Select<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, int, TResult>> selector)
             var currentContext = context with {
-                ParameterName = AnExpression.GetParameterName(expression.Arguments[1]),
+                ParameterName = GetParameterName(expression.Arguments[1]),
             };
-            var source = AnExpression.Translate(expression.Arguments[0], currentContext);
-            var selector = AnExpression.Translate(expression.Arguments[1], currentContext);
+            var source = Translate(expression.Arguments[0], currentContext);
+            var selector = Translate(expression.Arguments[1], currentContext);
 
             if (source is SelectStmt selectStmt) {
 
@@ -173,7 +173,7 @@ internal class Call {
         throw new ExpressionNotSupportedException(expression);
     }
 
-    private static SelectStmt Join(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectStmt Join(MethodCallExpression expression, TranslationContext context) {
         throw new NotImplementedException();
     }
 
@@ -182,13 +182,13 @@ internal class Call {
     /// </summary>
     /// <param name="expression"></param>
     /// <returns></returns>
-    private static SelectStmt OrderBy(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectStmt OrderBy(MethodCallExpression expression, TranslationContext context) {
 
         if (expression.Arguments.Count == 2) {
 
             // IOrderedQueryable<TSource> OrderBy<TSource, TKey>(this IQueryable<TSource> source, Expression<Func<TSource, TKey>> keySelector)
-            var source = AnExpression.Translate(expression.Arguments[0], context);
-            var keySelector = AnExpression.Translate(expression.Arguments[1], context);
+            var source = Translate(expression.Arguments[0], context);
+            var keySelector = Translate(expression.Arguments[1], context);
 
             if (source is SelectCoreNormal selectCoreNormal) {
 
@@ -233,7 +233,7 @@ internal class Call {
     /// </summary>
     /// <param name="expression"></param>
     /// <returns></returns>
-    private static SelectStmt OrderByDescending(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectStmt OrderByDescending(MethodCallExpression expression, TranslationContext context) {
         var orderBy = OrderBy(expression, context);
 
         var result = orderBy with {
@@ -242,11 +242,11 @@ internal class Call {
         return result;
     }
 
-    private static SelectStmt Skip(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectStmt Skip(MethodCallExpression expression, TranslationContext context) {
         if (expression.Arguments.Count == 2) {
             // IQueryable<TSource> Skip<TSource>(this IQueryable<TSource> source, int count);
-            var source = AnExpression.Translate(expression.Arguments[0], context);
-            var count = AnExpression.Translate(expression.Arguments[1], context);
+            var source = Translate(expression.Arguments[0], context);
+            var count = Translate(expression.Arguments[1], context);
 
             if (source is SelectStmt selectStmt &&
                 count is Expr expr) {
@@ -265,11 +265,11 @@ internal class Call {
         }
     }
 
-    private static SelectStmt Take(MethodCallExpression expression, TranslationContext context) {
+    protected virtual SelectStmt Take(MethodCallExpression expression, TranslationContext context) {
         if (expression.Arguments.Count == 2) {
             // IQueryable<TSource> Take<TSource>(this IQueryable<TSource> source, int count);
-            var source = AnExpression.Translate(expression.Arguments[0], context);
-            var count = AnExpression.Translate(expression.Arguments[1], context);
+            var source = Translate(expression.Arguments[0], context);
+            var count = Translate(expression.Arguments[1], context);
 
             if (source is SelectStmt selectStmt &&
                 count is Expr expr) {
@@ -288,7 +288,7 @@ internal class Call {
         }
     }
 
-    private static object CreateTuple(MethodCallExpression expression, TranslationContext context) {
+    protected virtual object CreateTuple(MethodCallExpression expression, TranslationContext context) {
         throw new ExpressionNotSupportedException(expression);
     }
 }
