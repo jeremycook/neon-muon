@@ -15,7 +15,7 @@ public partial class SelectStmtTranslator {
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
-                var prefix = context.ParameterName ?? GetParameterName(parameter);
+                var prefix = context.ParameterName ?? GetTableName(parameter);
                 return ExprColumn.Create(prefix, ColumnName.Create(property.Name, property.PropertyType));
             }
 
@@ -43,7 +43,7 @@ public partial class SelectStmtTranslator {
             }
 
             else if (expression.Expression is ParameterExpression parameter) {
-                var prefix = context.ParameterName ?? GetParameterName(parameter);
+                var prefix = context.ParameterName ?? GetTableName(parameter);
                 return ExprColumn.Create(prefix, ColumnName.Create(fieldInfo.Name, fieldInfo.FieldType));
             }
 

@@ -24,7 +24,7 @@ public partial class SelectStmtTranslator {
         return result;
     }
 
-    protected virtual TableName GetParameterName(Expression expression) {
+    protected virtual TableName GetTableName(Expression expression) {
         TableName result = expression switch {
 
             ParameterExpression parameter =>
@@ -33,13 +33,13 @@ public partial class SelectStmtTranslator {
                     : TableName.Create(parameter.Name ?? string.Empty, parameter.Type),
 
             UnaryExpression unary =>
-                GetParameterName(unary.Operand),
+                GetTableName(unary.Operand),
 
             LambdaExpression lambda =>
-                GetParameterName(lambda.Parameters[0]),
+                GetTableName(lambda.Parameters[0]),
 
             MemberExpression member when member.Expression is not null =>
-                GetParameterName(member.Expression),
+                GetTableName(member.Expression),
 
             // NewExpression newExpression => newExpression.
 
@@ -54,7 +54,7 @@ public partial class SelectStmtTranslator {
 
             ParameterExpression parameter =>
                 parameter.Name is not null && parameter.Name.StartsWith('<')
-                    ? ColumnName.Create("__HC" + parameter.Name.GetHashCode(), parameter.Type)
+                    ? ColumnName.Create("__anon" + parameter.Name.GetHashCode(), parameter.Type)
                     : ColumnName.Create(parameter.Name ?? string.Empty, parameter.Type),
 
             UnaryExpression unary =>

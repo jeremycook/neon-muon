@@ -5,12 +5,6 @@ namespace Sqlil.Core.ExpressionTranslation;
 
 public partial class SelectStmtTranslator {
 
-    public static SelectStmtTranslator Singleton { get; } = new();
-
-    public static SelectStmt ConvertToSelectStmt(LambdaExpression expression) {
-        return (SelectStmt)Singleton.Lambda(expression, default);
-    }
-
     protected virtual object Lambda(LambdaExpression expression, TranslationContext context) {
         if (expression.Parameters.Count == 1 && expression.Parameters[0] == expression.Body) {
             // In:  o => o

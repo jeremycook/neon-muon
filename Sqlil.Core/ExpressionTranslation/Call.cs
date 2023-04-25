@@ -93,7 +93,7 @@ public partial class SelectStmtTranslator {
 
             // IQueryable<TResult> Select<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, int, TResult>> selector)
             var currentContext = context with {
-                ParameterName = GetParameterName(expression.Arguments[1]),
+                ParameterName = GetTableName(expression.Arguments[1]),
             };
             var source = Translate(expression.Arguments[0], currentContext);
             var selector = Translate(expression.Arguments[1], currentContext);

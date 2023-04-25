@@ -6,6 +6,13 @@ using System.Linq.Expressions;
 namespace Sqlil.Core;
 
 public static class DbConnectionExtensions {
+
+    private static SelectStmtTranslator SelectStmtTranslator { get; } = new();
+
+    private static SelectStmt TranslateToSelectStmt(LambdaExpression expression) {
+        return (SelectStmt)SelectStmtTranslator.Translate(expression, default);
+    }
+
     public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
         var (cmd, sqlColumns) = CreateCommand(dbConnection, query);
 
@@ -53,8 +60,8 @@ public static class DbConnectionExtensions {
         return items;
     }
 
-    public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
-        var translation = SelectStmtTranslator.ConvertToSelectStmt(query);
+    public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand(this DbConnection dbConnection, LambdaExpression expression) {
+        var translation = TranslateToSelectStmt(expression);
 
         SqliteComposer sqliteComposer = new();
         var parameterizedSql = sqliteComposer.Compose(translation);
@@ -62,6 +69,7 @@ public static class DbConnectionExtensions {
         var sqlColumns = parameterizedSql.Segments.OfType<SqlColumn>().ToStableList();
         var constantParameters = parameterizedSql.Segments.OfType<SqlConstantParameter>().ToArray();
         var inputParameters = parameterizedSql.Segments.OfType<SqlInputParameter>().ToArray();
+
         var parameterNumber = 1;
         var commandText = string.Concat(parameterizedSql.Segments.Select(x => x switch {
             SqlRaw raw => raw.Text,
