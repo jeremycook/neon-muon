@@ -4,9 +4,10 @@ using DataCore;
 namespace LoginMod;
 
 public sealed class LoginContext {
-    public static IQuery<LoginContext, LocalLogin> LocalLogin => new FromQuery<LoginContext, LocalLogin>();
+    public static IQueryable<LocalLogin> LocalLogin => throw new InvalidOperationException("This is a virtual property for expression building.");
 
     public static IReadOnlyDatabase<LoginContext> Database { get; }
+
     static LoginContext() {
         var database = new Database<LoginContext>();
         database.ContributeQueryContext();

@@ -1,18 +1,20 @@
 ﻿using DataCore;
+using Sqlil.Core;
+using System.Data.Common;
 
 namespace LoginMod;
 
 public class LoginServices {
-    private readonly IQueryRunner<LoginContext> Runner;
+    private readonly DbConnection connection;
 
-    public LoginServices(IQueryRunner<LoginContext> runner) {
-        Runner = runner;
+    public LoginServices(DbConnection connection) {
+        this.connection = connection;
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await Runner.Nullable(LoginContext
+        var loginOption = await connection.Nullable(() => LoginContext
             .LocalLogin
-            .Filter(x => x.Username.ToLower() == username.ToLower()),
+            .Where(x => x.Username.ToLower() == username.ToLower()),
             cancellationToken);
 
         if (!loginOption.HasValue) {
@@ -29,14 +31,13 @@ public class LoginServices {
 
             case PasswordHashingVerify.SuccessRehashNeeded:
 
-                var rehashedPassword = PasswordHashing.Instance.Hash(login.Hash);
+                var rehashedPassword = PasswordHashing.Instance.Hash(password);
 
                 // Rehash the password
-                _ = Runner.Execute(LoginContext
+                _ = connection.Execute(() => LoginContext
                     .LocalLogin
-                    .Filter(x => x.UserId == login.UserId && x.Version == login.Version)
-                    .Update(x => new LocalLogin(x) {
-                        Version = x.Version + 1,
+                    .Where(x => x.UserId == login.UserId)
+                    .Update(x => new(x) {
                         Hash = rehashedPassword,
                     }),
                     cancellationToken);
@@ -54,10 +55,10 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await Runner.Nullable(LoginContext
+        var loginOption = await connection.Nullable(() => LoginContext
             .LocalLogin
-            .Filter(x => x.Username.ToLower() == username.ToLower()),
-            cancellationToken);
+            .Where(x => x.Username.ToLower() == username.ToLower()),
+        cancellationToken);
 
         if (loginOption.HasValue) {
             // A user with that username already exists
@@ -66,12 +67,12 @@ public class LoginServices {
 
         var hashedPassword = PasswordHashing.Instance.Hash(password);
 
-        var login = new LocalLogin(Guid.NewGuid(), 0, username, hashedPassword);
+        var login = new LocalLogin(Guid.NewGuid(), username, hashedPassword);
 
-        await Runner.Execute(LoginContext
+        await connection.Execute(() => LoginContext
             .LocalLogin
             .Insert(login),
-            cancellationToken);
+        cancellationToken);
 
         return login;
     }

@@ -13,6 +13,7 @@ using System.Data.Common;
 internal class Program {
     private static void Main(string[] args) {
         WebApplication app;
+        IConfigurationSection reverseProxy;
 
         // Configure services
         {
@@ -20,6 +21,11 @@ internal class Program {
             var serviceCollection = builder.Services;
 
             // Add services to the container.
+
+            reverseProxy = builder.Configuration.GetSection("ReverseProxy");
+            if (reverseProxy.Exists()) {
+                builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
+            }
 
             // OpenAPI https://aka.ms/aspnetcore/swashbuckle
             serviceCollection.AddEndpointsApiExplorer();
@@ -46,6 +52,7 @@ internal class Program {
                 Cache = SqliteCacheMode.Shared,
             };
             serviceCollection.AddSingleton<DbConnectionStringBuilder>(connectionStringBuilder);
+            serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(svc.GetRequiredService<DbConnectionStringBuilder>().ConnectionString));
 
             // Migrate database
             if (connectionStringBuilder is SqliteConnectionStringBuilder sqliteConnectionStringBuilder) {
@@ -93,17 +100,11 @@ internal class Program {
                 }
             }
 
-
             // Login
             {
                 var database = new Database<LoginContext>();
                 database.ContributeQueryContext(typeof(LoginContext));
-                serviceCollection.AddSingleton<IReadOnlyDatabase<LoginContext>>(database);
 
-                serviceCollection.AddSingleton<PasswordHashing>();
-                serviceCollection.AddSingleton<IDbConnectionString<LoginContext>, DbConnectionString<LoginContext>>();
-                serviceCollection.AddScoped<IDbCommandComposer<LoginContext>, SqliteCommandComposer<LoginContext>>();
-                serviceCollection.AddScoped<LoginContext, LoginContext>();
                 serviceCollection.AddScoped<LoginServices>();
             }
 
@@ -111,11 +112,6 @@ internal class Program {
             {
                 var database = new Database<ContentContext>();
                 database.ContributeQueryContext(typeof(ContentContext));
-                serviceCollection.AddSingleton<IReadOnlyDatabase<ContentContext>>(database);
-
-                serviceCollection.AddSingleton<IDbConnectionString<ContentContext>, DbConnectionString<ContentContext>>();
-                serviceCollection.AddScoped<IDbCommandComposer<ContentContext>, SqliteCommandComposer<ContentContext>>();
-                serviceCollection.AddScoped<ContentContext, ContentContext>();
             }
 
             app = builder.Build();
@@ -124,6 +120,10 @@ internal class Program {
         // Configure the HTTP request pipeline.
         {
             app.UseHttpsRedirection();
+
+            if (reverseProxy.Exists()) {
+                app.MapReverseProxy();
+            }
 
             app.UseSwagger();
             app.UseSwaggerUI();

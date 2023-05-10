@@ -16,5 +16,5 @@ public sealed class ContentContext {
         Database = database;
     }
 
-    private ContentContext() { throw new InvalidOperationException("Static only"); }
+    private ContentContext() { throw new InvalidOperationException("Cannot construct. Static reference only."); }
 }

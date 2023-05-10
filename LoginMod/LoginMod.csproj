@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataCore\DataCore.csproj" />
+    <ProjectReference Include="..\Sqlil.Core\Sqlil.Core.csproj" />
   </ItemGroup>
 
 </Project>

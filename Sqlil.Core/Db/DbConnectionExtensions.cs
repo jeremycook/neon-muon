@@ -1,7 +1,9 @@
 using Sqlil.Core.ExpressionTranslation;
 using Sqlil.Core.Syntax;
+using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
 
 namespace Sqlil.Core;
 
@@ -21,8 +23,10 @@ public static class DbConnectionExtensions {
 
         var records = new List<object?[]>();
         while (reader.Read()) {
+
             var values = new object?[sqlColumns.Count];
             reader.GetValues(values!);
+
             for (int i = 0; i < values.Length; i++) {
                 object? val = values[i];
                 var sqlOutput = sqlColumns[i];
@@ -58,6 +62,97 @@ public static class DbConnectionExtensions {
         var items = new List<T>(records.Count);
         items.AddRange(records.Select(x => (T)ctor.Invoke(x)));
         return items;
+    }
+
+    public static async Task<List<T>> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query, CancellationToken cancellationToken) {
+        var (cmd, sqlColumns) = CreateCommand(dbConnection, query);
+
+        await dbConnection.OpenAsync(cancellationToken);
+        using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+        var records = new List<object?[]>();
+        while (await reader.ReadAsync(cancellationToken)) {
+
+            var values = new object?[sqlColumns.Count];
+            reader.GetValues(values!);
+
+            for (int i = 0; i < values.Length; i++) {
+                object? val = values[i];
+                var sqlOutput = sqlColumns[i];
+                if (val == DBNull.Value) {
+                    val = null;
+                }
+                else if (val is string text) {
+                    if (sqlOutput.Type.IsAssignableTo(typeof(Guid?))) {
+                        val = Guid.Parse(text);
+                    }
+                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateOnly?))) {
+                        val = DateOnly.Parse(text);
+                    }
+                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateTime?))) {
+                        var dt = DateTime.Parse(text);
+                        val = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    }
+                    else {
+                        // No change needed
+                    }
+                }
+                else {
+                    val = Convert.ChangeType(val, sqlColumns[i].Type);
+                }
+                values[i] = val;
+            }
+            records.Add(values);
+        }
+
+        var ctor = typeof(T).GetConstructor(sqlColumns.Select(x => x.Type).ToArray())
+            ?? throw new Exception("A constructor was not found that matches: " + string.Join(", ", sqlColumns.Select(x => x.Type)));
+
+        var items = new List<T>(records.Count);
+        items.AddRange(records.Select(x => (T)ctor.Invoke(x)));
+        return items;
+    }
+
+    public static T? Nullable<T>(this DbConnection connection, Expression<Func<IQueryable<T>>> query)
+        where T : struct {
+        var list = List(connection, query);
+
+        return list.Any()
+            ? list.Single()
+            : null;
+    }
+
+    public static async ValueTask<T?> Nullable<T>(
+        this DbConnection connection,
+        Expression<Func<IQueryable<T>>> query,
+        CancellationToken cancellationToken
+    ) where T : struct {
+        var list = await List(connection, query, cancellationToken);
+
+        return list.Any()
+            ? list.Single()
+            : null;
+    }
+
+    public static int Execute<T>(this DbConnection connection, Expression<Func<IQueryable<T>>> query)
+        where T : struct {
+
+        var (cmd, _) = CreateCommand(connection, query);
+
+        connection.Open();
+        return cmd.ExecuteNonQuery();
+    }
+
+    public static async ValueTask<int> Execute<T>(
+        this DbConnection connection,
+        Expression<Func<IQueryable<T>>> query,
+        CancellationToken cancellationToken
+    ) where T : struct {
+
+        var (cmd, _) = CreateCommand(connection, query);
+
+        await connection.OpenAsync(cancellationToken);
+        return await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand(this DbConnection dbConnection, LambdaExpression expression) {

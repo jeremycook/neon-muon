@@ -245,7 +245,8 @@ END IF;
             commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} {(change.Column.IsNullable ? "DROP NOT NULL" : "SET NOT NULL")}"));
         }
         if (change.Modifications.Contains(AlterColumnModification.Type)) {
-            commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} TYPE {change.Column.StoreType}"));
+            // Not supported by SQLite
+            //commands.Add(Interpolate($"ALTER COLUMN {Identifier(change.Column.Name)} TYPE {ScriptStoreType(change.Column.StoreType)}"));
         }
         if (change.Modifications.Contains(AlterColumnModification.Generated)) {
             if (!string.IsNullOrEmpty(change.Column.ComputedColumnSql)) {
@@ -256,7 +257,9 @@ END IF;
             }
         }
 
-        return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} {Join(", ", commands)};");
+        return commands.Any()
+            ? Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} {Join(", ", commands)};")
+            : Empty;
     }
 
     private static Sql ScriptDropColumn(DropColumn change) {
