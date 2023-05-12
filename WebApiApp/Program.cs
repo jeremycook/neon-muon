@@ -73,7 +73,7 @@ internal class Program {
                     currentDatabase.ContributeSqlite(connection);
 
                     var goalDatabase = new Database();
-                    goalDatabase.ContributeQueryContext(typeof(LoginContext));
+                    goalDatabase.ContributeQueryableContext(typeof(LoginContext));
                     goalDatabase.ContributeQueryContext(typeof(ContentContext));
 
                     var alterations = new List<DatabaseAlteration>();

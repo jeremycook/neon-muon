@@ -71,6 +71,6 @@ static System.Linq.Expressions.Expression<Func<IQueryable<User>>> FindUserById(i
     return () => UserContext
         .Users
         .Where(u => u.IsActive && u.UserId == userId)
-        .OrderBy(u => u.UserId)
+        .OrderBy(u => u.Username.ToLower())
         .Select(u => u);
 }

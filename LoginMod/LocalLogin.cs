@@ -2,7 +2,7 @@
 
 namespace LoginMod;
 
-public readonly record struct LocalLogin(Guid UserId, string Username, string Hash) {
+public readonly record struct LocalLogin(Guid LocalLoginId, string Username, string Hash) {
 
     public LocalLogin(string username) : this(
         Guid.NewGuid(),
@@ -11,5 +11,5 @@ public readonly record struct LocalLogin(Guid UserId, string Username, string Ha
     ) { }
 
     public LocalLogin(LocalLogin source)
-        : this(source.UserId, source.Username, source.Hash) { }
+        : this(source.LocalLoginId, source.Username, source.Hash) { }
 }

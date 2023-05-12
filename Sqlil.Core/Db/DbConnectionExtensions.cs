@@ -3,7 +3,6 @@ using Sqlil.Core.Syntax;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
-using System.Threading;
 
 namespace Sqlil.Core;
 
@@ -12,7 +11,13 @@ public static class DbConnectionExtensions {
     private static SelectStmtTranslator SelectStmtTranslator { get; } = new();
 
     private static SelectStmt TranslateToSelectStmt(LambdaExpression expression) {
-        return (SelectStmt)SelectStmtTranslator.Translate(expression, default);
+        object translation = SelectStmtTranslator.Translate(expression, default);
+        var result = translation switch {
+            SelectStmt selectStmt => selectStmt,
+            SelectCore selectCore => SelectStmt.Create(selectCore),
+            _ => throw new NotImplementedException(translation.GetType().ToString()),
+        };
+        return result;
     }
 
     public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
@@ -68,7 +73,17 @@ public static class DbConnectionExtensions {
         var (cmd, sqlColumns) = CreateCommand(dbConnection, query);
 
         await dbConnection.OpenAsync(cancellationToken);
-        using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+        DbDataReader _reader;
+        try {
+            _reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is DbException) {
+            throw new Exception(cmd.CommandText, ex);
+        }
+
+        using var reader = _reader;
+        _reader = null!;
 
         var records = new List<object?[]>();
         while (await reader.ReadAsync(cancellationToken)) {

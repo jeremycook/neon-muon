@@ -36,7 +36,7 @@ public class LoginServices {
                 // Rehash the password
                 _ = connection.Execute(() => LoginContext
                     .LocalLogin
-                    .Where(x => x.UserId == login.UserId)
+                    .Where(x => x.LocalLoginId == login.LocalLoginId)
                     .Update(x => new(x) {
                         Hash = rehashedPassword,
                     }),

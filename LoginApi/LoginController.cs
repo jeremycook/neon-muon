@@ -7,23 +7,20 @@ using System.Security.Claims;
 
 namespace LoginApi;
 
-public class LoginController : Controller
-{
+public class LoginController : Controller {
     public record LoginInput(string Username, string Password);
 
-    public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel)
-    {
+    public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel) {
         var login = await service.Find(input.Username, input.Password, cancel);
 
-        if (login.UserId == LoginConstants.Unknown.UserId)
-        {
+        if (login.LocalLoginId == LoginConstants.Unknown.LocalLoginId) {
             return Results.BadRequest("Invalid username or password.");
         }
 
         ClaimsIdentity identity = new(
             new Claim[]
             {
-                new Claim("sub", login.UserId.ToString()),
+                new Claim("sub", login.LocalLoginId.ToString()),
                 new Claim("name", login.Username),
             },
             "local",
@@ -32,8 +29,7 @@ public class LoginController : Controller
         );
         ClaimsPrincipal principal = new(identity);
 
-        AuthenticationProperties properties = new()
-        {
+        AuthenticationProperties properties = new() {
             //IsPersistent = ?,
         };
 
@@ -43,12 +39,10 @@ public class LoginController : Controller
 
     public record RegisterInput(string Username, string Password);
 
-    public static async Task<IResult> Register(RegisterInput input, LoginServices service, CancellationToken cancel)
-    {
+    public static async Task<IResult> Register(RegisterInput input, LoginServices service, CancellationToken cancel) {
         var login = await service.Register(input.Username, input.Password, cancel);
 
-        if (login.UserId == LoginConstants.Unknown.UserId)
-        {
+        if (login.LocalLoginId == LoginConstants.Unknown.LocalLoginId) {
             return Results.BadRequest("Invalid username or password.");
         }
 

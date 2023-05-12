@@ -282,6 +282,22 @@ public record class ExprColumn(
     );
 }
 
+// TODO: Implement more the other function expressions from https://www.sqlite.org/syntax/expr.html
+public record class ExprFunction(
+    ExprFunctionName FunctionName,
+    StableList<Expr> Exprs
+) : Expr {
+    public Type Type => typeof(bool);
+
+    public static ExprFunction Create(ExprFunctionName FunctionName, params Expr[] Exprs)
+        => new(FunctionName, StableList.Create(Exprs));
+}
+
+public enum ExprFunctionName {
+    Lower,
+    Upper,
+}
+
 public record class ExprLiteralString(
     string Value
 ) : Expr {

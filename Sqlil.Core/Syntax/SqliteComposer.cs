@@ -366,9 +366,20 @@ public class SqliteComposer {
             ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
             ExprColumn exprColumn => ExprColumn(exprColumn),
+            ExprFunction exprFunction => ExprFunction(exprFunction),
             ExprLiteralString exprLiteral => ExprLiteral(exprLiteral),
             ExprUnary exprUnary => ExprUnary(exprUnary),
             _ => throw new NotImplementedException(expr.ToString()),
+        };
+        return result;
+    }
+
+    private ParameterizedSql ExprFunction(ExprFunction exprFunction) {
+        var exprsSql = exprFunction.Exprs.Select(Expr);
+        var result = exprFunction.FunctionName switch {
+            ExprFunctionName.Lower => Join("", "LOWER", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Upper => Join("", "UPPER", "(", exprsSql.Join(", "), ")"),
+            _ => throw new NotImplementedException(exprFunction.FunctionName.ToString()),
         };
         return result;
     }

@@ -29,7 +29,7 @@ public partial class SelectStmtTranslator {
         }
 
         else if (expression.Method.DeclaringType == typeof(string)) {
-            ExprBinary result = TranslateStringMethod(expression, context);
+            Expr result = TranslateStringMethod(expression, context);
             return result;
         }
 
@@ -38,8 +38,8 @@ public partial class SelectStmtTranslator {
         }
     }
 
-    protected virtual ExprBinary TranslateStringMethod(MethodCallExpression expression, TranslationContext context) {
-        ExprBinary result = expression.Method.Name switch {
+    protected virtual Expr TranslateStringMethod(MethodCallExpression expression, TranslationContext context) {
+        Expr result = expression.Method.Name switch {
 
             nameof(string.Contains) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)Translate(expression.Object!, context),
@@ -55,6 +55,9 @@ public partial class SelectStmtTranslator {
                 (Expr)Translate(expression.Object!, context),
                 ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), (Expr)Translate(expression.Arguments[0], context))
             ),
+
+            nameof(string.ToLower) => ExprFunction.Create(ExprFunctionName.Lower, (Expr)Translate(expression.Object!, context)),
+            nameof(string.ToUpper) => ExprFunction.Create(ExprFunctionName.Upper, (Expr)Translate(expression.Object!, context)),
 
             _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
         };
