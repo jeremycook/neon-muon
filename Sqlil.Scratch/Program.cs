@@ -1,5 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
-using Sqlil.Core;
+using Sqlil.Core.Db;
 using Sqlil.Core.Syntax;
 using Sqlil.Scratch;
 using System.Data.Common;

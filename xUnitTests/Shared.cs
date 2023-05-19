@@ -1,8 +1,8 @@
 ﻿using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
+using DatabaseMod.Annotations;
 using DatabaseMod.Models;
 using DataCore;
-using DataCore.Annotations;
 using DataMod.Sqlite;
 using Microsoft.Data.Sqlite;
 

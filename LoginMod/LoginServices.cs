@@ -1,5 +1,6 @@
 ﻿using DataCore;
 using Sqlil.Core;
+using Sqlil.Core.Db;
 using System.Data.Common;
 
 namespace LoginMod;

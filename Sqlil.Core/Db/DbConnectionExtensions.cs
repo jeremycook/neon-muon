@@ -4,7 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
 
-namespace Sqlil.Core;
+namespace Sqlil.Core.Db;
 
 public static class DbConnectionExtensions {
 
@@ -21,7 +21,7 @@ public static class DbConnectionExtensions {
     }
 
     public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
-        var (cmd, sqlColumns) = CreateCommand(dbConnection, query);
+        var (cmd, sqlColumns) = dbConnection.CreateCommand(query);
 
         dbConnection.Open();
         using var reader = cmd.ExecuteReader();
@@ -70,7 +70,7 @@ public static class DbConnectionExtensions {
     }
 
     public static async Task<List<T>> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query, CancellationToken cancellationToken) {
-        var (cmd, sqlColumns) = CreateCommand(dbConnection, query);
+        var (cmd, sqlColumns) = dbConnection.CreateCommand(query);
 
         await dbConnection.OpenAsync(cancellationToken);
 
@@ -130,7 +130,7 @@ public static class DbConnectionExtensions {
 
     public static T? Nullable<T>(this DbConnection connection, Expression<Func<IQueryable<T>>> query)
         where T : struct {
-        var list = List(connection, query);
+        var list = connection.List(query);
 
         return list.Any()
             ? list.Single()
@@ -142,7 +142,7 @@ public static class DbConnectionExtensions {
         Expression<Func<IQueryable<T>>> query,
         CancellationToken cancellationToken
     ) where T : struct {
-        var list = await List(connection, query, cancellationToken);
+        var list = await connection.List(query, cancellationToken);
 
         return list.Any()
             ? list.Single()
@@ -152,7 +152,7 @@ public static class DbConnectionExtensions {
     public static int Execute<T>(this DbConnection connection, Expression<Func<IQueryable<T>>> query)
         where T : struct {
 
-        var (cmd, _) = CreateCommand(connection, query);
+        var (cmd, _) = connection.CreateCommand(query);
 
         connection.Open();
         return cmd.ExecuteNonQuery();
@@ -164,7 +164,7 @@ public static class DbConnectionExtensions {
         CancellationToken cancellationToken
     ) where T : struct {
 
-        var (cmd, _) = CreateCommand(connection, query);
+        var (cmd, _) = connection.CreateCommand(query);
 
         await connection.OpenAsync(cancellationToken);
         return await cmd.ExecuteNonQueryAsync(cancellationToken);

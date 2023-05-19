@@ -1,4 +1,4 @@
-﻿using DataCore.Annotations;
+﻿using DatabaseMod.Annotations;
 using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

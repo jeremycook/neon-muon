@@ -1,4 +1,4 @@
-﻿namespace DataCore.Annotations;
+﻿namespace DatabaseMod.Annotations;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = true)]
 public class PrimaryKeyAttribute : Attribute {
