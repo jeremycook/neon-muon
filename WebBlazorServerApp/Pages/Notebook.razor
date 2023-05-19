@@ -1,0 +1,71 @@
+﻿@page "/notebook/{notebookId}/page/{pageId}"
+@using WebBlazorServerApp.Notebooks;
+
+<PageTitle>@(notebook?.Name ?? "Notebook loading...")</PageTitle>
+
+    <h1>@(notebook?.Name ?? "Notebook loading...")</h1>
+
+@if (notebook == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <nav>
+        <table>
+            <tbody>
+                @foreach (var pg in notebook.Pages)
+                {
+                    <tr><td>@pg.Title</td></tr>
+                }
+            </tbody>
+        </table>
+    </nav>
+
+    @if (activePage != null)
+    {
+        <div>
+            <h2>@activePage.Title</h2>
+            @foreach (var content in activePage.Contents)
+            {
+                <div>
+                @switch (content)
+                {
+                    case HtmlContent html:
+                        @((MarkupString)html.Content)
+                        break;
+                    case TableContent table:
+                        @table.Name
+                        break;
+                }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public string NotebookId { get; set; } = null!;
+    [Parameter] public string PageId { get; set; } = null!;
+
+    private WebBlazorServerApp.Notebooks.Notebook? notebook;
+    private WebBlazorServerApp.Notebooks.Page? activePage;
+
+    protected override void OnParametersSet()
+    {
+        notebook = new(
+            Name: NotebookId,
+            Pages: new() {
+                new(
+                    Title: PageId,
+                    Contents: new() {
+                        new HtmlContent("Hi <strong>Jeremy</strong>"),
+                        new TableContent("My Data Table"),
+                    }
+                )
+                }
+        );
+
+        activePage = notebook.Pages.FirstOrDefault(x => x.Title == PageId);
+    }
+}

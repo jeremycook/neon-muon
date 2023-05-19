@@ -44,7 +44,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqlil.Scratch", "Sqlil.Scra
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqlil.Core", "Sqlil.Core\Sqlil.Core.csproj", "{88C42743-F860-4A64-8C79-5BAE23045F21}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebBlazorServerApp", "WebBlazorServerApp\WebBlazorServerApp.csproj", "{A15E4A81-5591-40CA-8D31-EC3F7A467200}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebBlazorServerApp", "WebBlazorServerApp\WebBlazorServerApp.csproj", "{A15E4A81-5591-40CA-8D31-EC3F7A467200}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using WebBlazorServerApp.Areas.Identity;
 using WebBlazorServerApp.Areas.Identity.Data;
-using WebBlazorServerApp.Data;
 
 namespace WebBlazorServerApp;
 public class Program {
@@ -27,6 +27,7 @@ public class Program {
             services
                 .AddDefaultIdentity<IdentityUser>(options => {
                     options.SignIn.RequireConfirmedAccount = true;
+                    // NIST
                     options.Password.RequiredLength = 12;
                     options.Password.RequireDigit = false;
                     options.Password.RequireLowercase = false;
@@ -37,12 +38,25 @@ public class Program {
                 .AddEntityFrameworkStores<IdentityDbContext>();
 
             // ASP.NET
-            services.AddRazorPages();
+            services.AddRazorPages()
+                .AddJsonOptions(configure => {
+                    // Ensure actions and action filters have access to formatter exception messages
+                    configure.AllowInputFormatterExceptionMessages = true;
+
+                    // Be more forgiving about JSON input
+                    configure.JsonSerializerOptions.AllowTrailingCommas = true;
+                    configure.JsonSerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
+                    configure.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                    // TODO: Write a JsonEnumConverter that can deserialize from string or integer,
+                    // and serialize to int. Since JsonStringEnumConverter serializes to string
+                    // that could be in conflict with using enums in TypeScript.
+                    //configure.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
             services.AddServerSideBlazor();
             services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
 
             // Application
-            services.AddSingleton<WeatherForecastService>();
+            // Ex: services.AddSingleton<WeatherForecastService>();
         }
 
         var app = builder.Build();
