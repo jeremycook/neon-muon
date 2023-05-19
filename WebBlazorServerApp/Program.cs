@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using WebBlazorServerApp.Areas.Identity;
 using WebBlazorServerApp.Areas.Identity.Data;
@@ -14,10 +15,15 @@ public class Program {
         {
             IServiceCollection services = builder.Services;
 
-            // Identity
-            var identityConnectionString = builder.Configuration.GetConnectionString("Identity") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-            services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(identityConnectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
+            // EF Core
             services.AddDatabaseDeveloperPageExceptionFilter();
+
+            // Identity (https://aka.ms/aspaccountconf)
+            var identitySettings = builder.Configuration.GetRequiredSection(nameof(IdentitySettings)).Get<IdentitySettings>()!;
+            var identityConnectionString = identitySettings.ConnectionString ?? throw new InvalidOperationException("Connection string 'IdentitySettings.ConnectionString' not found.");
+            builder.Services.AddSingleton(identitySettings);
+            builder.Services.AddTransient<IEmailSender, IdentityEmailSender>();
+            services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(identityConnectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
             services
                 .AddDefaultIdentity<IdentityUser>(options => {
                     options.SignIn.RequireConfirmedAccount = true;

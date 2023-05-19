@@ -18,19 +18,22 @@ namespace WebBlazorServerApp.Areas.Identity.Pages.Account.Manage
 {
     public class EnableAuthenticatorModel : PageModel
     {
-        private readonly UserManager<IdentityUser> _userManager;
         private readonly ILogger<EnableAuthenticatorModel> _logger;
+        private readonly UserManager<IdentityUser> _userManager;
+        private readonly IdentitySettings identitySettings;
         private readonly UrlEncoder _urlEncoder;
 
         private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
         public EnableAuthenticatorModel(
-            UserManager<IdentityUser> userManager,
             ILogger<EnableAuthenticatorModel> logger,
+            IdentitySettings identitySettings,
+            UserManager<IdentityUser> userManager,
             UrlEncoder urlEncoder)
         {
             _userManager = userManager;
             _logger = logger;
+            this.identitySettings = identitySettings;
             _urlEncoder = urlEncoder;
         }
 
@@ -180,7 +183,7 @@ namespace WebBlazorServerApp.Areas.Identity.Pages.Account.Manage
             return string.Format(
                 CultureInfo.InvariantCulture,
                 AuthenticatorUriFormat,
-                _urlEncoder.Encode("Microsoft.AspNetCore.Identity.UI"),
+                _urlEncoder.Encode(identitySettings.SiteName),
                 _urlEncoder.Encode(email),
                 unformattedKey);
         }
