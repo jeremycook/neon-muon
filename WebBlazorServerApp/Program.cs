@@ -15,8 +15,8 @@ public class Program {
             IServiceCollection services = builder.Services;
 
             // Identity
-            var connectionString = builder.Configuration.GetConnectionString("Identity") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-            services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
+            var identityConnectionString = builder.Configuration.GetConnectionString("Identity") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(identityConnectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
             services.AddDatabaseDeveloperPageExceptionFilter();
             services
                 .AddDefaultIdentity<IdentityUser>(options => {

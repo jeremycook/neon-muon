@@ -12,11 +12,10 @@ public partial class IdentityDbContext : Microsoft.AspNetCore.Identity.EntityFra
         builder.HasDefaultSchema("identity");
         base.OnModelCreating(builder);
         foreach (var et in builder.Model.GetEntityTypes()) {
-            var newTableName = AspNetPrefixPattern().Replace(et.GetTableName() ?? throw new NullReferenceException(), "");
+            var newTableName = AspNetPrefixPattern.Replace(et.GetTableName() ?? throw new NullReferenceException(), "");
             et.SetTableName(newTableName);
         }
     }
 
-    [GeneratedRegex("^AspNet")]
-    private static partial Regex AspNetPrefixPattern();
+    private static readonly Regex AspNetPrefixPattern = new("^AspNet");
 }
