@@ -1,7 +1,11 @@
-import './style.css';
+import './styles/index.css';
 import { routes } from './routes.ts';
 import { notFound } from './errors/not-found.ts';
 import { isLocalUrl, redirect } from './utils/url.ts';
+import { error } from './errors/error.ts';
+import { mutateSegment, segment } from './utils/etc.ts';
+import { div } from './utils/html.ts';
+import { mainLayout } from './ui/main-layout.ts';
 
 ((oldPushState, oldReplaceState) => {
     history.pushState = function pushState() {
@@ -23,13 +27,33 @@ import { isLocalUrl, redirect } from './utils/url.ts';
     });
 })(history.pushState, history.replaceState);
 
-const app = document.getElementById('app')!;
+const pageSegment = segment();
+document.getElementById('app')!.replaceChildren(
+    div({ class: 'site' },
+        div({ class: 'site-desktop' },
+            div({ class: 'site-router' },
+                mainLayout(
+                    ...pageSegment
+                )
+            )
+        )
+    )
+);
+
 async function renderPage() {
     const path = location.pathname.toLowerCase();
     const pageFactory = routes[path] ?? notFound;
     const params = { location, ...Object.fromEntries(new URLSearchParams(location.search)) };
-    const pageNode = await pageFactory(params);
-    app.replaceChildren(pageNode);
+
+    try {
+        const pageNode = await pageFactory(params);
+        mutateSegment(pageSegment, pageNode);
+    } catch (ex) {
+        console.error('Page render exception', ex);
+        const errorPage = error();
+        mutateSegment(pageSegment, errorPage);
+        setTimeout(() => console.log('focus', document.querySelector<HTMLElement>('[autofocus]')), 100);
+    }
 };
 window.addEventListener('locationchange', renderPage);
 renderPage();
@@ -42,5 +66,6 @@ document.addEventListener('click', e => {
     if (target && isLocalUrl(target.href)) {
         e.preventDefault();
         redirect(target.href);
+        return;
     }
 });

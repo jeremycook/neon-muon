@@ -15,7 +15,8 @@ public class LoginServices {
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
         var loginOption = await connection.Nullable(() => LoginContext
             .LocalLogin
-            .Where(x => x.Username.ToLower() == username.ToLower()),
+            .Where(x => x.Username.ToLower() == username.ToLower())
+            .Select(x => x),
             cancellationToken);
 
         if (!loginOption.HasValue) {
@@ -58,7 +59,8 @@ public class LoginServices {
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
         var loginOption = await connection.Nullable(() => LoginContext
             .LocalLogin
-            .Where(x => x.Username.ToLower() == username.ToLower()),
+            .Where(x => x.Username.ToLower() == username.ToLower())
+            .Select(x => x),
         cancellationToken);
 
         if (loginOption.HasValue) {

@@ -1,0 +1,6 @@
+@import 'colors.css';
+@import 'vars.css';
+
+.text-error {
+    color: var(--fg-error);
+}
