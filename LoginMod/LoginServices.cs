@@ -1,29 +1,25 @@
-﻿using DataCore;
-using Sqlil.Core;
-using Sqlil.Core.Db;
-using System.Data.Common;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace LoginMod;
 
 public class LoginServices {
-    private readonly DbConnection connection;
+    private readonly LoginDbContext db;
 
-    public LoginServices(DbConnection connection) {
-        this.connection = connection;
+    public LoginServices(LoginDbContext db) {
+        this.db = db;
     }
 
     public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await connection.Nullable(() => LoginContext
+        var loginOption = await db
             .LocalLogin
             .Where(x => x.Username.ToLower() == username.ToLower())
-            .Select(x => x),
-            cancellationToken);
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (!loginOption.HasValue) {
+        if (loginOption is null) {
             return LoginConstants.Unknown;
         }
 
-        var login = loginOption.Value;
+        var login = loginOption;
 
         var result = PasswordHashing.Instance.Verify(login.Hash, password);
         switch (result) {
@@ -36,13 +32,12 @@ public class LoginServices {
                 var rehashedPassword = PasswordHashing.Instance.Hash(password);
 
                 // Rehash the password
-                _ = connection.Execute(() => LoginContext
+                _ = db
                     .LocalLogin
                     .Where(x => x.LocalLoginId == login.LocalLoginId)
-                    .Update(x => new(x) {
-                        Hash = rehashedPassword,
-                    }),
-                    cancellationToken);
+                    .ExecuteUpdateAsync(x =>
+                        x.SetProperty(o => o.Hash, rehashedPassword)
+                    , cancellationToken);
 
                 return login;
 
@@ -57,13 +52,12 @@ public class LoginServices {
     }
 
     public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
-        var loginOption = await connection.Nullable(() => LoginContext
+        var loginOption = await db
             .LocalLogin
             .Where(x => x.Username.ToLower() == username.ToLower())
-            .Select(x => x),
-        cancellationToken);
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (loginOption.HasValue) {
+        if (loginOption is not null) {
             // A user with that username already exists
             return LoginConstants.Unknown;
         }
@@ -72,10 +66,7 @@ public class LoginServices {
 
         var login = new LocalLogin(Guid.NewGuid(), username, hashedPassword);
 
-        await connection.Execute(() => LoginContext
-            .LocalLogin
-            .Insert(login),
-        cancellationToken);
+        await db.InsertAsync(login);
 
         return login;
     }

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using ContentMod;
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
@@ -18,6 +19,7 @@ internal class Program {
         // Configure services
         {
             var builder = WebApplication.CreateBuilder(args);
+            var configuration = builder.Configuration;
             var serviceCollection = builder.Services;
 
             // Add services to the container.
@@ -46,11 +48,8 @@ internal class Program {
             // App Services
 
             // Default connection string
-            var connectionStringBuilder = new SqliteConnectionStringBuilder() {
-                DataSource = Path.GetFullPath("../-development/NeonMuon.db", builder.Environment.ContentRootPath),
-                //Mode = SqliteOpenMode.Memory,
-                Cache = SqliteCacheMode.Shared,
-            };
+            var connectionStringBuilder = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
+            connectionStringBuilder.DataSource = Path.GetFullPath(connectionStringBuilder.DataSource, builder.Environment.ContentRootPath);
             serviceCollection.AddSingleton<DbConnectionStringBuilder>(connectionStringBuilder);
             serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(svc.GetRequiredService<DbConnectionStringBuilder>().ConnectionString));
 
@@ -73,8 +72,8 @@ internal class Program {
                     currentDatabase.ContributeSqlite(connection);
 
                     var goalDatabase = new Database();
-                    goalDatabase.ContributeQueryableContext(typeof(LoginContext));
-                    goalDatabase.ContributeQueryContext(typeof(ContentContext));
+                    goalDatabase.ContributeQueryableContext(typeof(LoginDbContext));
+                    //goalDatabase.ContributeQueryContext(typeof(ContentContext));
 
                     var alterations = new List<DatabaseAlteration>();
                     foreach (var goalSchema in goalDatabase.Schemas) {
@@ -102,17 +101,18 @@ internal class Program {
 
             // Login
             {
-                var database = new Database<LoginContext>();
-                database.ContributeQueryContext(typeof(LoginContext));
+                //var database = new Database<LoginDbContext>();
+                //database.ContributeQueryContext(typeof(LoginDbContext));
 
+                serviceCollection.AddDbContext<LoginDbContext>(o => o.UseSqlite(connectionStringBuilder.ConnectionString));
                 serviceCollection.AddScoped<LoginServices>();
             }
 
-            // Content
-            {
-                var database = new Database<ContentContext>();
-                database.ContributeQueryContext(typeof(ContentContext));
-            }
+            //// Content
+            //{
+            //    var database = new Database<ContentContext>();
+            //    database.ContributeQueryContext(typeof(ContentContext));
+            //}
 
             app = builder.Build();
         }
@@ -147,7 +147,6 @@ internal class Program {
 
             //app.MapControllers();
 
-            app.MapGet("/api/hello", () => Results.Ok("Hello")).AllowAnonymous();
             app.MapPost("/api/login", LoginController.Login).AllowAnonymous();
             app.MapPost("/api/register", LoginController.Register).AllowAnonymous();
         }

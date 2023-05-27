@@ -11,8 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataCore\DataCore.csproj" />
-    <ProjectReference Include="..\Sqlil.Core\Sqlil.Core.csproj" />
+    <ProjectReference Include="..\EFMod\EFMod.csproj" />
   </ItemGroup>
 
 </Project>

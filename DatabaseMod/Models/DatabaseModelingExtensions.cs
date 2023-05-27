@@ -14,10 +14,10 @@ public static class DatabaseModelingExtensions {
     public static void ContributeQueryableContext(this Database database, Type queryContextType) {
         var defaultSchema = string.Empty;
 
-        var tableTypes = queryContextType.GetProperties(BindingFlags.Public | BindingFlags.Static)
+        var tableTypes = queryContextType.GetProperties(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
             .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>))
             .Select(p => p.PropertyType.GetGenericArguments()[0])
-            .ToList();
+            .ToImmutableHashSet();
 
         foreach (var schemaGroup in tableTypes.GroupBy(t => t.GetCustomAttribute<TableAttribute>()?.Schema ?? defaultSchema)) {
             if (database.Schemas.FirstOrDefault(o => o.Name == schemaGroup.Key) is not Schema schema) {

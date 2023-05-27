@@ -28,7 +28,7 @@ export async function jsonPost<TResult = Response>(url: string, input?: object) 
     return await jsonFetch<TResult>({ url, method: 'POST' }, input);
 }
 
-export async function jsonFetch<TResult>(init: { url: string } & RequestInit, input?: object): Promise<Response & { result?: TResult, errorMessage?: string, errorResult?: any }> {
+export async function jsonFetch<TResult>(init: { url: string } & RequestInit, input?: object): Promise<{ ok: boolean, status: number, result?: TResult, errorMessage?: string, errorResult?: any }> {
     try {
 
         const body = input ? { body: JSON.stringify(input) } : {};
@@ -41,7 +41,6 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
         const response = await fetch(init.url, requestInit);
 
         const isJsonResponse = response.headers.get('Content-Type')?.startsWith('application/json') === true;
-
 
         let result;
         let errorResult;
@@ -65,7 +64,7 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
             errorMessage = 'An unexpected error occurred while trying retrive the requested resource.';
             log.warn('Non-OK response in {MemberName}: {ErrorMessage}.', 'jsonFetch', errorMessage);
         }
-        return { ...response, result, errorMessage, errorResult: errorResult };
+        return { ok: response.ok, status: response.status, result, errorMessage, errorResult: errorResult };
     }
     catch (err) {
         if (err instanceof Exception) {

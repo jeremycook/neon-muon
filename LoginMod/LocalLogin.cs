@@ -2,7 +2,7 @@
 
 namespace LoginMod;
 
-public readonly record struct LocalLogin(Guid LocalLoginId, string Username, string Hash) {
+public sealed record LocalLogin(Guid LocalLoginId, string Username, string Hash) {
 
     public LocalLogin(string username) : this(
         Guid.NewGuid(),
@@ -10,6 +10,6 @@ public readonly record struct LocalLogin(Guid LocalLoginId, string Username, str
         PasswordHashing.Instance.Hash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)))
     ) { }
 
-    public LocalLogin(LocalLogin source)
-        : this(source.LocalLoginId, source.Username, source.Hash) { }
+    public static LocalLogin Create(LocalLogin source) =>
+        new(source.LocalLoginId, source.Username, source.Hash);
 }

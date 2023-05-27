@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DatabaseMod\DatabaseMod.csproj" />
-    <ProjectReference Include="..\DataCore\DataCore.csproj" />
   </ItemGroup>
 
 </Project>
