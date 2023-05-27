@@ -11,23 +11,23 @@ public static class QueryExtensions {
         return new JoinQuery<TDb, T1, T2, T3>(leftQuery, rightQuery, condition);
     }
 
-    public static IQuery<TDb, T1> Filter<TDb, T1>(this IQuery<TDb, T1> query, Expression<Func<T1, bool>> condition) {
+    public static FilterQuery<TDb, T1> Filter<TDb, T1>(this IQuery<TDb, T1> query, Expression<Func<T1, bool>> condition) {
         return new FilterQuery<TDb, T1>(query, condition);
     }
 
-    public static IQuery<TDb, T1> Asc<TDb, T1, TProperty>(this IQuery<TDb, T1> query, Expression<Func<T1, TProperty>> sort)
+    public static SortQuery<TDb, T1, TProperty> Asc<TDb, T1, TProperty>(this IQuery<TDb, T1> query, Expression<Func<T1, TProperty>> sort)
         where TProperty : IComparable<TProperty> {
 
         return new SortQuery<TDb, T1, TProperty>(query, sort, SortDirection.Asc);
     }
 
-    public static IQuery<TDb, T1> Desc<TDb, T1, TProperty>(this IQuery<TDb, T1> query, Expression<Func<T1, TProperty>> sort)
+    public static SortQuery<TDb, T1, TProperty> Desc<TDb, T1, TProperty>(this IQuery<TDb, T1> query, Expression<Func<T1, TProperty>> sort)
         where TProperty : IComparable<TProperty> {
 
         return new SortQuery<TDb, T1, TProperty>(query, sort, SortDirection.Desc);
     }
 
-    public static IQuery<TDb, T1> Take<TDb, T1>(this IQuery<TDb, T1> query, int take) {
+    public static TakeQuery<TDb, T1> Take<TDb, T1>(this IQuery<TDb, T1> query, int take) {
 
         return new TakeQuery<TDb, T1>(query, take);
     }
@@ -37,15 +37,15 @@ public static class QueryExtensions {
     }
 
 
-    public static IQuery<TDb, T1> Insert<TDb, T1>(this IQuery<TDb, T1> query, T1 item) {
+    public static InsertQuery<TDb, T1> Insert<TDb, T1>(this IQuery<TDb, T1> query, T1 item) {
         return InsertQuery.Create(query, item);
     }
 
-    public static IQuery<TDb, T1> InsertRange<TDb, T1>(this IQuery<TDb, T1> query, IEnumerable<T1> items) {
+    public static InsertQuery<TDb, T1> InsertRange<TDb, T1>(this IQuery<TDb, T1> query, IEnumerable<T1> items) {
         return InsertQuery.Create(query, items.ToArray());
     }
 
-    public static IQuery<TDb, T1> InsertRange<TDb, T1>(this IQuery<TDb, T1> query, params T1[] items) {
+    public static InsertQuery<TDb, T1> InsertRange<TDb, T1>(this IQuery<TDb, T1> query, params T1[] items) {
         return InsertQuery.Create(query, items);
     }
 
