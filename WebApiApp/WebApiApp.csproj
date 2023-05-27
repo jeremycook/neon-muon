@@ -15,9 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ContentMod\ContentMod.csproj" />
-    <ProjectReference Include="..\DataMod\DataMod.csproj" />
     <ProjectReference Include="..\LoginApi\LoginApi.csproj" />
+    <ProjectReference Include="..\SqliteMod\SqliteMod.csproj" />
   </ItemGroup>
 
 </Project>

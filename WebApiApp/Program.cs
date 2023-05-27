@@ -1,14 +1,13 @@
-using Microsoft.EntityFrameworkCore;
-using ContentMod;
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using DataCore;
 using DataMod.Sqlite;
 using LoginApi;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using SqliteMod;
 using System.Data.Common;
 
 internal class Program {
@@ -53,7 +52,6 @@ internal class Program {
             serviceCollection.AddSingleton<DbConnectionStringBuilder>(connectionStringBuilder);
             serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(svc.GetRequiredService<DbConnectionStringBuilder>().ConnectionString));
 
-            // Migrate database
             if (connectionStringBuilder is SqliteConnectionStringBuilder sqliteConnectionStringBuilder) {
 
                 if (sqliteConnectionStringBuilder.Mode != SqliteOpenMode.Memory &&
@@ -65,7 +63,8 @@ internal class Program {
                     Directory.CreateDirectory(dir);
                 }
 
-                using (var connection = new SqliteConnection(sqliteConnectionStringBuilder.ToString())) {
+                { // Script and apply change scripts
+                    using var connection = new SqliteConnection(sqliteConnectionStringBuilder.ToString());
                     connection.Open();
 
                     var currentDatabase = new Database();
