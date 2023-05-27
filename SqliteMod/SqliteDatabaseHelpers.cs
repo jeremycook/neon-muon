@@ -1,9 +1,8 @@
 ﻿using DatabaseMod.Models;
 using Microsoft.Data.Sqlite;
-using SqliteMod;
 using SqlMod;
 
-namespace DataMod.Sqlite;
+namespace SqliteMod;
 
 public static class SqliteDatabaseHelpers {
     public static void ContributeSqlite(this Database database, SqliteConnection connection) {

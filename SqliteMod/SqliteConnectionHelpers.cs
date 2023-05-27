@@ -112,7 +112,7 @@ public static class SqliteConnectionHelpers {
                     .ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
 
                 var settableColumns = columns
-                    .Where(c => settableProperties.Keys.Contains(c.ColumnName))
+                    .Where(c => settableProperties.ContainsKey(c.ColumnName))
                     .Select(c => (c.ColumnName, Property: settableProperties[c.ColumnName]))
                     .ToArray();
 

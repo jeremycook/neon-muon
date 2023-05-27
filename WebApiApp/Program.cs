@@ -1,7 +1,6 @@
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using DataMod.Sqlite;
 using LoginApi;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication.Cookies;

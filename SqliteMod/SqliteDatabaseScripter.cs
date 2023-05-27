@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using static SqlMod.Sql;
 
-namespace DataMod.Sqlite;
+namespace SqliteMod;
 
 public static class SqliteDatabaseScripter {
     /// <summary>
