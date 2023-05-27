@@ -147,6 +147,7 @@ internal class Program {
 
             //app.MapControllers();
 
+            app.MapGet("/api/hello", () => Results.Ok("Hello")).AllowAnonymous();
             app.MapPost("/api/login", LoginController.Login).AllowAnonymous();
             app.MapPost("/api/register", LoginController.Register).AllowAnonymous();
         }

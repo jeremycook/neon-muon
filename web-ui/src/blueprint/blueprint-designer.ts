@@ -1,4 +1,6 @@
-﻿import { h, svg } from "./etc.js";
+﻿import './blueprint-designer.css';
+import { button, div } from '../utils/html.js';
+import { line, svg } from '../utils/svg.js';
 import { ObservableSet } from "./observables.js";
 
 type PortType = {
@@ -122,7 +124,7 @@ export function createDesigner() {
 
         nodes.set(nodeData.id, nodeData);
 
-        const node = h(".blueprint-node",
+        const node = div({ class: "blueprint-node" },
             {
                 style: {
                     left: `${templatePicker.offsetLeft}px`,
@@ -130,10 +132,10 @@ export function createDesigner() {
                 },
                 "blueprint-node-id": nodeData.id,
             },
-            h(".blueprint-node-header",
+            div({ class: "blueprint-node-header" },
                 { onmousedown: startDrag },
                 nodeTemplate.label ?? nodeTemplate.type,
-                h("button.blueprint-node-remove", "×", {
+                button({ class: "blueprint-node-remove" }, "×", {
                     onclick: () => {
                         node.remove();
                         nodes.delete(nodeData.id);
@@ -143,13 +145,13 @@ export function createDesigner() {
             nodeTemplate.ports.map(port => {
                 const portType = <PortType>(<any>templates.portTypes)[port.type];
 
-                return h(`.blueprint-port.blueprint-port-type-${port.type}.blueprint-port-category-${portType.category}.blueprint-port-kind-${portType.kind}`,
+                return div({ class: `blueprint-port blueprint-port-type-${port.type} blueprint-port-category-${portType.category} blueprint-port-kind-${portType.kind}` },
 
                     { "blueprint-port-name": port.name },
 
                     portType.kind == "Source" ?
-                        [port.label ?? port.name, " ", h("button.blueprint-port-icon", portType.icon, { onclick: connectPorts })] :
-                        [h("button.blueprint-port-icon", portType.icon, { onclick: connectPorts }), " ", port.label ?? port.name]
+                        [port.label ?? port.name, " ", button({ class: "blueprint-port-icon" }, portType.icon, { onclick: connectPorts })] :
+                        [button({ class: "blueprint-port-icon" }, portType.icon, { onclick: connectPorts }), " ", port.label ?? port.name]
                 )
             })
         );
@@ -269,8 +271,8 @@ export function createDesigner() {
         const targetPort = findPort(targetNode, targetPortName);
         const targetOffset = calculatePortOffset(targetNode, targetPort, "Target");
 
-        const connection = <SVGLineElement>svg("line.blueprint-connection", {
-            onclick: _e => {
+        const connection = line({ class: "blueprint-connection" }, {
+            onclick: () => {
                 connection.remove();
                 edges.delete(edge);
             },
@@ -314,27 +316,27 @@ export function createDesigner() {
 
 
 
-    const templatePicker = <HTMLDivElement>h(".blueprint-template-picker",
-        templates.nodes.map(node => h("button.blueprint-template-picker-node",
+    const templatePicker = div({ class: "blueprint-template-picker" },
+        templates.nodes.map(node => button({ class: "blueprint-template-picker-node" },
             {
                 onclick: (_e: MouseEvent) => {
                     addNodeToCanvas(node);
                     templatePicker.classList.remove("active");
                 }
             },
-            h("div", node.label ?? node.type)
+            div(node.label ?? node.type)
         ))
     );
 
-    const svgCanvas = <SVGElement>svg("svg.blueprint-svg");
+    const svgCanvas = svg({ class: "blueprint-svg" });
 
-    const canvas = <HTMLDivElement>h(".blueprint-canvas", {
+    const canvas = div({ class: "blueprint-canvas" }, {
         onclick: toggleTemplatePicker
     });
 
-    const designer = <HTMLDivElement>h(".blueprint-designer",
+    const designer = div({ class: "blueprint-designer" },
         canvas,
-        h(".blueprint-svg-container", svgCanvas),
+        div({ class: "blueprint-svg-container" }, svgCanvas),
         templatePicker,
     );
 
