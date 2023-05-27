@@ -11,17 +11,26 @@ using System.Data.Common;
 
 internal class Program {
     private static void Main(string[] args) {
-        WebApplication app;
+        ConfigurationManager configuration;
+        List<Type> dbContextTypes = new();
+        SqliteConnectionStringBuilder connectionStringBuilder;
         IConfigurationSection reverseProxy;
+
+        WebApplication app;
 
         // Configure services
         {
             var builder = WebApplication.CreateBuilder(args);
-            var configuration = builder.Configuration;
+            configuration = builder.Configuration;
             var serviceCollection = builder.Services;
+
+            // Connection string
+            connectionStringBuilder = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
+            connectionStringBuilder.DataSource = Path.GetFullPath(connectionStringBuilder.DataSource, builder.Environment.ContentRootPath);
 
             // Add services to the container.
 
+            // Reverse proxy
             reverseProxy = builder.Configuration.GetSection("ReverseProxy");
             if (reverseProxy.Exists()) {
                 builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
@@ -32,76 +41,19 @@ internal class Program {
             serviceCollection.AddSwaggerGen();
 
             // Auth
-            serviceCollection.AddAuthentication(options => {
-                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            })
-                .AddCookie(options => {
-                    options.Events = new ApiFriendlyCookieAuthenticationEvents();
-                });
+            serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
             serviceCollection.AddAuthorization(options => options.FallbackPolicy = options.DefaultPolicy);
 
             // Web API
             //serviceCollection.AddMvc();
 
-            // App Services
-
-            // Default connection string
-            var connectionStringBuilder = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
-            connectionStringBuilder.DataSource = Path.GetFullPath(connectionStringBuilder.DataSource, builder.Environment.ContentRootPath);
-            serviceCollection.AddSingleton<DbConnectionStringBuilder>(connectionStringBuilder);
-            serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(svc.GetRequiredService<DbConnectionStringBuilder>().ConnectionString));
-
-            if (connectionStringBuilder is SqliteConnectionStringBuilder sqliteConnectionStringBuilder) {
-
-                if (sqliteConnectionStringBuilder.Mode != SqliteOpenMode.Memory &&
-                    !File.Exists(sqliteConnectionStringBuilder.DataSource)) {
-                    var dir = Path.GetDirectoryName(sqliteConnectionStringBuilder.DataSource);
-                    if (string.IsNullOrWhiteSpace(dir)) {
-                        throw new Exception("Invalid DataSource.");
-                    }
-                    Directory.CreateDirectory(dir);
-                }
-
-                { // Script and apply change scripts
-                    using var connection = new SqliteConnection(sqliteConnectionStringBuilder.ToString());
-                    connection.Open();
-
-                    var currentDatabase = new Database();
-                    currentDatabase.ContributeSqlite(connection);
-
-                    var goalDatabase = new Database();
-                    goalDatabase.ContributeQueryableContext(typeof(LoginDbContext));
-                    //goalDatabase.ContributeQueryContext(typeof(ContentContext));
-
-                    var alterations = new List<DatabaseAlteration>();
-                    foreach (var goalSchema in goalDatabase.Schemas) {
-                        if (currentDatabase.Schemas.SingleOrDefault(o => o.Name == goalSchema.Name) is not Schema currentSchema) {
-                            currentSchema = new Schema(goalSchema.Name) {
-                                Owner = goalSchema.Owner,
-                            };
-
-                            alterations.Add(new CreateSchema(currentSchema.Name, currentSchema.Owner));
-                        }
-                        foreach (var goalTable in goalSchema.Tables) {
-                            var currentTable = currentSchema.Tables.SingleOrDefault(o => o.Name == goalTable.Name);
-                            var tableAlterations = TableDiffer.DiffTables(goalSchema.Name, currentTable, goalTable);
-
-                            alterations.AddRange(tableAlterations);
-                        }
-                    }
-
-                    var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
-                    foreach (var sql in sqlStatements) {
-                        connection.Execute(sql);
-                    }
-                }
-            }
+            // Connection
+            serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(connectionStringBuilder.ConnectionString));
 
             // Login
             {
-                //var database = new Database<LoginDbContext>();
-                //database.ContributeQueryContext(typeof(LoginDbContext));
-
+                dbContextTypes.Add(typeof(LoginDbContext));
                 serviceCollection.AddDbContext<LoginDbContext>(o => o.UseSqlite(connectionStringBuilder.ConnectionString));
                 serviceCollection.AddScoped<LoginServices>();
             }
@@ -113,6 +65,52 @@ internal class Program {
             //}
 
             app = builder.Build();
+        }
+
+        { // Migrate database
+
+            // Try to create the Sqlite database's directory if it doesn't exist
+            if (connectionStringBuilder.Mode != SqliteOpenMode.Memory &&
+                !File.Exists(connectionStringBuilder.DataSource)) {
+
+                var dir = Path.GetDirectoryName(connectionStringBuilder.DataSource);
+                if (string.IsNullOrWhiteSpace(dir)) {
+                    throw new Exception("Invalid DataSource.");
+                }
+
+                try { Directory.CreateDirectory(dir); } catch (Exception) { }
+            }
+
+            using var connection = new SqliteConnection(connectionStringBuilder.ToString());
+            connection.Open();
+
+            var currentDatabase = new Database();
+            currentDatabase.ContributeSqlite(connection);
+
+            var goalDatabase = new Database();
+            dbContextTypes.ForEach(goalDatabase.ContributeQueryableContext);
+
+            var alterations = new List<DatabaseAlteration>();
+            foreach (var goalSchema in goalDatabase.Schemas) {
+                if (currentDatabase.Schemas.SingleOrDefault(o => o.Name == goalSchema.Name) is not Schema currentSchema) {
+                    currentSchema = new Schema(goalSchema.Name) {
+                        Owner = goalSchema.Owner,
+                    };
+
+                    alterations.Add(new CreateSchema(currentSchema.Name, currentSchema.Owner));
+                }
+                foreach (var goalTable in goalSchema.Tables) {
+                    var currentTable = currentSchema.Tables.SingleOrDefault(o => o.Name == goalTable.Name);
+                    var tableAlterations = TableDiffer.DiffTables(goalSchema.Name, currentTable, goalTable);
+
+                    alterations.AddRange(tableAlterations);
+                }
+            }
+
+            var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
+            foreach (var sql in sqlStatements) {
+                connection.Execute(sql);
+            }
         }
 
         // Configure the HTTP request pipeline.
