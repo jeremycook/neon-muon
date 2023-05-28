@@ -143,9 +143,10 @@ internal class Program {
 
             //app.MapControllers();
 
-            app.MapGet("/api/user", LoginEndpoints.User).AllowAnonymous();
             app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
+            app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
             app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();
+            app.MapGet("/api/user", LoginEndpoints.User).AllowAnonymous();
         }
 
         app.Run();
