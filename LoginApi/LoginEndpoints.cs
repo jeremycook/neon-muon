@@ -2,15 +2,23 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace LoginApi;
 
-public class LoginController : Controller {
+public class LoginEndpoints {
+    public static object User(HttpContext context) {
+        var user = context?.User;
+        return new {
+            Auth = user.Identity?.IsAuthenticated == true,
+            Sub = user?.FindFirstValue("sub") ?? LoginConstants.Unknown.LocalLoginId.ToString(),
+            Name = user?.FindFirstValue("name") ?? LoginConstants.Unknown.Username
+        };
+    }
+
     public record LoginInput(string Username, string Password);
 
-    public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel) {
+    public static async Task<IResult> Login(HttpContext context, LoginInput input, LoginServices service, CancellationToken cancel) {
         var login = await service.Find(input.Username, input.Password, cancel);
 
         if (login.LocalLoginId == LoginConstants.Unknown.LocalLoginId) {
@@ -33,7 +41,8 @@ public class LoginController : Controller {
             //IsPersistent = ?,
         };
 
-        return Results.SignIn(principal, properties, CookieAuthenticationDefaults.AuthenticationScheme);
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, properties);
+        return Results.Ok();
     }
 
 
