@@ -81,22 +81,22 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         if (typeof content === "string") {
             const child = text(content);
             element.appendChild(child);
-            child.dispatchEvent(new Event('mounted'));
+            child.dispatchEvent(new Event('mount'));
         }
         else if (content instanceof Node) {
             element.appendChild(content);
-            content.dispatchEvent(new Event('mounted'));
+            content.dispatchEvent(new Event('mount'));
         }
         else if (content instanceof Array) {
             for (const node of content.flat(32)) {
                 if (typeof node === "string") {
                     const child = text(node);
                     element.appendChild(child);
-                    child.dispatchEvent(new Event('mounted'));
+                    child.dispatchEvent(new Event('mount'));
                 }
                 else {
                     element.appendChild(node);
-                    node.dispatchEvent(new Event('mounted'));
+                    node.dispatchEvent(new Event('mount'));
                 }
             }
         }
@@ -185,7 +185,7 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     let node = begin.nextSibling;
     while (node && node !== end) {
         let nextSibling = node.nextSibling;
-        if (node.dispatchEvent(new Event('unmounting'))) {
+        if (node.dispatchEvent(new Event('unmount'))) {
             // None of the handlers called preventDefault
             parent.removeChild(node);
         }

@@ -8,9 +8,10 @@ export class Val<TValue> {
         return this._value;
     }
 
-    public async sub(subscription: () => (void | Promise<void>)) {
+    public sub(subscription: () => (void | Promise<void>)) {
+        subscription();
         this._subscritions.push(subscription);
-        await subscription();
+        return () => { this._subscritions.splice(this._subscritions.indexOf(subscription, 1)) };
     }
 
     public async pub(v?: TValue) {
