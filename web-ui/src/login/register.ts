@@ -36,7 +36,7 @@ export function register({ username, redirectUrl }: { username?: string, redirec
 
         var response = await jsonPost('/api/register', data);
         if (response.ok) {
-            redirectLocal(redirectUrl);
+            redirectLocal(makeUrl('/login', { redirectUrl }));
             return;
         }
         else {
