@@ -8,6 +8,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SqliteMod;
 using System.Data.Common;
+using System.Text.Json.Serialization;
+using System.Text.Json;
+using WebApiApp;
 
 internal class Program {
     private static void Main(string[] args) {
@@ -45,8 +48,10 @@ internal class Program {
                 .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
             serviceCollection.AddAuthorization(options => options.FallbackPolicy = options.DefaultPolicy);
 
-            // Web API
-            //serviceCollection.AddMvc();
+            // Minimal API
+            builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o => {
+                o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            });
 
             // Connection
             serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(connectionStringBuilder.ConnectionString));
@@ -143,10 +148,14 @@ internal class Program {
 
             //app.MapControllers();
 
+            // Login
             app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
             app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
             app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();
-            app.MapGet("/api/user", LoginEndpoints.User).AllowAnonymous();
+            app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
+
+            // Database
+            app.MapGet("/api/database", DatabaseEndpoints.Database);
         }
 
         app.Run();

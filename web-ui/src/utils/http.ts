@@ -20,11 +20,11 @@ export const parseJsonResponse = async (response: Response) => {
     return result;
 }
 
-export async function jsonGet<TResult = Response>(url: string, input?: object) {
+export async function jsonGet<TResult>(url: string, input?: object) {
     return await jsonFetch<TResult>({ url, method: 'GET' }, input);
 }
 
-export async function jsonPost<TResult = Response>(url: string, input?: object) {
+export async function jsonPost<TResult>(url: string, input?: object) {
     return await jsonFetch<TResult>({ url, method: 'POST' }, input);
 }
 
@@ -64,7 +64,13 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
             errorMessage = 'An unexpected error occurred while trying retrive the requested resource.';
             log.warn('Non-OK response in {MemberName}: {ErrorMessage}.', 'jsonFetch', errorMessage);
         }
-        return { ok: response.ok, status: response.status, result, errorMessage, errorResult: errorResult };
+        return {
+            ok: response.ok,
+            status: response.status,
+            result,
+            errorMessage,
+            errorResult,
+        };
     }
     catch (err) {
         if (err instanceof Exception) {

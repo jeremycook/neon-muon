@@ -54,11 +54,11 @@ public class LoginEndpoints {
         return Results.Ok();
     }
 
-    public record UserInfo(bool Auth, string Sub, string Name) { }
+    public record LoginInfoResult(bool Auth, string Sub, string Name) { }
 
-    public static UserInfo User(HttpContext context) {
+    public static LoginInfoResult LoginInfo(HttpContext context) {
         var user = context?.User;
-        return new UserInfo(
+        return new LoginInfoResult(
             Auth: user?.Identity?.IsAuthenticated == true,
             Sub: user?.FindFirstValue("sub") ?? LoginConstants.Unknown.LocalLoginId.ToString(),
             Name: user?.FindFirstValue("name") ?? LoginConstants.Unknown.Username

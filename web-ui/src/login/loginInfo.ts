@@ -7,7 +7,8 @@ type CurrentLogin = {
     sub: string;
 };
 
-const CURRENT_LOGIN_KEY = 'loginInfo.currentLogin';
+const currentLoginKey = 'currentLogin';
+const loginInfoUrl = '/api/login-info';
 const guest = Object.freeze({
     auth: false,
     name: 'Guest',
@@ -17,20 +18,20 @@ const guest = Object.freeze({
 export const currentLogin = val(getCurrentLoginFromSession());
 
 export const refreshCurrentLogin = async () => {
-    const response = await jsonGet<CurrentLogin>('/api/user');
-    if (response.result?.auth == true) {
+    const response = await jsonGet<CurrentLogin>(loginInfoUrl);
+    if (response.result?.auth === true) {
         currentLogin.pub(Object.freeze(response.result));
     }
     else if (currentLogin.val !== guest) {
         currentLogin.pub(guest);
     }
 
-    sessionStorage.setItem(CURRENT_LOGIN_KEY, JSON.stringify(currentLogin.val));
+    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
 };
 refreshCurrentLogin()
 
 function getCurrentLoginFromSession(): Readonly<CurrentLogin> {
-    const json = sessionStorage.getItem(CURRENT_LOGIN_KEY);
+    const json = sessionStorage.getItem(currentLoginKey);
     if (json) {
         const login = JSON.parse(json) as CurrentLogin;
         if (login.auth) {

@@ -5,7 +5,7 @@ import { isLocalUrl, redirect } from './utils/url.ts';
 import { error } from './errors/error.ts';
 import { mutateSegment, createSegment } from './utils/etc.ts';
 import { div } from './utils/html.ts';
-import { mainLayout } from './ui/main-layout.ts';
+import { mainLayout } from './site/main-layout.ts';
 
 ((oldPushState, oldReplaceState) => {
     history.pushState = function pushState() {
