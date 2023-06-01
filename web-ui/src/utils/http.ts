@@ -1,4 +1,4 @@
-import Exception from './Exception';
+import { Exception } from './exceptions';
 import { parseJson } from './json';
 import { log } from './log';
 
@@ -79,7 +79,7 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
                 ok: false,
                 status: -1,
                 errorMessage,
-            } as any;
+            };
         }
     }
 }

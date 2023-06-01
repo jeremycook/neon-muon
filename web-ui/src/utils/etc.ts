@@ -81,22 +81,22 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         if (typeof content === "string") {
             const child = text(content);
             element.appendChild(child);
-            child.dispatchEvent(new Event('mount'));
+            child.dispatchEvent(new Event('mount', { cancelable: false }));
         }
         else if (content instanceof Node) {
             element.appendChild(content);
-            content.dispatchEvent(new Event('mount'));
+            content.dispatchEvent(new Event('mount', { cancelable: false }));
         }
         else if (content instanceof Array) {
             for (const node of content.flat(32)) {
                 if (typeof node === "string") {
                     const child = text(node);
                     element.appendChild(child);
-                    child.dispatchEvent(new Event('mount'));
+                    child.dispatchEvent(new Event('mount', { cancelable: false }));
                 }
                 else {
                     element.appendChild(node);
-                    node.dispatchEvent(new Event('mount'));
+                    node.dispatchEvent(new Event('mount', { cancelable: false }));
                 }
             }
         }
@@ -163,7 +163,7 @@ export type Segment = [Comment, ...(string | Node)[], Comment];
  * that can be manipulated later.
  * @param nodes
  */
-export function segment(...nodes: (string | Node)[]): Segment {
+export function createSegment(...nodes: (string | Node)[]): Segment {
     return [comment(''), ...nodes, comment('')];
 }
 
@@ -174,23 +174,26 @@ export function segment(...nodes: (string | Node)[]): Segment {
  */
 export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) {
     const begin = segment[0];
-    const end = segment[segment.length - 1];
+    const end = segment[segment.length - 1] as Comment;
 
     if (!(begin instanceof Comment) || !(end instanceof Comment)) {
         throw 'Segments must begin and end with Comments.';
     }
 
-    const parent = begin.parentNode!;
-
     let node = begin.nextSibling;
     while (node && node !== end) {
         let nextSibling = node.nextSibling;
-        if (node.dispatchEvent(new Event('unmount'))) {
-            // None of the handlers called preventDefault
-            parent.removeChild(node);
-        }
+        
+        node.dispatchEvent(new Event('unmount', { cancelable: false }));
+        node.remove();
+
         node = nextSibling;
     }
 
     begin.after(...newNodes);
+    newNodes
+        .filter(n => n instanceof Node)
+        .forEach(n => (n as Node).dispatchEvent(new Event('mount', { cancelable: false })));
+
+    segment.splice(1, segment.length - 2, ...newNodes);
 }

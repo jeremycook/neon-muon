@@ -1,4 +1,4 @@
-import { mutateSegment, segment } from '../utils/etc';
+import { mutateSegment, createSegment } from '../utils/etc';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { makeUrl, redirectLocal } from '../utils/url';
@@ -10,7 +10,7 @@ export function register({ username, redirectUrl }: { username?: string, redirec
         password: '',
     };
 
-    const errorMessage = segment();
+    const errorMessage = createSegment();
 
     const view = div(
         h1('Register'),

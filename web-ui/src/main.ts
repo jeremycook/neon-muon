@@ -3,7 +3,7 @@ import { routes } from './routes.ts';
 import { notFound } from './errors/not-found.ts';
 import { isLocalUrl, redirect } from './utils/url.ts';
 import { error } from './errors/error.ts';
-import { mutateSegment, segment } from './utils/etc.ts';
+import { mutateSegment, createSegment } from './utils/etc.ts';
 import { div } from './utils/html.ts';
 import { mainLayout } from './ui/main-layout.ts';
 
@@ -27,7 +27,7 @@ import { mainLayout } from './ui/main-layout.ts';
     });
 })(history.pushState, history.replaceState);
 
-const pageSegment = segment();
+const pageSegment = createSegment();
 document.getElementById('app')!.replaceChildren(
     div({ class: 'site' },
         div({ class: 'site-desktop' },

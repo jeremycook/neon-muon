@@ -1,8 +1,8 @@
-import { Segment, mutateSegment, segment } from '../utils/etc';
+import { Segment, mutateSegment, createSegment } from '../utils/etc';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { makeUrl, redirectLocal } from '../utils/url';
-import { refreshCurrentUser } from './loginInfo';
+import { refreshCurrentLogin } from './loginInfo';
 
 export function login({ redirectUrl }: { redirectUrl?: string }) {
 
@@ -16,7 +16,7 @@ export function login({ redirectUrl }: { redirectUrl?: string }) {
 
     const view = div(
         h1('Login'),
-        errorMessage = segment(),
+        errorMessage = createSegment(),
         form({ onsubmit },
             div(
                 label({ for: 'username' }, 'Username'),
@@ -38,7 +38,7 @@ export function login({ redirectUrl }: { redirectUrl?: string }) {
 
         var response = await jsonPost('/api/login', data);
         if (response.ok) {
-            await refreshCurrentUser();
+            await refreshCurrentLogin();
             redirectLocal(redirectUrl);
             return;
         }
