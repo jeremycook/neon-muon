@@ -75,28 +75,29 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         ? document.createElement(tag)
         : document.createElementNS(namespace, tag);
 
+    const newNodes: Node[] = [];
     for (let i = 0; i < data.length; i++) {
         const content = data[i];
 
         if (typeof content === "string") {
-            const child = text(content);
+            const child = createText(content);
             element.appendChild(child);
-            child.dispatchEvent(new Event('mount', { cancelable: false }));
+            newNodes.push(child);
         }
         else if (content instanceof Node) {
             element.appendChild(content);
-            content.dispatchEvent(new Event('mount', { cancelable: false }));
+            newNodes.push(content);
         }
         else if (content instanceof Array) {
             for (const node of content.flat(32)) {
                 if (typeof node === "string") {
-                    const child = text(node);
+                    const child = createText(node);
                     element.appendChild(child);
-                    child.dispatchEvent(new Event('mount', { cancelable: false }));
+                    newNodes.push(child);
                 }
                 else {
                     element.appendChild(node);
-                    node.dispatchEvent(new Event('mount', { cancelable: false }));
+                    newNodes.push(node);
                 }
             }
         }
@@ -134,6 +135,10 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         }
     }
 
+    // Mount events must be dispatched after the nodes have had a chance to render
+    setTimeout(() => newNodes
+        .forEach(n => (n as Node).dispatchEvent(new Event('mount', { cancelable: false }))));
+
     return element as any;
 }
 
@@ -141,7 +146,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
  * Create a text node.
  * @param content
  */
-export function text(content: string) {
+export function createText(content: string) {
     return document.createTextNode(content);
 }
 
@@ -149,8 +154,18 @@ export function text(content: string) {
  * Create a comment node.
  * @param content
  */
-export function comment(content: string) {
+export function createComment(content: string) {
     return document.createComment(content);
+}
+
+/**
+ * Create a document fragment.
+ * @param content
+ */
+export function createFragment(...nodes: (Node | string)[]) {
+    const fragment = document.createDocumentFragment();
+    fragment.append(...nodes);
+    return fragment;
 }
 
 /**
@@ -164,7 +179,7 @@ export type Segment = [Comment, ...(string | Node)[], Comment];
  * @param nodes
  */
 export function createSegment(...nodes: (string | Node)[]): Segment {
-    return [comment(''), ...nodes, comment('')];
+    return [createComment(''), ...nodes, createComment('')];
 }
 
 /**
@@ -182,18 +197,20 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
 
     let node = begin.nextSibling;
     while (node && node !== end) {
-        let nextSibling = node.nextSibling;
-        
+        const nextSibling = node.nextSibling;
+
         node.dispatchEvent(new Event('unmount', { cancelable: false }));
         node.remove();
 
         node = nextSibling;
     }
 
-    begin.after(...newNodes);
-    newNodes
-        .filter(n => n instanceof Node)
-        .forEach(n => (n as Node).dispatchEvent(new Event('mount', { cancelable: false })));
+    // Add the new nodes and mutate the segment
+    const addedNodes = newNodes.map(n => typeof n === 'string' ? createText(n) : n);
+    begin.after(...addedNodes);
+    segment.splice(1, segment.length - 2, ...addedNodes);
 
-    segment.splice(1, segment.length - 2, ...newNodes);
+    // Mount events must be dispatched after the nodes have had a chance to render
+    setTimeout(() => addedNodes
+        .forEach(n => n.dispatchEvent(new Event('mount', { cancelable: false }))));
 }

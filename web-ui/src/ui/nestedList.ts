@@ -1,10 +1,10 @@
-import { text } from '../utils/etc';
+import { createFragment, createText } from '../utils/etc';
 import { li, table, tbody, td, th, thead, tr, ul } from '../utils/html';
 
 export function nestedList(model: any): Node {
 
     if (isEmpty(model)) {
-        return document.createDocumentFragment();
+        return createFragment();
     }
 
     if (Array.isArray(model)) {
@@ -32,13 +32,11 @@ export function nestedList(model: any): Node {
             }
         }
         else {
-            return document.createDocumentFragment();
+            return createFragment();
         }
     }
 
-    const kind = typeof model;
-
-    if (kind === 'object') {
+    if (typeof model === 'object') {
         const entries = Object
             .entries(model as Record<string, any>)
             .filter(([, value]) => !isEmpty(value));
@@ -49,11 +47,11 @@ export function nestedList(model: any): Node {
             );
         }
         else {
-            return document.createDocumentFragment();
+            return createFragment();
         }
     }
 
-    return text(model);
+    return createText(model);
 }
 
 function isEmpty(model: any) {
