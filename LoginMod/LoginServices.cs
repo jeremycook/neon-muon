@@ -9,14 +9,30 @@ public class LoginServices {
         this.db = db;
     }
 
-    public async ValueTask<LocalLogin> Find(string username, string password, CancellationToken cancellationToken = default) {
+    public sealed record FindLoginRecord(Guid LocalLoginId, string Username, string[] Roles) { }
+
+    public async ValueTask<FindLoginRecord> Find(string username, string password, CancellationToken cancellationToken = default) {
         var loginOption = await db
             .LocalLogin
             .Where(x => x.Username.ToLower() == username.ToLower())
+            .Select(x => new {
+                x.LocalLoginId,
+                x.Username,
+                x.Hash,
+                Roles = db.LoginRoles
+                    .Where(r => r.LocalLoginId == x.LocalLoginId)
+                    .OrderBy(x => x.Role)
+                    .Select(x => x.Role)
+                    .ToArray()
+            })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (loginOption is null) {
-            return LoginConstants.Unknown;
+            return new FindLoginRecord(
+                LoginConstants.Unknown.LocalLoginId,
+                LoginConstants.Unknown.Username,
+                Array.Empty<string>()
+            );
         }
 
         var login = loginOption;
@@ -25,7 +41,7 @@ public class LoginServices {
         switch (result) {
             case PasswordHashingVerify.Success:
 
-                return login;
+                return new(login.LocalLoginId, login.Username, login.Roles);
 
             case PasswordHashingVerify.SuccessRehashNeeded:
 
@@ -39,11 +55,15 @@ public class LoginServices {
                         x.SetProperty(o => o.Hash, rehashedPassword)
                     , cancellationToken);
 
-                return login;
+                return new(login.LocalLoginId, login.Username, login.Roles);
 
             case PasswordHashingVerify.Failed:
 
-                return LoginConstants.Unknown;
+                return new FindLoginRecord(
+                    LoginConstants.Unknown.LocalLoginId,
+                    LoginConstants.Unknown.Username,
+                    Array.Empty<string>()
+                );
 
             default:
 
@@ -51,23 +71,47 @@ public class LoginServices {
         }
     }
 
-    public async ValueTask<LocalLogin> Register(string username, string password, CancellationToken cancellationToken = default) {
+    /// <summary>
+    /// Returns errors or an empty array.
+    /// </summary>
+    /// <param name="username"></param>
+    /// <param name="password"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async ValueTask<List<string>> Register(string username, string password, CancellationToken cancellationToken = default) {
+
+        var errors = new List<string>();
+
+        if (username.Length < 3) {
+            errors.Add("The username is must be at least 3 characters long.");
+        }
+        if (password.Length < 10) {
+            errors.Add("The password must be at least 10 characters long.");
+        }
+
+        if (errors.Any()) {
+            return errors;
+        }
+
         var loginOption = await db
             .LocalLogin
             .Where(x => x.Username.ToLower() == username.ToLower())
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (loginOption is not null) {
-            // A user with that username already exists
-            return LoginConstants.Unknown;
+        if (loginOption != null) {
+            errors.Add("The username has been taken");
+            return errors;
         }
 
+        if (errors.Any()) {
+            return errors;
+        }
+
+        // Create the user
         var hashedPassword = PasswordHashing.Instance.Hash(password);
-
         var login = new LocalLogin(Guid.NewGuid(), username, hashedPassword);
-
         await db.InsertAsync(login);
 
-        return login;
+        return errors;
     }
 }

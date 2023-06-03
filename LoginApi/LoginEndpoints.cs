@@ -21,7 +21,8 @@ public class LoginEndpoints {
             {
                 new Claim("sub", login.LocalLoginId.ToString()),
                 new Claim("name", login.Username),
-            },
+            }
+            .Concat(login.Roles.Select(role => new Claim("role", role))),
             "local",
             "name",
             "role"
@@ -45,23 +46,24 @@ public class LoginEndpoints {
     public record RegisterInput(string Username, string Password);
 
     public static async Task<IResult> Register(RegisterInput input, LoginServices service, CancellationToken cancel) {
-        var login = await service.Register(input.Username, input.Password, cancel);
+        var errors = await service.Register(input.Username, input.Password, cancel);
 
-        if (login.LocalLoginId == LoginConstants.Unknown.LocalLoginId) {
-            return Results.BadRequest("Invalid username or password.");
+        if (errors.Any()) {
+            return Results.BadRequest(string.Join(" ", errors));
         }
 
         return Results.Ok();
     }
 
-    public record LoginInfoResult(bool Auth, string Sub, string Name) { }
+    public record LoginInfoResult(bool Auth, string Sub, string Name, string[] Roles) { }
 
     public static LoginInfoResult LoginInfo(HttpContext context) {
         var user = context?.User;
         return new LoginInfoResult(
             Auth: user?.Identity?.IsAuthenticated == true,
             Sub: user?.FindFirstValue("sub") ?? LoginConstants.Unknown.LocalLoginId.ToString(),
-            Name: user?.FindFirstValue("name") ?? LoginConstants.Unknown.Username
+            Name: user?.FindFirstValue("name") ?? LoginConstants.Unknown.Username,
+            Roles: user?.FindAll("role").Select(c => c.Value).ToArray() ?? Array.Empty<string>()
         );
     }
 }

@@ -1,12 +1,12 @@
-import { mutateSegment, Segment, createSegment } from './etc';
+import { mutateSegment, Segment, createSegment, createFragment } from './etc';
 import { Exception } from './exceptions';
-import { PubSub, Val } from './pubSub';
+import { PubSub, PubSubT } from './pubSub';
 
 type DynamicNode =
     (string | Node | (string | Node)[])
     | Promise<string | Node | (string | Node)[]>;
 
-export function dynamic(value: Val<string | Node>): Segment;
+export function dynamic(value: PubSubT<string | Node>): Segment;
 export function dynamic(sub: PubSub, renderer: () => DynamicNode): Segment;
 export function dynamic(subs: PubSub[], renderer: () => DynamicNode): Segment;
 export function dynamic(arg0: PubSub | PubSub[], renderer?: () => DynamicNode): Segment {
@@ -15,9 +15,9 @@ export function dynamic(arg0: PubSub | PubSub[], renderer?: () => DynamicNode): 
     const begin = segment[0];
 
     if (typeof renderer === 'undefined') {
-        if (arg0 instanceof Val) {
+        if ((arg0 as PubSubT<string | Node>)?.val) {
             // Assuming .val is valid
-            renderer = () => arg0.val;
+            renderer = () => (arg0 as PubSubT<string | Node>).val;
         }
         else {
             throw new Exception('A renderer was not provided and could not be inferred.');
@@ -64,15 +64,19 @@ export function dynamic(arg0: PubSub | PubSub[], renderer?: () => DynamicNode): 
         return segment;
     }
 }
-export function when(condition: Val<boolean>,
-    trueRenderer: () => (string | Node | Promise<string | Node>),
-    elseRenderer: () => (string | Node | Promise<string | Node>)): Segment {
+
+export function when(condition: PubSubT<any>,
+    truthyRenderer: () => (string | Node | Promise<string | Node>),
+    elseRenderer?: () => (string | Node | Promise<string | Node>)): Segment {
     return dynamic(condition, async () => {
-        if (condition.val === true) {
-            return await trueRenderer();
+        if (condition.val) {
+            return await truthyRenderer();
+        }
+        else if (elseRenderer) {
+            return await elseRenderer();
         }
         else {
-            return await elseRenderer();
+            return createFragment();
         }
     });
 }

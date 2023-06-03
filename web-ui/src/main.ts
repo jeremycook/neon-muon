@@ -6,6 +6,8 @@ import { error } from './errors/error.ts';
 import { mutateSegment, createSegment } from './utils/etc.ts';
 import { div } from './utils/html.ts';
 import { mainLayout } from './site/main-layout.ts';
+import { siteNavbarUI } from './site/navbar.ts';
+import { currentLogin } from './login/loginInfo.ts';
 
 ((oldPushState, oldReplaceState) => {
     history.pushState = function pushState() {
@@ -31,6 +33,9 @@ const pageSegment = createSegment();
 document.getElementById('app')!.replaceChildren(
     div({ class: 'site' },
         div({ class: 'site-desktop' },
+            div({ class: 'site-navbar' },
+                siteNavbarUI(currentLogin)
+            ),
             div({ class: 'site-router' },
                 mainLayout(
                     ...pageSegment

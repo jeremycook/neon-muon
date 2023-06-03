@@ -3,7 +3,7 @@ import { home } from './site/home';
 import { login } from './login/login';
 import { logout } from './login/logout';
 import { register } from './login/register';
-import { database } from './database/database';
+import { databaseUI } from './database/database';
 
 export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> = {
     '/': home,
@@ -12,7 +12,7 @@ export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> =
     '/logout': logout,
     '/register': register,
 
-    '/database': database,
+    '/database': databaseUI,
     
     '/designer': createDesigner,
 }

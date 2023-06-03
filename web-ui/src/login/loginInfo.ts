@@ -1,11 +1,14 @@
-import { val } from '../utils/pubSub';
+import { PubSubT, val } from '../utils/pubSub';
 import { jsonGet } from '../utils/http'
 
-type CurrentLogin = {
+export type Login = {
     auth: boolean;
     name: string;
     sub: string;
 };
+
+export type CurrentLogin =
+    PubSubT<Readonly<Login>>
 
 const currentLoginKey = 'currentLogin';
 const loginInfoUrl = '/api/login-info';
@@ -15,10 +18,10 @@ const guest = Object.freeze({
     sub: '00000000-0000-0000-0000-000000000000',
 });
 
-export const currentLogin = val(getCurrentLoginFromSession());
+export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());
 
 export const refreshCurrentLogin = async () => {
-    const response = await jsonGet<CurrentLogin>(loginInfoUrl);
+    const response = await jsonGet<Login>(loginInfoUrl);
     if (response.result?.auth === true) {
         currentLogin.pub(Object.freeze(response.result));
     }
@@ -30,10 +33,10 @@ export const refreshCurrentLogin = async () => {
 };
 refreshCurrentLogin()
 
-function getCurrentLoginFromSession(): Readonly<CurrentLogin> {
+function getCurrentLoginFromSession(): Readonly<Login> {
     const json = sessionStorage.getItem(currentLoginKey);
     if (json) {
-        const login = JSON.parse(json) as CurrentLogin;
+        const login = JSON.parse(json) as Login;
         if (login.auth) {
             return Object.freeze(login);
         }

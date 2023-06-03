@@ -9,6 +9,7 @@
         "preview": "vite preview"
     },
     "devDependencies": {
+        "@iconify-icons/fluent": "^1.2.22",
         "@vitejs/plugin-basic-ssl": "^1.0.1",
         "typescript": "^5.0.2",
         "vite": "^4.3.2"

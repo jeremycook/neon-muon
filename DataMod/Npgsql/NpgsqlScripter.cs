@@ -114,8 +114,7 @@ END IF;
     private static Sql ScriptStoreType(StoreType storeType) {
         return storeType switch {
             StoreType.Text => Raw("TEXT"),
-            StoreType.Unknown
-            or _ => throw new NotImplementedException(storeType.ToString()),
+            _ => throw new NotImplementedException(storeType.ToString()),
         };
     }
 
@@ -156,6 +155,9 @@ END IF;
                 case CreateTable createTable:
                     script.Add(ScriptCreateTable(createTable));
                     break;
+                case DropTable dropTable:
+                    script.Add(ScriptDropTable(dropTable));
+                    break;
                 case RenameTable renameTable:
                     script.Add(ScriptRenameTable(renameTable));
                     break;
@@ -194,7 +196,6 @@ END IF;
         return script;
     }
 
-
     private static Sql ScriptCreateSchema(CreateSchema change) {
         return Interpolate($"CREATE SCHEMA {Identifier(change.SchemaName)};");
     }
@@ -203,6 +204,10 @@ END IF;
     private static Sql ScriptCreateTable(CreateTable change) {
         var columns = change.Columns.Select(ScriptAddColumnDefinition);
         return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");
+    }
+
+    private static Sql ScriptDropTable(DropTable change) {
+        return Interpolate($"DROP TABLE {Identifier(change.SchemaName, change.TableName)};");
     }
 
     private static Sql ScriptRenameTable(RenameTable change) {

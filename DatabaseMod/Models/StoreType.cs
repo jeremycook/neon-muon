@@ -3,13 +3,12 @@
 namespace DatabaseMod.Models;
 
 public enum StoreType {
-    Unknown = 0,
+    Text = 0,
     Blob,
     Boolean,
     Double,
     Guid,
     Integer,
-    Text,
     Timestamp,
 }
 

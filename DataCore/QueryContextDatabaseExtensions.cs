@@ -36,7 +36,7 @@ public static class QueryContextDatabaseExtensions {
                 var table = schema.Tables.GetOrAdd(new Table(tableType.GetCustomAttribute<TableAttribute>()?.Name ?? tableType.Name));
 
                 // Primary key
-                var keyProperties = tableType.GetCustomAttribute<PrimaryKeyAttribute>()?.Columns
+                var keyProperties = tableType.GetCustomAttribute<PKAttribute>()?.Columns
                     .Select(c => propertyMap[c])
                     .ToArray().AsReadOnly();
                 keyProperties ??= properties

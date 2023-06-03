@@ -159,6 +159,9 @@ END IF;
                 case CreateTable createTable:
                     script.Add(ScriptCreateTable(createTable));
                     break;
+                case DropTable dropTable:
+                    script.Add(ScriptDropTable(dropTable));
+                    break;
                 case RenameTable renameTable:
                     script.Add(ScriptRenameTable(renameTable));
                     break;
@@ -211,6 +214,10 @@ END IF;
         }
 
         return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");
+    }
+
+    private static Sql ScriptDropTable(DropTable change) {
+        return Interpolate($"DROP TABLE {Identifier(change.SchemaName, change.TableName)};");
     }
 
     private static Sql ScriptRenameTable(RenameTable change) {

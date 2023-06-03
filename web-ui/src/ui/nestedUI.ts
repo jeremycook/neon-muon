@@ -1,7 +1,9 @@
 import { createFragment, createText } from '../utils/etc';
 import { li, table, tbody, td, th, thead, tr, ul } from '../utils/html';
 
-export function nestedList(model: any): Node {
+export function nestedListUI(
+    model: any
+): Node {
 
     if (isEmpty(model)) {
         return createFragment();
@@ -11,23 +13,12 @@ export function nestedList(model: any): Node {
         if (model.length > 0) {
             const keys = Object.keys(model[0]);
             if (typeof model[0] === 'object' && keys.every(key => typeof key === 'string')) {
-                return table(
-                    thead(
-                        tr(
-                            ...keys.map(k => th(k))
-                        )
-                    ),
-                    tbody(
-                        ...model.map(row => tr(
-                            ...Object.values(row).map(cell => td(nestedList(cell)))
-                        ))
-                    )
-                )
+                return nestedTableUI(keys, model)
             }
             else {
                 return ul(
                     ...model
-                        .map(value => li(nestedList(value)))
+                        .map(value => li(nestedListUI(value)))
                 );
             }
         }
@@ -43,7 +34,7 @@ export function nestedList(model: any): Node {
         if (entries.length > 0) {
             return ul(
                 ...entries
-                    .map(([key, value]: [string, any]) => li(key, ': ', nestedList(value)))
+                    .map(([key, value]: [string, any]) => li(key, ': ', nestedListUI(value)))
             );
         }
         else {
@@ -52,6 +43,25 @@ export function nestedList(model: any): Node {
     }
 
     return createText(model);
+}
+
+export function nestedTableUI(
+    columns: string[],
+    model: Record<string, any>[],
+    headerLabels?: string[]
+): Node {
+    return table(
+        thead(
+            tr(...columns.map((column, i) =>
+                th(headerLabels?.[i] ?? column)
+            ))
+        ),
+        tbody(...model.map(row =>
+            tr(...columns.map(column =>
+                td(nestedListUI(row[column]))
+            )))
+        )
+    );
 }
 
 function isEmpty(model: any) {

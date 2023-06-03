@@ -12,6 +12,7 @@ namespace DatabaseMod.Alterations.Models;
 [JsonDerivedType(typeof(CreateTable), nameof(CreateTable))]
 [JsonDerivedType(typeof(DropColumn), nameof(DropColumn))]
 [JsonDerivedType(typeof(DropIndex), nameof(DropIndex))]
+[JsonDerivedType(typeof(DropTable), nameof(DropTable))]
 [JsonDerivedType(typeof(RenameColumn), nameof(RenameColumn))]
 [JsonDerivedType(typeof(RenameTable), nameof(RenameTable))]
 public abstract class DatabaseAlteration

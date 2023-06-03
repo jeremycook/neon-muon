@@ -15,7 +15,7 @@ public static class TableDiffer {
                 goal.Columns.Take(1).Select(o => o.Name).ToList();
 
             // Create the table
-            changes.Add(new CreateTable(schemaName, tableName, goal.Owner, goal.Columns, primaryKey));
+            changes.Add(new CreateTable(schemaName, tableName, goal.Owner, goal.Columns.Cast<Column>().ToArray(), primaryKey.ToArray()));
 
             // Create the non-pk indexes
             changes.AddRange(goal.Indexes
@@ -41,7 +41,7 @@ public static class TableDiffer {
         var newColumns = goal.Columns
             .Where(targetColumn => !current.Columns.Any(column => column.Name == targetColumn.Name))
             .ToArray();
-        changes.AddRange(newColumns.Select(newColumn => new CreateColumn(schemaName, tableName, newColumn)));
+        changes.AddRange(newColumns.Select(newColumn => new CreateColumn(schemaName, tableName, (Column)newColumn)));
 
         var alteredColumns = goal.Columns.Except(newColumns)
             .Where(targetColumn => !targetColumn.Same(current.Columns.Single(column => column.Name == targetColumn.Name)));

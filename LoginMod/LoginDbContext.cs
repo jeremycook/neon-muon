@@ -6,6 +6,7 @@ namespace LoginMod;
 
 public sealed class LoginDbContext : QueryableDbContext<LoginDbContext> {
     public IQueryable<LocalLogin> LocalLogin => Queryable<LocalLogin>();
+    public IQueryable<LoginRole> LoginRoles => Queryable<LoginRole>();
 
     public LoginDbContext(DbContextOptions<LoginDbContext> options) : base(options) { }
     private LoginDbContext() { }

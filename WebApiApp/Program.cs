@@ -11,6 +11,7 @@ using System.Data.Common;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using WebApiApp;
+using Microsoft.AspNetCore.Http.Json;
 
 internal class Program {
     private static void Main(string[] args) {
@@ -27,10 +28,6 @@ internal class Program {
             configuration = builder.Configuration;
             var serviceCollection = builder.Services;
 
-            // Connection string
-            connectionStringBuilder = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
-            connectionStringBuilder.DataSource = Path.GetFullPath(connectionStringBuilder.DataSource, builder.Environment.ContentRootPath);
-
             // Add services to the container.
 
             // Reverse proxy
@@ -46,15 +43,27 @@ internal class Program {
             // Auth
             serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
-            serviceCollection.AddAuthorization(options => options.FallbackPolicy = options.DefaultPolicy);
-
-            // Minimal API
-            builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o => {
-                o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            serviceCollection.AddAuthorization(options => {
+                options.FallbackPolicy = options.DefaultPolicy;
+                options.AddPolicy("Admin", auth => auth.RequireRole("Admin"));
             });
 
-            // Connection
-            serviceCollection.AddScoped<DbConnection>(svc => new SqliteConnection(connectionStringBuilder.ConnectionString));
+            // Minimal API
+            builder.Services.Configure<JsonOptions>(options => {
+                options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.SerializerOptions.AllowTrailingCommas = true;
+                options.SerializerOptions.PropertyNameCaseInsensitive = true;
+                options.SerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
+            });
+
+            // Connection string
+            connectionStringBuilder = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
+            connectionStringBuilder.DataSource = Path.GetFullPath(connectionStringBuilder.DataSource, builder.Environment.ContentRootPath);
+            serviceCollection.AddSingleton(connectionStringBuilder);
+
+            // Database
+            serviceCollection.AddScoped(svc => new SqliteConnection(svc.GetRequiredService<SqliteConnectionStringBuilder>().ConnectionString));
+            serviceCollection.AddScoped<DbConnection>(svc => svc.GetRequiredService<SqliteConnection>());
 
             // Login
             {
@@ -156,6 +165,7 @@ internal class Program {
 
             // Database
             app.MapGet("/api/database", DatabaseEndpoints.Database);
+            app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
         }
 
         app.Run();

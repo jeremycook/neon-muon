@@ -1,5 +1,6 @@
 ﻿export type TagParams<TElement> = (
     null
+    | false
     | string
     | Node
     | (string | Node)[]
@@ -101,7 +102,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                 }
             }
         }
-        else if (content === null) {
+        else if (content === null || content === false) {
             // Noop
         }
         else {

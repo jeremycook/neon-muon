@@ -37,7 +37,7 @@ public readonly record struct User(Guid UserId, string Username) {
     }
 }
 
-[PrimaryKey(nameof(UserId), nameof(RoleId))]
+[PK(nameof(UserId), nameof(RoleId))]
 public readonly record struct UserRole(Guid UserId, Guid RoleId) {
 }
 
