@@ -1,15 +1,15 @@
 import { mutateSegment, Segment, createSegment, createFragment } from './etc';
 import { Exception } from './exceptions';
-import { PubSub, PubSubT } from './pubSub';
+import { PubSubT, Sub, SubT } from './pubSub';
 
 type DynamicNode =
     (string | Node | (string | Node)[])
     | Promise<string | Node | (string | Node)[]>;
 
-export function dynamic(value: PubSubT<string | Node>): Segment;
-export function dynamic(sub: PubSub, renderer: () => DynamicNode): Segment;
-export function dynamic(subs: PubSub[], renderer: () => DynamicNode): Segment;
-export function dynamic(arg0: PubSub | PubSub[], renderer?: () => DynamicNode): Segment {
+export function dynamic(value: SubT<string | Node>): Segment;
+export function dynamic(sub: Sub, renderer: () => DynamicNode): Segment;
+export function dynamic(subs: Sub[], renderer: () => DynamicNode): Segment;
+export function dynamic(arg0: Sub | Sub[], renderer?: () => DynamicNode): Segment {
 
     const segment = createSegment();
     const begin = segment[0];
