@@ -7,40 +7,46 @@ using System.Security.Claims;
 namespace LoginApi;
 
 public class LoginEndpoints {
-    public record LoginInput(string Username, string Password);
+    public record LoginInput(string Username, string Password, bool RequestElevated = false);
 
-    public static async Task<IResult> Login(HttpContext context, LoginInput input, LoginServices service, CancellationToken cancel) {
+    public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel) {
         var login = await service.Find(input.Username, input.Password, cancel);
 
         if (login.LocalLoginId == LoginConstants.Unknown.LocalLoginId) {
             return Results.BadRequest("Invalid username or password.");
         }
 
+        if (input.RequestElevated && !login.Roles.Contains("Admin")) {
+            return Results.BadRequest("Only Admin can request the elevated permission.");
+        }
+
+        List<Claim> claims = new() {
+            new Claim("sub", login.LocalLoginId.ToString()),
+            new Claim("name", login.Username),
+        };
+        claims.AddRange(login.Roles.Select(role => new Claim("role", role)));
+        if (input.RequestElevated && login.Roles.Contains("Admin")) {
+            claims.Add(new Claim("Elevated", ""));
+        }
+
         ClaimsIdentity identity = new(
-            new Claim[]
-            {
-                new Claim("sub", login.LocalLoginId.ToString()),
-                new Claim("name", login.Username),
-            }
-            .Concat(login.Roles.Select(role => new Claim("role", role))),
-            "local",
-            "name",
-            "role"
+            claims: claims,
+            authenticationType: "local",
+            nameType: "name",
+            roleType: "role"
         );
         ClaimsPrincipal principal = new(identity);
 
         AuthenticationProperties properties = new() {
-            //IsPersistent = ?,
+            //IsPersistent = TODO?,
         };
 
-        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, properties);
-        return Results.Ok();
+        return Results.SignIn(principal, properties, CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
 
-    public static async Task<IResult> Logout(HttpContext context) {
-        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Results.Ok();
+    public static IResult Logout() {
+        return Results.SignOut();
     }
 
     public record RegisterInput(string Username, string Password);
@@ -55,7 +61,7 @@ public class LoginEndpoints {
         return Results.Ok();
     }
 
-    public record LoginInfoResult(bool Auth, string Sub, string Name, string[] Roles) { }
+    public record LoginInfoResult(bool Auth, string Sub, string Name, bool Elevated, string[] Roles) { }
 
     public static LoginInfoResult LoginInfo(HttpContext context) {
         var user = context?.User;
@@ -63,6 +69,7 @@ public class LoginEndpoints {
             Auth: user?.Identity?.IsAuthenticated == true,
             Sub: user?.FindFirstValue("sub") ?? LoginConstants.Unknown.LocalLoginId.ToString(),
             Name: user?.FindFirstValue("name") ?? LoginConstants.Unknown.Username,
+            Elevated: user?.FindFirst("Elevated") != null,
             Roles: user?.FindAll("role").Select(c => c.Value).ToArray() ?? Array.Empty<string>()
         );
     }

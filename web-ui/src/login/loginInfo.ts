@@ -3,8 +3,10 @@ import { jsonGet } from '../utils/http'
 
 export type Login = {
     auth: boolean;
-    name: string;
     sub: string;
+    name: string;
+    elevated: boolean;
+    roles: string[];
 };
 
 export type CurrentLogin =
@@ -14,8 +16,10 @@ const currentLoginKey = 'currentLogin';
 const loginInfoUrl = '/api/login-info';
 const guest = Object.freeze({
     auth: false,
-    name: 'Guest',
     sub: '00000000-0000-0000-0000-000000000000',
+    name: 'Guest',
+    elevated: false,
+    roles: [],
 });
 
 export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());

@@ -46,6 +46,7 @@ internal class Program {
             serviceCollection.AddAuthorization(options => {
                 options.FallbackPolicy = options.DefaultPolicy;
                 options.AddPolicy("Admin", auth => auth.RequireRole("Admin"));
+                options.AddPolicy("Elevated", auth => auth.RequireRole("Admin").RequireClaim("Elevated"));
             });
 
             // Minimal API
@@ -164,8 +165,8 @@ internal class Program {
             app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
 
             // Database
-            app.MapGet("/api/database", DatabaseEndpoints.Database);
-            app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
+            app.MapGet("/api/database", DatabaseEndpoints.Database).RequireAuthorization("Admin");
+            app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Elevated");
         }
 
         app.Run();

@@ -5,8 +5,8 @@ import { isLocalUrl, redirect } from './utils/url.ts';
 import { error } from './errors/error.ts';
 import { mutateSegment, createSegment } from './utils/etc.ts';
 import { div } from './utils/html.ts';
-import { mainLayout } from './site/main-layout.ts';
-import { siteNavbarUI } from './site/navbar.ts';
+import { mainLayout } from './site/mainLayout.ts';
+import { siteNavbarUI } from './site/siteNavbar.ts';
 import { currentLogin } from './login/loginInfo.ts';
 
 ((oldPushState, oldReplaceState) => {

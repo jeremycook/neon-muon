@@ -1,23 +1,24 @@
-import { Segment, mutateSegment, createSegment } from '../utils/etc';
-import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
+import { when } from '../utils/dynamicHtml';
+import { ValueEvent, a, button, div, form, h1, input, label } from '../utils/html';
 import { jsonPost } from '../utils/http';
+import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
-export function login({ redirectUrl }: { redirectUrl?: string }) {
+export function login({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
 
     const data = {
         username: '',
         password: '',
+        requestElevated: requestElevated?.startsWith('t'),
     };
 
-    let errorMessage: Segment;
-    let registerLink: HTMLAnchorElement;
+    const errorMessage = val('');
 
     const view = div(
         h1('Login'),
-        errorMessage = createSegment(),
-        form({ onsubmit },
+        when(errorMessage, () => div({ class: 'text-error' }, errorMessage.val)),
+        form({ async onsubmit(ev: SubmitEvent) { await onsubmit(ev, errorMessage, data, redirectUrl); } },
             div(
                 label({ for: 'username' }, 'Username'),
                 input({ id: 'username', required: true, autofocus: true, value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
@@ -28,29 +29,29 @@ export function login({ redirectUrl }: { redirectUrl?: string }) {
             ),
             div({ class: 'flex flex-between' },
                 button('Login'),
-                registerLink = a({ href: makeUrl('/register', { redirectUrl }) }, 'Register'),
+                a({ href: makeUrl('/register', { redirectUrl }) }, 'Register'),
             ),
         ),
     );
 
-    async function onsubmit(ev: SubmitEvent) {
-        ev.preventDefault();
-
-        var response = await jsonPost('/api/login', data);
-        if (response.ok) {
-            await refreshCurrentLogin();
-            redirectLocal(redirectUrl);
-            return;
-        }
-        else {
-            mutateSegment(errorMessage,
-                p({ class: 'text-error' },
-                    response.errorMessage ?? 'An error occured'
-                )
-            );
-            registerLink.href = makeUrl('/register', { redirectUrl, username: data.username });
-        }
-    }
-
     return view;
+}
+
+async function onsubmit(
+    ev: SubmitEvent,
+    errorMessage: PubT<string>,
+    data: { username: string, password: string },
+    redirectUrl?: string
+) {
+    ev.preventDefault();
+
+    var response = await jsonPost('/api/login', data);
+    if (response.ok) {
+        await refreshCurrentLogin();
+        redirectLocal(redirectUrl);
+        return;
+    }
+    else {
+        errorMessage.pub(response.errorMessage ?? 'An error occured');
+    }
 }

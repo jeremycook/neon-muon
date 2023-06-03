@@ -47,7 +47,7 @@ export async function databaseUI() {
                                 td(column.storeType),
                                 td(
                                     ...tbl.indexes.filter(idx => idx.columns.includes(column.name)).map(idx => idx.indexType),
-                                    (column.isNullable && ' optional')
+                                    (column.isNullable && ' Optional')
                                 ),
                                 td(
                                     button({ onclick: async () => await dropColumn(column, tbl, schema, database) },
