@@ -65,7 +65,7 @@ export function dynamic(arg0: Sub | Sub[], renderer?: () => DynamicNode): Segmen
     }
 }
 
-export function when(condition: PubSubT<any>,
+export function when(condition: SubT<any>,
     truthyRenderer: () => (string | Node | Promise<string | Node>),
     elseRenderer?: () => (string | Node | Promise<string | Node>)): Segment {
     return dynamic(condition, async () => {

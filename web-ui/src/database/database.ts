@@ -1,6 +1,7 @@
+import { modalConfirm } from '../ui/modals';
 import icon from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
-import { button, div, h1, h2, h3, p, table, tbody, td, th, thead, tr } from '../utils/html';
+import { button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
 
@@ -19,10 +20,10 @@ export async function databaseUI() {
                 ),
             ),
             div(
-                schema.tables.map(tbl => div(
-                    h3(tbl.name),
+                schema.tables.map(tbl => details(
+                    summary(tbl.name),
 
-                    p({ class: 'd-flex gap-1' },
+                    p({ class: 'flex gap-100' },
                         button({ onclick: async () => await createColumn(tbl, schema, database) },
                             icon('sparkle-16-regular'),
                             ' New Column'
@@ -82,8 +83,8 @@ async function createTable(schema: Schema, database: Pub) {
             owner: null,
             columns: [new Column({
                 name: primaryKeyColumnName,
-                storeType: StoreType.Text,
-                isNullable: true,
+                storeType: StoreType.Integer,
+                isNullable: false,
             })],
             primaryKey: [primaryKeyColumnName],
         };
@@ -142,28 +143,67 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, database: 
     }
 }
 
-async function createColumn(tbl: Table, schema: Schema, database: Pub) {
-    const columnName = prompt('New Column Name');
-    if (columnName) {
-        const column = new Column({
-            name: columnName,
-            storeType: StoreType.Text,
-            isNullable: true,
-        });
-        const response = await alterDatabase({
-            '$type': 'CreateColumn',
-            schemaName: schema.name,
-            tableName: tbl.name,
-            column
-        });
+async function createColumn(tbl: Table, schema: Schema, success: Pub) {
 
-        if (response.ok) {
-            tbl.columns.push(new Column(column));
-            database.pub();
-        }
-        else {
-            alert(response.errorMessage ?? 'An error occurred.');
-        }
+    const data = {
+        name: '',
+        storeType: StoreType.Text,
+        isNullable: true,
+    };
+
+    const confirmed = await modalConfirm(
+        section(
+            h1('Create Column'),
+            label(
+                div('Column Name'),
+                input({
+                    value: data.name,
+                    required: true,
+                    oninput(ev: { target: HTMLInputElement }) { data.name = ev.target.value },
+                    onmount(ev: { target: HTMLInputElement }) { ev.target.focus() },
+                }),
+            ),
+            label(
+                div('Type'),
+                select(
+                    {
+                        value: data.storeType,
+                        required: true,
+                        onchange(ev: { target: HTMLSelectElement }) { data.storeType = ev.target.value as StoreType }
+                    },
+                    ...[StoreType.Blob, StoreType.Boolean, StoreType.Double, StoreType.Guid, StoreType.Integer, StoreType.Text, StoreType.Timestamp]
+                        .map(storeType => option({ value: storeType, selected: data.storeType === storeType }, storeType))
+                )
+            ),
+            label(
+                div('Optional'),
+                input({
+                    type: 'checkbox',
+                    checked: data.isNullable,
+                    onchange(ev: { target: HTMLInputElement }) { data.isNullable = ev.target.checked }
+                })
+            ),
+        )
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const column = new Column(data);
+    const response = await alterDatabase({
+        '$type': 'CreateColumn',
+        schemaName: schema.name,
+        tableName: tbl.name,
+        column,
+    });
+
+    if (response.ok) {
+        tbl.columns.push(column);
+        success.pub();
+    }
+    else {
+        alert(response.errorMessage ?? 'An error occurred.');
     }
 }
 

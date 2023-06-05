@@ -166,7 +166,7 @@ internal class Program {
 
             // Database
             app.MapGet("/api/database", DatabaseEndpoints.Database).RequireAuthorization("Admin");
-            app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Elevated");
+            app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
         }
 
         app.Run();

@@ -32,10 +32,6 @@ public class DatabaseEndpoints {
             typeof(RenameTable),
         };
 
-        //var databaseAlterations = body.Deserialize<DatabaseAlteration[]>(new JsonSerializerOptions() {
-            
-        //});
-
         var invalidAlterations = databaseAlterations
             .Where(alt => !validAlterations.Contains(alt.GetType()));
         if (invalidAlterations.Any()) {

@@ -1,5 +1,5 @@
-import { isLocalUrl, redirect } from '../utils/url.ts';
-import { SubT, val } from '../utils/pubSub.ts';
+import { isLocalUrl, redirect } from './url.ts';
+import { SubT, val } from './pubSub.ts';
 
 const _path = val(location.pathname.toLowerCase());
 export const currentPath: SubT<string> = _path;
@@ -26,8 +26,6 @@ export const currentPath: SubT<string> = _path;
 
 window.addEventListener('locationchange', () => { // Publish locationchange events that effect the pathname
     _path.pub(location.pathname.toLowerCase());
-
-    setTimeout(() => document.querySelector<HTMLElement>('[autofocus]')?.focus(), 100);
 });
 
 document.addEventListener('click', e => { // Handle clicking local links

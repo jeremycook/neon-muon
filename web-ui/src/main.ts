@@ -7,7 +7,7 @@ import { mainLayout } from './site/mainLayout.ts';
 import { siteNavbarUI } from './site/siteNavbar.ts';
 import { currentLogin } from './login/loginInfo.ts';
 import { dynamic } from './utils/dynamicHtml.ts';
-import { currentPath } from './ui/routed.ts';
+import { currentPath } from './utils/routed.ts';
 
 document.getElementById('app')!.replaceChildren(
     div({ class: 'site' },
