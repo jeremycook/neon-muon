@@ -2,7 +2,7 @@ import { currentLogin } from '../login/loginInfo'
 import { a, div, h1, p } from '../utils/html'
 import { dynamic } from '../utils/dynamicHtml'
 
-export async function home() {
+export async function homePage() {
 
     const view = div(
         h1('Welcome ', ...dynamic(currentLogin, () => currentLogin.val.name)),

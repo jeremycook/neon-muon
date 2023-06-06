@@ -6,7 +6,7 @@ import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
 import { makeUrl } from '../utils/url';
 
-export async function databaseUI({ path: notebook }: { path: string }) {
+export async function databasePage({ path: notebook }: { path: string }) {
 
     const database = val(new Database());
 

@@ -3,7 +3,7 @@ import icon from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
 import { a, button, div, small, span } from '../utils/html';
 
-export function siteNavbarUI(login: CurrentLogin) {
+export function siteNavbar(login: CurrentLogin) {
     return dynamic(login, () => login.val.auth
         ? AuthenticatedNavbar(login.val)
         : AnonymousNavbar()

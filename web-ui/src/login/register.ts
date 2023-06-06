@@ -3,7 +3,7 @@ import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/
 import { jsonPost } from '../utils/http';
 import { makeUrl, redirectLocal } from '../utils/url';
 
-export function register({ username, redirectUrl }: { username?: string, redirectUrl?: string }) {
+export function registerPage({ username, redirectUrl }: { username?: string, redirectUrl?: string }) {
 
     const data = {
         username: username ?? '',

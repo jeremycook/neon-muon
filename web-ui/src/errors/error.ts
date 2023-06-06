@@ -1,6 +1,6 @@
 import { a, div, h1, p } from '../utils/html';
 
-export function error() {
+export function errorPage() {
     return div(
         h1('Unexpected Error'),
         p(

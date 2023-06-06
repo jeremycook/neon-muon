@@ -1,6 +1,6 @@
 import { a, div, h1, p } from '../utils/html';
 
-export function notFound() {
+export function notFoundPage() {
     return div(
         h1('Page Not Found'),
         p(

@@ -3,7 +3,7 @@ import { jsonPost } from '../utils/http';
 import { redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
-export function logout({ redirectUrl }: { redirectUrl?: string }) {
+export function logoutPage({ redirectUrl }: { redirectUrl?: string }) {
 
     const view = div(
         h1('Logout'),

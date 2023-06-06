@@ -5,7 +5,7 @@ import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
-export function login({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
+export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
 
     const data = {
         username: '',

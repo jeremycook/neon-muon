@@ -1,18 +1,18 @@
 import { createDesigner } from './blueprint/blueprint-designer';
-import { home } from './site/home';
-import { login } from './login/login';
-import { logout } from './login/logout';
-import { register } from './login/register';
-import { databaseUI } from './database/database';
+import { homePage } from './site/home';
+import { loginPage } from './login/login';
+import { logoutPage } from './login/logout';
+import { registerPage } from './login/register';
+import { databasePage } from './database/database';
 
 export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> = {
-    '/': home,
+    '/': homePage,
 
-    '/login': login,
-    '/logout': logout,
-    '/register': register,
+    '/login': loginPage,
+    '/logout': logoutPage,
+    '/register': registerPage,
 
-    '/database': databaseUI,
+    '/database': databasePage,
     
     '/designer': createDesigner,
 }
