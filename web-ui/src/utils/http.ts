@@ -57,17 +57,31 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
             errorMessage = 'You do not have permission to access the requested resource.';
         }
         else if (response.status < 500) {
-            if (response.bodyUsed) {
-                errorMessage = 'Invalid request. Details: ' + response.body;
+            if (isJsonResponse) {
+                const data = await parseJsonResponse(response);
+                if (typeof data === 'string') {
+                    errorMessage = data;
+                }
+                else {
+                    errorMessage = 'Invalid request.';
+                    errorResult = data;
+                }
             }
             else {
-                errorMessage = 'Invalid request.';
+                const text = await response.text();
+                if (text) {
+                    errorMessage = text;
+                }
+                else {
+                    errorMessage = 'Invalid request.';
+                }
             }
         }
         else {
-            errorMessage = 'An unexpected error occurred. Please try again later. ';
-            if (response.bodyUsed) {
-                errorMessage += ' Details: ' + response.body;
+            errorMessage = 'An unexpected error occurred. ';
+            const text = await response.text();
+            if (text) {
+                errorMessage += ' Details: ' + text;
             }
             log.error('Non-OK HTTP response. {ErrorMessage}.', response.bodyUsed ? response.body : 'No response body.');
         }

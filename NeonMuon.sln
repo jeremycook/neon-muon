@@ -50,6 +50,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqliteMod", "SqliteMod\Sqli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlMod", "SqlMod\SqlMod.csproj", "{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotebookMod", "NotebookMod\NotebookMod.csproj", "{3E0B0021-709E-4852-9305-36BDCF1BB1E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -136,6 +138,10 @@ Global
 		{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,17 +1,13 @@
-export function makeUrl(url: string, search?: Record<string, undefined | string>) {
+export function makeUrl(url: string, search: Record<string, undefined | string>) {
 
-    if (search) {
-        let searchParams: Record<string, string> = {};
-
-        Object.entries(search)
-            .filter(([_, val]) => val)
-            .forEach(([key, val]) => ({ ...searchParams, [key]: val }));
-
-        return url + (Object.keys(searchParams).length > 0 ? '?' + new URLSearchParams(searchParams).toString() : '');
+    const searchParams: Record<string, string> = {};
+    for (const [key, val] of Object.entries(search)) {
+        if (val) {
+            searchParams[key] = val;
+        }
     }
-    else {
-        return url;
-    }
+
+    return url + (Object.keys(searchParams).length > 0 ? '?' + new URLSearchParams(searchParams).toString() : '');
 }
 
 export function isLocalUrl(url?: null | string | URL): boolean {

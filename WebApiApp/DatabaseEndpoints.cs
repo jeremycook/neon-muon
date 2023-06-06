@@ -1,6 +1,6 @@
 ﻿using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using Microsoft.Data.Sqlite;
+using NotebookMod;
 using SqliteMod;
 
 namespace WebApiApp;
@@ -8,19 +8,27 @@ namespace WebApiApp;
 public class DatabaseEndpoints {
 
     public static Database Database(
-        SqliteConnection connection
+        NotebookManagerProvider notebookManagerProvider,
+        string path
     ) {
-        connection.Open();
+        var notebookManager = notebookManagerProvider.GetNotebookManager(path);
 
         var database = new Database();
-        database.ContributeSqlite(connection);
+        {
+            using var connection = notebookManager.CreateConnection();
+            connection.Open();
+            database.ContributeSqlite(connection);
+        }
         return database;
     }
 
     public static IResult AlterDatabase(
-        SqliteConnection connection,
+        NotebookManagerProvider notebookManagerProvider,
+        string path,
         DatabaseAlteration[] databaseAlterations
     ) {
+        var notebookManager = notebookManagerProvider.GetNotebookManager(path);
+
         var validAlterations = new[] {
             typeof(CreateColumn),
             typeof(AlterColumn),
@@ -40,6 +48,7 @@ public class DatabaseEndpoints {
 
         var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(databaseAlterations);
 
+        using var connection = notebookManager.CreateConnection();
         connection.Open();
         try {
             foreach (var sql in sqlStatements) {
@@ -47,7 +56,7 @@ public class DatabaseEndpoints {
             }
         }
         catch (Exception ex) {
-            return Results.BadRequest(ex);
+            return Results.BadRequest(ex.Message);
         }
 
         return Results.Ok();

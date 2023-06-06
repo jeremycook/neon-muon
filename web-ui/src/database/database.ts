@@ -4,66 +4,68 @@ import { dynamic } from '../utils/dynamicHtml';
 import { button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
+import { makeUrl } from '../utils/url';
 
-export async function databaseUI() {
+export async function databaseUI({ path: notebook }: { path: string }) {
 
     const database = val(new Database());
 
     const view = div(
         h1('Database'),
-        dynamic(database, () => database.val.schemas.map(schema => div(
-            (database.val.schemas.length > 1 && h2(schema.name)),
-            p(
-                button({ onclick: async () => await createTable(schema, database) },
-                    icon("sparkle-16-regular"),
-                    ' New Table'
-                ),
-            ),
+        dynamic(database, () => database.val.schemas.map(schema =>
             div(
-                schema.tables.map(tbl => details(
-                    summary(tbl.name),
-
-                    p({ class: 'flex gap-100' },
-                        button({ onclick: async () => await createColumn(tbl, schema, database) },
-                            icon('sparkle-16-regular'),
-                            ' New Column'
-                        ),
-                        button({ onclick: async () => await dropTable(tbl, schema, database) },
-                            icon('delete-12-regular'),
-                            ' Delete Table'
-                        ),
+                (database.val.schemas.length > 1 && h2(schema.name)),
+                p(
+                    button({ onclick: async () => await createTable(schema, database, notebook) },
+                        icon("sparkle-16-regular"),
+                        ' New Table'
                     ),
+                ),
+                div(...schema.tables.map(tbl =>
+                    details({ open: true },
+                        summary(tbl.name),
 
-                    table({ class: 'w-100' },
-                        thead(
-                            tr(
-                                th('Name'),
-                                th('Store Type'),
-                                th('Info'),
+                        p({ class: 'flex gap-100' },
+                            button({ onclick: async () => await createColumn(tbl, schema, database, notebook) },
+                                icon('sparkle-16-regular'),
+                                ' New Column'
+                            ),
+                            button({ onclick: async () => await dropTable(tbl, schema, database, notebook) },
+                                icon('delete-12-regular'),
+                                ' Delete Table'
+                            ),
+                        ),
+
+                        table({ class: 'w-100' },
+                            thead(
+                                tr(
+                                    th('Name'),
+                                    th('Store Type'),
+                                    th('Info'),
+                                )
+                            ),
+                            tbody(...tbl.columns.map(column =>
+                                tr(
+                                    td(column.name),
+                                    td(column.storeType),
+                                    td(
+                                        ...tbl.indexes.filter(idx => idx.columns.includes(column.name)).map(idx => idx.indexType),
+                                        (column.isNullable && ' Optional')
+                                    ),
+                                    td(
+                                        button({ onclick: async () => await dropColumn(column, tbl, schema, database, notebook) },
+                                            icon('delete-12-regular')
+                                        )
+                                    )
+                                )),
                             )
                         ),
-                        tbody(...tbl.columns.map(column =>
-                            tr(
-                                td(column.name),
-                                td(column.storeType),
-                                td(
-                                    ...tbl.indexes.filter(idx => idx.columns.includes(column.name)).map(idx => idx.indexType),
-                                    (column.isNullable && ' Optional')
-                                ),
-                                td(
-                                    button({ onclick: async () => await dropColumn(column, tbl, schema, database) },
-                                        icon('delete-12-regular')
-                                    )
-                                )
-                            )),
-                        )
-                    ),
-                )),
-            )
-        )))
+                    )),
+                )
+            )))
     );
 
-    const result = await getDatabase();
+    const result = await getDatabase(notebook);
     if (result) {
         database.pub(result);
     }
@@ -71,7 +73,7 @@ export async function databaseUI() {
     return view;
 }
 
-async function createTable(schema: Schema, database: Pub) {
+async function createTable(schema: Schema, database: Pub, notebook: string) {
     const tableName = prompt('New Table Name');
     if (tableName) {
         const codeName = tableName.replace(' ', '');
@@ -88,10 +90,20 @@ async function createTable(schema: Schema, database: Pub) {
             })],
             primaryKey: [primaryKeyColumnName],
         };
-        const response = await alterDatabase(newTable);
+        const response = await alterDatabase(notebook, newTable);
 
         if (response.ok) {
-            schema.tables.push(new Table({ name: newTable.tableName, columns: newTable.columns, indexes: [new TableIndex({ name: 'pk_' + codeName, indexType: TableIndexType.primaryKey, columns: [primaryKeyColumnName] })] }));
+            schema.tables.push(new Table({
+                name: newTable.tableName,
+                columns: newTable.columns,
+                indexes: [
+                    new TableIndex({
+                        name: 'pk_' + codeName,
+                        indexType: TableIndexType.primaryKey,
+                        columns: [primaryKeyColumnName]
+                    })
+                ]
+            }));
             database.pub();
         }
         else {
@@ -100,13 +112,13 @@ async function createTable(schema: Schema, database: Pub) {
     }
 }
 
-async function dropTable(tbl: Table, schema: Schema, success: Pub) {
+async function dropTable(tbl: Table, schema: Schema, success: Pub, notebook: string) {
 
     if (!confirm(`Are you sure you want to delete the ${[schema.name, tbl.name].filter(x => x?.length).join('.')} table? This cannot be undone.`)) {
         return;
     }
 
-    const response = await alterDatabase({
+    const response = await alterDatabase(notebook, {
         '$type': 'DropTable',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -121,13 +133,13 @@ async function dropTable(tbl: Table, schema: Schema, success: Pub) {
     }
 }
 
-async function dropColumn(column: Column, tbl: Table, schema: Schema, database: Pub) {
+async function dropColumn(column: Column, tbl: Table, schema: Schema, database: Pub, notebook: string) {
 
     if (!confirm(`Are you sure you want to delete the ${[schema.name, tbl.name, column.name].filter(x => x?.length).join('.')} column? This cannot be undone.`)) {
         return;
     }
 
-    const response = await alterDatabase({
+    const response = await alterDatabase(notebook, {
         '$type': 'DropColumn',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -143,7 +155,7 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, database: 
     }
 }
 
-async function createColumn(tbl: Table, schema: Schema, success: Pub) {
+async function createColumn(tbl: Table, schema: Schema, success: Pub, notebook: string) {
 
     const data = {
         name: '',
@@ -191,7 +203,7 @@ async function createColumn(tbl: Table, schema: Schema, success: Pub) {
     }
 
     const column = new Column(data);
-    const response = await alterDatabase({
+    const response = await alterDatabase(notebook, {
         '$type': 'CreateColumn',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -209,15 +221,17 @@ async function createColumn(tbl: Table, schema: Schema, success: Pub) {
 
 //#region API
 
-export async function getDatabase() {
-    const response = await jsonGet<Database>('/api/database');
+export async function getDatabase(notebookPath: string) {
+    const url = makeUrl('/api/database', { path: notebookPath });
+    const response = await jsonGet<Database>(url);
     if (response.result) {
         return new Database(response.result);
     }
 }
 
-export async function alterDatabase(...alterations: any[]) {
-    const response = await jsonPost('/api/alter-database', alterations);
+export async function alterDatabase(notebookPath: string, ...alterations: any[]) {
+    const url = makeUrl('/api/alter-database', { path: notebookPath });
+    const response = await jsonPost(url, alterations);
     return response;
 }
 
