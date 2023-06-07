@@ -66,7 +66,7 @@ export interface Pub {
 }
 
 export interface PubT<TValue> extends Pub {
-    pub(newValue?: TValue): Promise<void>;
+    pub(newValue?: TValue, options?: { force: boolean }): Promise<void>;
     get val(): TValue;
 }
 
@@ -96,11 +96,11 @@ export class Val<TValue = unknown> implements PubSubT<TValue> {
         return (): void => { this._subscriptions.splice(this._subscriptions.indexOf(subscription, 1)) };
     }
 
-    public async pub(newValue?: TValue) {
+    public async pub(newValue?: TValue, options?: { force: boolean }) {
         if (typeof newValue === 'undefined') {
             await this._dispatch();
         }
-        else if (newValue !== this._val) {
+        else if (options?.force || newValue !== this._val) {
             this._val = newValue;
             await this._dispatch();
         }

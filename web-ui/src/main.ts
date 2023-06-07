@@ -6,24 +6,29 @@ import { div, main } from './utils/html.ts';
 import { siteNavbar } from './site/siteNavbar.ts';
 import { currentLogin } from './login/loginInfo.ts';
 import { dynamic } from './utils/dynamicHtml.ts';
-import { currentPath } from './utils/routed.ts';
+import { currentLocation } from './utils/routed.ts';
+import { log } from './utils/log.ts';
+import { siteMenu } from './site/siteMenu.ts';
 
 const view = div({ class: 'site' },
     div({ class: 'site-desktop' },
         div({ class: 'site-navbar' },
             siteNavbar(currentLogin)
         ),
-        div({ class: 'site-main' },
-            main(...dynamic(currentPath, async () => {
+        div({ class: 'site-body' },
 
-                const pageFactory = routes[currentPath.val] ?? notFoundPage;
+            siteMenu(),
+
+            main({ class: 'site-main' }, ...dynamic(currentLocation, async () => {
+
+                const pageFactory = routes[currentLocation.val.pathname.toLowerCase()] ?? notFoundPage;
                 const params = { location, ...Object.fromEntries(new URLSearchParams(location.search)) };
 
                 try {
                     const page = await pageFactory(params);
                     return page;
                 } catch (ex) {
-                    console.error('Page render exception', ex);
+                    log.error('Page render exception', ex);
                     const page = errorPage();
                     return page;
                 }

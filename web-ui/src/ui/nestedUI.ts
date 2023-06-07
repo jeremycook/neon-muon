@@ -1,7 +1,7 @@
 import { createFragment, createText } from '../utils/etc';
 import { li, table, tbody, td, th, thead, tr, ul } from '../utils/html';
 
-export function nestedListUI(
+export function nestedUI(
     model: any
 ): Node {
 
@@ -16,10 +16,9 @@ export function nestedListUI(
                 return nestedTableUI(keys, model)
             }
             else {
-                return ul(
-                    ...model
-                        .map(value => li(nestedListUI(value)))
-                );
+                return ul(...model.map(value =>
+                    li(nestedUI(value))
+                ));
             }
         }
         else {
@@ -32,10 +31,9 @@ export function nestedListUI(
             .entries(model as Record<string, any>)
             .filter(([, value]) => !isEmpty(value));
         if (entries.length > 0) {
-            return ul(
-                ...entries
-                    .map(([key, value]: [string, any]) => li(key, ': ', nestedListUI(value)))
-            );
+            return ul(...entries.map(([key, value]: [string, any]) =>
+                li(key, ': ', nestedUI(value))
+            ));
         }
         else {
             return createFragment();
@@ -43,6 +41,20 @@ export function nestedListUI(
     }
 
     return createText(model);
+}
+
+export function nestedListUI<TItem>(
+    list: TItem[],
+    renderer: (item: TItem) => Node | Node[]
+): Node {
+
+    if (isEmpty(list)) {
+        return createFragment();
+    }
+
+    return ul(...list.map(value =>
+        li(renderer(value))
+    ));
 }
 
 export function nestedTableUI(
@@ -58,7 +70,7 @@ export function nestedTableUI(
         ),
         tbody(...model.map(row =>
             tr(...columns.map(column =>
-                td(nestedListUI(row[column]))
+                td(nestedUI(row[column]))
             )))
         )
     );

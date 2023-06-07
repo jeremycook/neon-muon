@@ -1,8 +1,8 @@
 import { isLocalUrl, redirect } from './url.ts';
 import { SubT, val } from './pubSub.ts';
 
-const _path = val(location.pathname.toLowerCase());
-export const currentPath: SubT<string> = _path;
+const _currentLocation = val(location);
+export const currentLocation: SubT<Location> = _currentLocation;
 
 ((oldPushState, oldReplaceState) => { // Dispatch 'locationchange' events
     history.pushState = function pushState() {
@@ -25,7 +25,7 @@ export const currentPath: SubT<string> = _path;
 })(history.pushState, history.replaceState);
 
 window.addEventListener('locationchange', () => { // Publish locationchange events that effect the pathname
-    _path.pub(location.pathname.toLowerCase());
+    _currentLocation.pub(location, { force: true });
 });
 
 document.addEventListener('click', e => { // Handle clicking local links
@@ -33,7 +33,7 @@ document.addEventListener('click', e => { // Handle clicking local links
         ? e.target.closest('a')
         : null;
 
-    if (target && isLocalUrl(target.href)) {
+    if (target && isLocalUrl(target.href) && !target.pathname.startsWith('/api/')) {
         e.preventDefault();
         redirect(target.href);
         return;

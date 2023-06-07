@@ -178,6 +178,7 @@ internal class Program {
                 app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
 
                 // Files
+                app.MapGet("/api/file-node", FileEndpoints.GetRootFileNode).RequireAuthorization("Admin");
                 app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
 
                 // Database

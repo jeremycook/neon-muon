@@ -20,27 +20,31 @@
     min-width: 300px;
 }
 
-/* .site-desktop (.site-navbar + .site-router) */
+/* .site-desktop (.site-navbar + .site-body) */
 
 .site-navbar {
     background-color: var(--bg-muted);
     box-shadow: var(--shadow) inset;
 }
 
-.site-router {
+.site-body {
     flex-grow: 1;
     display: flex;
     overflow: auto;
 }
 
-/* .site-router .site-main */
+/* .site-body (.site-menu + .site-main) */
+
+.site-menu {
+    width: 300px;
+}
 
 .site-main {
     flex-grow: 1;
     padding: var(--100);
 }
 
-/* .site-router .site-card > card */
+/* .site-body .site-card > card */
 
 .site-card {
     flex-grow: 1;
