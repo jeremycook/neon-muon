@@ -46,11 +46,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqlil.Core", "Sqlil.Core\Sq
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebBlazorServerApp", "WebBlazorServerApp\WebBlazorServerApp.csproj", "{A15E4A81-5591-40CA-8D31-EC3F7A467200}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqliteMod", "SqliteMod\SqliteMod.csproj", "{DB223000-3B32-4702-9C45-7906F3BB279E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqliteMod", "SqliteMod\SqliteMod.csproj", "{DB223000-3B32-4702-9C45-7906F3BB279E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlMod", "SqlMod\SqlMod.csproj", "{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqlMod", "SqlMod\SqlMod.csproj", "{FC55F5B8-B3B9-4B10-922B-4E4752A72B82}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotebookMod", "NotebookMod\NotebookMod.csproj", "{3E0B0021-709E-4852-9305-36BDCF1BB1E6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NotebookMod", "NotebookMod\NotebookMod.csproj", "{3E0B0021-709E-4852-9305-36BDCF1BB1E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileMod", "FileMod\FileMod.csproj", "{F828846B-4193-4D9A-9210-C56F266E75D7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -142,6 +144,10 @@ Global
 		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E0B0021-709E-4852-9305-36BDCF1BB1E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F828846B-4193-4D9A-9210-C56F266E75D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F828846B-4193-4D9A-9210-C56F266E75D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F828846B-4193-4D9A-9210-C56F266E75D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F828846B-4193-4D9A-9210-C56F266E75D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

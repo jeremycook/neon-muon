@@ -1,12 +1,16 @@
-import { a, div, h1, p } from '../utils/html';
+import { siteCard } from '../site/siteCard';
+import { a, h1, p } from '../utils/html';
 
 export function errorPage() {
-    return div(
+
+    const view = siteCard(
         h1('Unexpected Error'),
         p(
             'An error occurred that is preventing this page from working. ',
             a({ onclick: 'javascript:location.reload()' }, 'Reload this page. '),
-            a({ href: '/' }, 'Return home. '),
+            a({ href: '/' }, 'Return home. ')
         )
-    )
+    );
+
+    return view;
 }

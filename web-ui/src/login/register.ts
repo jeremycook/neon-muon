@@ -1,6 +1,8 @@
-import { mutateSegment, createSegment } from '../utils/etc';
+import { siteCard } from '../site/siteCard';
+import { when } from '../utils/dynamicHtml';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
+import { val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 
 export function registerPage({ username, redirectUrl }: { username?: string, redirectUrl?: string }) {
@@ -10,11 +12,11 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
         password: '',
     };
 
-    const errorMessage = createSegment();
+    const errorMessage = val('');
 
-    const view = div(
+    const view = siteCard(
         h1('Register'),
-        errorMessage,
+        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.val)),
         form({ onsubmit },
             div(
                 label({ for: 'username' }, 'Username'),
@@ -40,11 +42,7 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
             return;
         }
         else {
-            mutateSegment(errorMessage,
-                p({ class: 'text-error' },
-                    response.errorMessage ?? 'An error occured'
-                )
-            );
+            errorMessage.pub(response.errorMessage ?? 'An error occurred.');
         }
     }
 

@@ -1,6 +1,7 @@
 using DatabaseMod.Alterations;
 using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
+using FileMod;
 using LoginApi;
 using LoginMod;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -26,13 +27,15 @@ internal class Program {
             {
                 var builder = WebApplication.CreateBuilder(args);
                 configuration = builder.Configuration;
-                var serviceCollection = builder.Services;
+                IServiceCollection serviceCollection = builder.Services;
 
                 // Reverse proxy
-                var reverseProxy = configuration.GetSection("ReverseProxy");
-                enableReverseProxy = reverseProxy.Exists();
-                if (enableReverseProxy) {
-                    builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
+                {
+                    var reverseProxy = configuration.GetSection("ReverseProxy");
+                    enableReverseProxy = reverseProxy.Exists();
+                    if (enableReverseProxy) {
+                        builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
+                    }
                 }
 
                 // OpenAPI https://aka.ms/aspnetcore/swashbuckle
@@ -57,9 +60,11 @@ internal class Program {
                 });
 
                 // User files
-                var userFilesRoot = Path.GetFullPath("-user-data", builder.Environment.ContentRootPath);
-                Directory.CreateDirectory(userFilesRoot);
-                var userFileProvider = new PhysicalFileProvider(userFilesRoot);
+                {
+                    var userFilesRoot = Path.GetFullPath("-user-data", builder.Environment.ContentRootPath);
+                    Directory.CreateDirectory(userFilesRoot);
+                    serviceCollection.AddSingleton(new UserFileProvider(userFilesRoot));
+                }
 
                 // Login
                 {
@@ -80,7 +85,7 @@ internal class Program {
 
                 // Notebooks
                 {
-                    serviceCollection.AddSingleton(new NotebookManagerProvider(userFileProvider));
+                    serviceCollection.AddSingleton<NotebookManagerProvider>();
                 }
 
                 app = builder.Build();
@@ -171,6 +176,9 @@ internal class Program {
                 app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
                 app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();
                 app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
+
+                // Files
+                app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
 
                 // Database
                 app.MapGet("/api/database", DatabaseEndpoints.Database).RequireAuthorization("Admin");

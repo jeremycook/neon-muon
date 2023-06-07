@@ -121,6 +121,14 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                 else {
                     if (typeof val === "string" || val === true) {
                         element.setAttribute(name, val);
+
+                        if (name === 'autofocus' && val === true) {
+                            element.addEventListener('mount', (ev: any) => {
+                                if (_isInViewport(ev.target)) {
+                                    ev.target.focus();
+                                }
+                            });
+                        }
                     }
                     else if (val === false || val === null) {
                         element.removeAttribute(name);
@@ -172,7 +180,7 @@ export function createFragment(...nodes: (Node | string)[]) {
 /**
  * A series of nodes surrounded by begin and end Comments.
  */
-export type Segment = [Comment, ...(string | Node)[], Comment];
+export type Segment = [Comment, ...Node[], Comment];
 
 /**
  * Creates a series of nodes surrounded by begin and end Comments
@@ -180,7 +188,7 @@ export type Segment = [Comment, ...(string | Node)[], Comment];
  * @param nodes
  */
 export function createSegment(...nodes: (string | Node)[]): Segment {
-    return [createComment(''), ...nodes, createComment('')];
+    return [createComment(''), ...nodes.map(n => typeof n === 'string' ? createText(n) : n), createComment('')];
 }
 
 /**
@@ -214,4 +222,14 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     // Mount events must be dispatched after the nodes have had a chance to render
     setTimeout(() => addedNodes
         .forEach(n => n.dispatchEvent(new Event('mount', { cancelable: false }))));
+}
+
+function _isInViewport(element: Element) {
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
 }

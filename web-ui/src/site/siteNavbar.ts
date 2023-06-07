@@ -50,7 +50,7 @@ function AnonymousNavbar() {
             a({ class: 'navbar-item', href: '/login' },
                 icon('person-12-regular'), ' Login',
             ),
-            a({ class: 'navbar-item', href: '/join' },
+            a({ class: 'navbar-item', href: '/register' },
                 icon('sparkle-16-regular'), ' Join',
             ),
         ),

@@ -1,11 +1,12 @@
-import { div, h1, p } from '../utils/html';
+import { siteCard } from '../site/siteCard';
+import { h1, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
 export function logoutPage({ redirectUrl }: { redirectUrl?: string }) {
 
-    const view = div(
+    const view = siteCard(
         h1('Logout'),
         p('You are being logged out.')
     );

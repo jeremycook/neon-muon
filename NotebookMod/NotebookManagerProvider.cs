@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.FileProviders;
+﻿using FileMod;
+using Microsoft.Extensions.FileProviders;
 
 namespace NotebookMod;
 
@@ -10,7 +11,7 @@ public class NotebookManagerProvider {
 
     private readonly PhysicalFileProvider userFileProvider;
 
-    public NotebookManagerProvider(PhysicalFileProvider userFileProvider) {
+    public NotebookManagerProvider(UserFileProvider userFileProvider) {
         this.userFileProvider = userFileProvider;
     }
 }

@@ -6,6 +6,7 @@ export default defineConfig({
         basicSsl(),
     ],
     server: {
+        port: 5174,
         https: true,
         proxy: {
             '/api': {

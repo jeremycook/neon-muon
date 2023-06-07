@@ -129,6 +129,10 @@ label {
     display: inline-block;
 }
 
+form>label {
+    display: block;
+}
+
 form>button,
 .button {
     background: var(--input-bg);

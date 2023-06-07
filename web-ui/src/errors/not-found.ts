@@ -1,7 +1,8 @@
-import { a, div, h1, p } from '../utils/html';
+import { siteCard } from '../site/siteCard';
+import { a, h1, p } from '../utils/html';
 
 export function notFoundPage() {
-    return div(
+    return siteCard(
         h1('Page Not Found'),
         p(
             'The page you were looking for was not found. ',

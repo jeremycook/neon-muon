@@ -1,5 +1,6 @@
+import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
-import { ValueEvent, a, button, div, form, h1, input, label } from '../utils/html';
+import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
@@ -15,17 +16,17 @@ export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: stri
 
     const errorMessage = val('');
 
-    const view = div(
+    const view = siteCard(
         h1('Login'),
-        when(errorMessage, () => div({ class: 'text-error' }, errorMessage.val)),
+        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.val)),
         form({ async onsubmit(ev: SubmitEvent) { await onsubmit(ev, errorMessage, data, redirectUrl); } },
-            div(
-                label({ for: 'username' }, 'Username'),
-                input({ id: 'username', required: true, autofocus: true, value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
+            label(
+                div('Username'),
+                input({ required: true, autofocus: true, value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
             ),
-            div(
-                label({ for: 'password' }, 'Password'),
-                input({ type: 'password', id: 'password', required: true, oninput(ev: ValueEvent) { data.password = ev.target.value } }),
+            label(
+                div('Password'),
+                input({ type: 'password', required: true, oninput(ev: ValueEvent) { data.password = ev.target.value } }),
             ),
             div({ class: 'flex flex-between' },
                 button('Login'),
