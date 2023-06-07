@@ -10,7 +10,7 @@ export async function databasePage({ path: notebook }: { path: string }) {
 
     const database = val(new Database());
 
-    const view = div(
+    const view = div({ class: 'card' },
         h1('Database'),
         dynamic(database, () => database.val.schemas.map(schema =>
             div(

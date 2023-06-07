@@ -21,18 +21,18 @@
     --b-style: solid;
     --b-width: 1px;
 
-    --2-bg: hsl(0, 0%, 97%);
-    --2-bg-active: hsl(0, 0%, 100%);
-    --2-bg-muted: hsl(0, 0%, 93%);
-    --2-fg: var(--fg);
+    --2nd-bg: hsl(0, 0%, 97%);
+    --2nd-bg-active: hsl(0, 0%, 100%);
+    --2nd-bg-muted: hsl(0, 0%, 93%);
+    --2nd-fg: var(--fg);
 
     --a-bg: transparent;
     --a-fg: hsl(200, 100%, 36%);
 
-    --input-bg: var(--2-bg);
-    --input-bg-active: var(--2-bg-active);
-    --input-bg-muted: var(--2-bg-muted);
-    --input-fg: var(--2-fg);
+    --input-bg: var(--2nd-bg);
+    --input-bg-active: var(--2nd-bg-active);
+    --input-bg-muted: var(--2nd-bg-muted);
+    --input-fg: var(--2nd-fg);
 
     --25: .25rem;
     --50: .5rem;
@@ -64,9 +64,9 @@
 
         --b-color: hsl(0, 0%, 25%);
 
-        --2-bg: hsl(0, 0%, 8%);
-        --2-bg-active: hsl(0, 0%, 3%);
-        --2-bg-muted: hsl(0, 0%, 13%);
+        --2nd-bg: hsl(0, 0%, 8%);
+        --2nd-bg-active: hsl(0, 0%, 3%);
+        --2nd-bg-muted: hsl(0, 0%, 13%);
 
         --a-fg: hsl(200, 100%, 62%);
 
