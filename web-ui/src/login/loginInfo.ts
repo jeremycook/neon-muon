@@ -1,4 +1,4 @@
-import { PubSubT, val } from '../utils/pubSub';
+import { PubSubT, computed, val } from '../utils/pubSub';
 import { jsonGet } from '../utils/http'
 
 export type Login = {
@@ -23,6 +23,7 @@ const guest = Object.freeze({
 });
 
 export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());
+export const isAuthenticated = computed(currentLogin, () => currentLogin.val.auth);
 
 export const refreshCurrentLogin = async () => {
     const response = await jsonGet<Login>(loginInfoUrl);

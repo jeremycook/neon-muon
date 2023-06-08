@@ -1,16 +1,14 @@
-import { notFoundPage } from '../errors/not-found';
+import { FileNode, getFileAsJson } from '../files/files';
 import { dynamic } from '../utils/dynamicHtml';
 import { div, h1 } from '../utils/html';
-import { jsonGet } from '../utils/http';
 import { val } from '../utils/pubSub';
-import { makeUrl } from '../utils/url';
 
-export async function pagePage({ path }: { path: string }) {
+export async function pagePage({ fileNode }: { fileNode: FileNode }) {
 
-    const response = await jsonGet<Page>(makeUrl('/api/file', { path }));
-    const page = response.result;
+    const page = await getFileAsJson<Page>(fileNode.path);
+
     if (!page) {
-        return notFoundPage();
+        return;
     }
 
     const title = val(page.title);
@@ -19,7 +17,7 @@ export async function pagePage({ path }: { path: string }) {
         h1(dynamic(title)),
 
         div(
-            
+
         )
     );
 

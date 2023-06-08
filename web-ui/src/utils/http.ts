@@ -16,6 +16,10 @@ export class HttpException extends Exception {
 /** Parse {@param response} content using {@link parseJson}. */
 export const parseJsonResponse = async (response: Response) => {
     const json = await response.text();
+    if (!json) {
+        return undefined;
+    }
+    
     const result = parseJson(json);
     return result;
 }
@@ -40,15 +44,11 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
 
         const response = await fetch(init.url, requestInit);
 
-        const isJsonResponse = response.headers.get('Content-Type')?.startsWith('application/json') === true;
-
         let result;
         let errorResult;
         let errorMessage;
         if (response.ok) {
-            if (isJsonResponse) {
-                result = await parseJsonResponse(response);
-            }
+            result = await parseJsonResponse(response);
         }
         else if (response.status === 401) {
             errorMessage = 'You must be logged in to access the requested resource.';
@@ -57,6 +57,7 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
             errorMessage = 'You do not have permission to access the requested resource.';
         }
         else if (response.status < 500) {
+            const isJsonResponse = response.headers.get('Content-Type')?.startsWith('application/json') === true;
             if (isJsonResponse) {
                 const data = await parseJsonResponse(response);
                 if (typeof data === 'string') {

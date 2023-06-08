@@ -1,11 +1,15 @@
-import { databasePage } from '../database/database';
+import { databasePage as databaseApp } from '../database/database';
+import { tableApp } from '../database/table';
 import { notFoundPage } from '../errors/not-found';
+import { pagePage as pageApp } from '../notebooks/page';
 import { a, div, h1, li, p, ul } from '../utils/html';
 import { makeUrl } from '../utils/url';
 import { FileNode, root, refreshRoot } from './files';
 
-const appMatchers: ((props: any) => (false | ((props: any) => Promise<Node>)))[] = [
-    ({ path }: { path: string; }) => path.endsWith('.db') && databasePage,
+const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node | Promise<undefined | Node>)))[] = [
+    ({ path }: { path: string; }) => path.endsWith('.page') && pageApp,
+    ({ path }: { path: string; }) => path.endsWith('.db') && databaseApp,
+    ({ path }: { path: string; }) => path.includes('.db/') && tableApp,
 ];
 
 export async function browsePage(props: { path: string; }) {
@@ -31,9 +35,13 @@ export async function browsePage(props: { path: string; }) {
     }
 
     if (app) {
-        return app(appProps);
+        const result = await app(appProps);
+        if (result) {
+            return result;
+        }
     }
-    else if (fileNode.isDirectory) {
+
+    if (fileNode.isExpandable) {
         return defaultDirectoryApp(appProps);
     }
     else {

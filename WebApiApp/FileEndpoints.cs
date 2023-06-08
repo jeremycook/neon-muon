@@ -1,5 +1,8 @@
-﻿using FileMod;
+﻿using DatabaseMod.Models;
+using FileMod;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.FileProviders;
+using SqliteMod;
 
 namespace WebApiApp;
 
@@ -16,6 +19,9 @@ public static class FileEndpoints {
         if (fileInfo.IsDirectory) {
             return new FileNode(fileInfo.Name, subpath, true, fileProvider.GetDirectoryContents(subpath).Select(fi => GetFileNode(fileProvider, fi, subpath)).ToArray());
         }
+        else if (fileInfo.Name.EndsWith(".db")) {
+            return GetDatabaseFileNode(fileInfo, subpath);
+        }
         else {
             return new FileNode(fileInfo.Name, subpath, false, null);
         }
@@ -26,9 +32,37 @@ public static class FileEndpoints {
         if (fileInfo.IsDirectory) {
             return new FileNode(fileInfo.Name, subpath, true, fileProvider.GetDirectoryContents(subpath).Select(fi => GetFileNode(fileProvider, fi, subpath)).ToArray());
         }
+        else if (fileInfo.Name.EndsWith(".db")) {
+            return GetDatabaseFileNode(fileInfo, subpath);
+        }
         else {
             return new FileNode(fileInfo.Name, subpath, false, null);
         }
+    }
+
+    /// <summary>
+    /// List the database and its tables
+    /// </summary>
+    /// <param name="fileInfo"></param>
+    /// <param name="subpath"></param>
+    /// <returns></returns>
+    private static FileNode GetDatabaseFileNode(IFileInfo fileInfo, string subpath) {
+        var database = new Database();
+        {
+            var builder = new SqliteConnectionStringBuilder() {
+                DataSource = fileInfo.PhysicalPath!,
+            };
+            using var connection = new SqliteConnection(builder.ConnectionString);
+            connection.Open();
+            database.ContributeSqlite(connection);
+        }
+
+        FileNode[] children = database.Schemas
+            .SelectMany(schema => schema.Tables)
+            .Select(table => new FileNode(table.Name, subpath + "/" + table.Name, false, null))
+            .ToArray();
+
+        return new FileNode(fileInfo.Name, subpath, true, children);
     }
 
     public static IResult GetFile(

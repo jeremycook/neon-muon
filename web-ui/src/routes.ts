@@ -3,8 +3,6 @@ import { homePage } from './site/home';
 import { loginPage } from './login/login';
 import { logoutPage } from './login/logout';
 import { registerPage } from './login/register';
-import { databasePage } from './database/database';
-import { pagePage } from './notebooks/page';
 import { browsePage } from "./files/browse";
 
 // NOTE: Route keys should be all lowercase.
@@ -16,9 +14,6 @@ export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> =
     '/register': registerPage,
 
     '/browse': browsePage,
-
-    '/database': databasePage,
-    '/page': pagePage,
 
     '/designer': createDesigner,
 }

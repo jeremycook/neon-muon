@@ -1,27 +1,31 @@
+import { currentLogin } from '../login/loginInfo';
 import { jsonGet } from '../utils/http';
 import { parseJson } from '../utils/json';
-import { SubT, val } from '../utils/pubSub';
+import { SubT, computed, val } from '../utils/pubSub';
+import { makeUrl } from '../utils/url';
 
 const rootStorageKey = 'root';
 
 export class FileNode {
     public name: string;
     public path: string;
-    public isDirectory: boolean;
+    public isExpandable: boolean;
     public children?: FileNode[];
 
     constructor(props?: FileNode) {
         this.name = props?.name ?? '';
         this.path = props?.path ?? '';
-        this.isDirectory = props?.isDirectory ?? true;
-        if (this.isDirectory) {
+        this.isExpandable = props?.isExpandable ?? true;
+        if (this.isExpandable) {
             this.children = props?.children?.map(o => new FileNode(o)) ?? [];
         }
     }
 
     get(path: string): FileNode | undefined {
         if (path.includes('/')) {
-            const [name, rest] = path.split('/', 2);
+            const slash = path.indexOf('/');
+            const name = path.substring(0, slash);
+            const rest = path.substring(slash + 1);
             const match = this.children?.find(x => x.name === name);
             return match?.get(rest);
         }
@@ -35,12 +39,23 @@ const _root = val(_getRootFromStorage());
 refreshRoot();
 
 export const root: SubT<FileNode> = _root;
+computed(currentLogin, () => refreshRoot());
 
 export async function refreshRoot() {
     const fileNode = await _getRootFromServer();
     await _root.pub(fileNode);
     sessionStorage.setItem(rootStorageKey, JSON.stringify(fileNode));
 };
+
+export async function getFileAsJson<T>(path: string) {
+    const response = await jsonGet<T>(makeUrl('/api/file', { path }));
+    if (response.result) {
+        return response.result;
+    }
+    else {
+        return undefined;
+    }
+}
 
 async function _getRootFromServer() {
     const response = await jsonGet<FileNode>('/api/file-node');
