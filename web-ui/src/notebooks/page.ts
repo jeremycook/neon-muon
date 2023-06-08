@@ -16,7 +16,11 @@ export async function pagePage({ path }: { path: string }) {
     const title = val(page.title);
 
     const view = div(
-        h1(dynamic(title))
+        h1(dynamic(title)),
+
+        div(
+            
+        )
     );
 
     return view;

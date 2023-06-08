@@ -5,7 +5,7 @@ import { logoutPage } from './login/logout';
 import { registerPage } from './login/register';
 import { databasePage } from './database/database';
 import { pagePage } from './notebooks/page';
-import { browsePage } from './files/files';
+import { browsePage } from "./files/browse";
 
 // NOTE: Route keys should be all lowercase.
 export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> = {
