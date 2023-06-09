@@ -1,4 +1,4 @@
-import { databasePage as databaseApp } from '../database/database';
+import { databaseApp as databaseApp } from '../database/database';
 import { tableApp } from '../database/table';
 import { notFoundPage } from '../errors/not-found';
 import { pagePage as pageApp } from '../notebooks/page';

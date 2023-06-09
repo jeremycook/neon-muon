@@ -5,9 +5,11 @@ import { button, details, div, h1, h2, input, label, option, p, section, select,
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
 import { makeUrl } from '../utils/url';
+import { FileNode } from '../files/files';
 
-export async function databasePage({ path: notebook }: { path: string }) {
+export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
+    const path = fileNode.path;
     const database = val(new Database());
 
     const view = div({ class: 'card' },
@@ -16,7 +18,7 @@ export async function databasePage({ path: notebook }: { path: string }) {
             div(
                 (database.val.schemas.length > 1 && h2(schema.name)),
                 p(
-                    button({ onclick: async () => await createTable(schema, database, notebook) },
+                    button({ onclick: async () => await createTable(schema, database, path) },
                         icon("sparkle-16-regular"),
                         ' New Table'
                     ),
@@ -26,11 +28,11 @@ export async function databasePage({ path: notebook }: { path: string }) {
                         summary(tbl.name),
 
                         p({ class: 'flex gap-100' },
-                            button({ onclick: async () => await createColumn(tbl, schema, database, notebook) },
+                            button({ onclick: async () => await createColumn(tbl, schema, database, path) },
                                 icon('sparkle-16-regular'),
                                 ' New Column'
                             ),
-                            button({ onclick: async () => await dropTable(tbl, schema, database, notebook) },
+                            button({ onclick: async () => await dropTable(tbl, schema, database, path) },
                                 icon('delete-12-regular'),
                                 ' Delete Table'
                             ),
@@ -53,7 +55,7 @@ export async function databasePage({ path: notebook }: { path: string }) {
                                         (column.isNullable && ' Optional')
                                     ),
                                     td(
-                                        button({ onclick: async () => await dropColumn(column, tbl, schema, database, notebook) },
+                                        button({ onclick: async () => await dropColumn(column, tbl, schema, database, path) },
                                             icon('delete-12-regular')
                                         )
                                     )
@@ -65,7 +67,7 @@ export async function databasePage({ path: notebook }: { path: string }) {
             )))
     );
 
-    const result = await getDatabase(notebook);
+    const result = await getDatabase(path);
     if (result) {
         database.pub(result);
     }
@@ -73,7 +75,7 @@ export async function databasePage({ path: notebook }: { path: string }) {
     return view;
 }
 
-async function createTable(schema: Schema, database: Pub, notebook: string) {
+async function createTable(schema: Schema, onSuccess: Pub, databasePath: string) {
     const tableName = prompt('New Table Name');
     if (tableName) {
         const codeName = tableName.replace(' ', '');
@@ -90,7 +92,7 @@ async function createTable(schema: Schema, database: Pub, notebook: string) {
             })],
             primaryKey: [primaryKeyColumnName],
         };
-        const response = await alterDatabase(notebook, newTable);
+        const response = await alterDatabase(databasePath, newTable);
 
         if (response.ok) {
             schema.tables.push(new Table({
@@ -104,7 +106,7 @@ async function createTable(schema: Schema, database: Pub, notebook: string) {
                     })
                 ]
             }));
-            database.pub();
+            onSuccess.pub();
         }
         else {
             alert(response.errorMessage ?? 'An error occurred.');
@@ -112,13 +114,13 @@ async function createTable(schema: Schema, database: Pub, notebook: string) {
     }
 }
 
-async function dropTable(tbl: Table, schema: Schema, success: Pub, notebook: string) {
+async function dropTable(tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
     if (!confirm(`Are you sure you want to delete the ${[schema.name, tbl.name].filter(x => x?.length).join('.')} table? This cannot be undone.`)) {
         return;
     }
 
-    const response = await alterDatabase(notebook, {
+    const response = await alterDatabase(databasePath, {
         '$type': 'DropTable',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -126,20 +128,20 @@ async function dropTable(tbl: Table, schema: Schema, success: Pub, notebook: str
 
     if (response.ok) {
         schema.tables.splice(schema.tables.indexOf(tbl), 1);
-        success.pub();
+        onSuccess.pub();
     }
     else {
         alert(response.errorMessage ?? 'An error occurred.');
     }
 }
 
-async function dropColumn(column: Column, tbl: Table, schema: Schema, database: Pub, notebook: string) {
+async function dropColumn(column: Column, tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
     if (!confirm(`Are you sure you want to delete the ${[schema.name, tbl.name, column.name].filter(x => x?.length).join('.')} column? This cannot be undone.`)) {
         return;
     }
 
-    const response = await alterDatabase(notebook, {
+    const response = await alterDatabase(databasePath, {
         '$type': 'DropColumn',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -148,14 +150,14 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, database: 
 
     if (response.ok) {
         tbl.columns.splice(tbl.columns.indexOf(column), 1);
-        database.pub();
+        onSuccess.pub();
     }
     else {
         alert(response.errorMessage ?? 'An error occurred.');
     }
 }
 
-async function createColumn(tbl: Table, schema: Schema, success: Pub, notebook: string) {
+async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
     const data = {
         name: '',
@@ -203,7 +205,7 @@ async function createColumn(tbl: Table, schema: Schema, success: Pub, notebook: 
     }
 
     const column = new Column(data);
-    const response = await alterDatabase(notebook, {
+    const response = await alterDatabase(databasePath, {
         '$type': 'CreateColumn',
         schemaName: schema.name,
         tableName: tbl.name,
@@ -212,7 +214,7 @@ async function createColumn(tbl: Table, schema: Schema, success: Pub, notebook: 
 
     if (response.ok) {
         tbl.columns.push(column);
-        success.pub();
+        onSuccess.pub();
     }
     else {
         alert(response.errorMessage ?? 'An error occurred.');
@@ -221,21 +223,30 @@ async function createColumn(tbl: Table, schema: Schema, success: Pub, notebook: 
 
 //#region API
 
-export async function getDatabase(notebookPath: string) {
-    const url = makeUrl('/api/database', { path: notebookPath });
+export async function getDatabase(databasePath: string) {
+    const url = makeUrl('/api/database', { path: databasePath });
     const response = await jsonGet<Database>(url);
     if (response.result) {
         return new Database(response.result);
     }
+    else {
+        return undefined;
+    }
 }
 
-export async function alterDatabase(notebookPath: string, ...alterations: any[]) {
-    const url = makeUrl('/api/alter-database', { path: notebookPath });
+export async function alterDatabase(databasePath: string, ...alterations: any[]) {
+    const url = makeUrl('/api/database', { path: databasePath });
     const response = await jsonPost(url, alterations);
     return response;
 }
 
-class Database {
+export async function getRecords(databasePath: string, tableName: string, columnNames: string[]) {
+    const url = makeUrl('/api/records', { path: databasePath, tableName, columnNames });
+    const response = await jsonGet<(null | boolean | number | string | Date)[][]>(url);
+    return response.result ?? [];
+}
+
+export class Database {
     public schemas: Schema[];
 
     constructor(data?: Database) {
@@ -243,7 +254,7 @@ class Database {
     }
 };
 
-class Schema {
+export class Schema {
     public name: string;
     public tables: Table[];
 
@@ -253,7 +264,7 @@ class Schema {
     }
 }
 
-class Table {
+export class Table {
     public name: string;
     public columns: Column[];
     public indexes: TableIndex[];
@@ -264,7 +275,7 @@ class Table {
     }
 }
 
-enum StoreType {
+export enum StoreType {
     Blob = 'Blob',
     Boolean = 'Boolean',
     Double = 'Double',
@@ -274,7 +285,7 @@ enum StoreType {
     Timestamp = 'Timestamp',
 }
 
-class Column {
+export class Column {
     public name: string;
     public storeType: StoreType;
     public isNullable: boolean;
@@ -286,13 +297,13 @@ class Column {
     }
 }
 
-enum TableIndexType {
+export enum TableIndexType {
     index = 'Index',
     uniqueConstraint = 'UniqueConstraint',
     primaryKey = 'PrimaryKey',
 }
 
-class TableIndex {
+export class TableIndex {
     public name: string;
     public indexType: TableIndexType;
     public columns: string[];

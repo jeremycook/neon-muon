@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using NotebookMod;
 using SqliteMod;
 using System.Text.Json;
@@ -16,6 +15,28 @@ using System.Text.Json.Serialization;
 using WebApiApp;
 
 internal class Program {
+    private static void MapEndpoints(WebApplication app) {
+        // Login
+        app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
+        app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
+        app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();
+        app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
+
+        // Files
+        app.MapGet("/api/file-node", FileEndpoints.GetRootFileNode).RequireAuthorization("Admin");
+        app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
+
+        // Database
+        app.MapGet("/api/database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");
+        app.MapPost("/api/database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
+
+        // Database records
+        app.MapGet("/api/records", RecordEndpoints.GetRecords).RequireAuthorization("Admin");
+        app.MapPost("/api/insert-records", RecordEndpoints.InsertRecords).RequireAuthorization("Admin");
+        app.MapPost("/api/update-records", RecordEndpoints.UpdateRecords).RequireAuthorization("Admin");
+        app.MapPost("/api/delete-records", RecordEndpoints.DeleteRecords).RequireAuthorization("Admin");
+    }
+
     private static void Main(string[] args) {
         WebApplication app;
         {
@@ -61,7 +82,10 @@ internal class Program {
 
                 // User files
                 {
-                    var userFilesRoot = Path.GetFullPath("-user-data", builder.Environment.ContentRootPath);
+                    string configuredPath =
+                        configuration.GetValue<string?>("App:UserFilesRoot")
+                        ?? throw new Exception("Missing \"App:UserFilesRoot\" configuration.");
+                    var userFilesRoot = Path.GetFullPath(configuredPath, builder.Environment.ContentRootPath);
                     Directory.CreateDirectory(userFilesRoot);
                     serviceCollection.AddSingleton(new UserFileProvider(userFilesRoot));
                 }
@@ -171,22 +195,11 @@ internal class Program {
 
                 //app.MapControllers();
 
-                // Login
-                app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
-                app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
-                app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();
-                app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
-
-                // Files
-                app.MapGet("/api/file-node", FileEndpoints.GetRootFileNode).RequireAuthorization("Admin");
-                app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
-
-                // Database
-                app.MapGet("/api/database", DatabaseEndpoints.Database).RequireAuthorization("Admin");
-                app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
+                MapEndpoints(app);
             }
         }
 
         app.Run();
     }
+
 }

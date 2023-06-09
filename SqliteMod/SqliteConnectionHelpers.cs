@@ -6,6 +6,16 @@ using System.Data.Common;
 namespace SqliteMod;
 
 public static class SqliteConnectionHelpers {
+    public static SqliteCommand CreateCommand(this SqliteConnection connection, Sql sql) {
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = CommandText;
+        command.Parameters.AddRange(ParameterValues);
+
+        return command;
+    }
+
     public static int Execute(this SqliteConnection connection, Sql sql) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
 
@@ -24,6 +34,30 @@ public static class SqliteConnectionHelpers {
             var modifications = command.ExecuteNonQuery();
             command.Connection = lastConnection;
             return modifications;
+        }
+        catch (SqliteException ex) {
+            throw new Exception("Error executing: " + command.CommandText, ex);
+        }
+    }
+
+    public static long? Number(this SqliteConnection connection, Sql sql) {
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = CommandText;
+        command.Parameters.AddRange(ParameterValues);
+
+        return (long?)connection.Scalar(command);
+    }
+
+    public static object? Scalar(this SqliteConnection connection, SqliteCommand command) {
+        var lastConnection = command.Connection;
+        command.Connection = connection;
+
+        try {
+            var result = command.ExecuteScalar();
+            command.Connection = lastConnection;
+            return result;
         }
         catch (SqliteException ex) {
             throw new Exception("Error executing: " + command.CommandText, ex);

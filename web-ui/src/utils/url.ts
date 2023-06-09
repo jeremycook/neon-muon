@@ -1,9 +1,12 @@
-export function makeUrl(url: string, search: Record<string, undefined | string>) {
+export function makeUrl(url: string, search: Record<string, undefined | string | string[]>) {
 
-    const searchParams: Record<string, string> = {};
+    const searchParams: string[][] = [];
     for (const [key, val] of Object.entries(search)) {
-        if (val) {
-            searchParams[key] = val;
+        if (typeof val === 'string') {
+            searchParams.push([key, val]);
+        }
+        else if (val) {
+            val.forEach(v => searchParams.push([key, v]));
         }
     }
 

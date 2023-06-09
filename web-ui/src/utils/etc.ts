@@ -6,7 +6,7 @@
     | (string | Node)[]
     | { 'class': { [className: string]: boolean } }
     | { 'style': { [propertyName: string]: string } }
-    | { [attributeName: string]: null | string | boolean | EventListener | Function }
+    | { [attributeName: string]: null | string | boolean | number | EventListener | Function }
     | TElement
 );
 
@@ -108,18 +108,19 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         else {
             for (const name in content) {
                 const val = (<any>content)[name];
-                if (name === "class" && typeof val === 'object') {
+                const typeofVal = typeof val;
+                if (name === "class" && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => val[prop]
                             ? element.classList.add(prop)
                             : element.classList.remove(prop));
                 }
-                else if (name === "style" && typeof val === 'object') {
+                else if (name === "style" && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => element.style.setProperty(prop, val[prop]));
                 }
                 else {
-                    if (typeof val === "string" || val === true) {
+                    if (typeofVal === "string" || val === true || typeofVal === 'number') {
                         element.setAttribute(name, val);
 
                         if (name === 'autofocus' && val === true) {
@@ -129,15 +130,23 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                                 }
                             });
                         }
+                        else if (name === 'autoselect' && val === true) {
+                            element.addEventListener('mount', (ev: any) => {
+                                if (_isInViewport(ev.target)) {
+                                    ev.target.focus();
+                                    ev.target.select();
+                                }
+                            });
+                        }
                     }
                     else if (val === false || val === null) {
                         element.removeAttribute(name);
                     }
-                    else if (typeof val === "function" && name.startsWith('on')) {
+                    else if (typeofVal === "function" && name.startsWith('on')) {
                         element.addEventListener(name.substring(2), val);
                     }
                     else {
-                        throw `The "${name}" attribute of type "${typeof val}" is not supported. Event attributes must start with "on".`;
+                        throw `The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`;
                     }
                 }
             }

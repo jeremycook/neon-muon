@@ -4,7 +4,9 @@ import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
 import { makeUrl } from '../utils/url';
 
-const rootStorageKey = 'root';
+function _rootStorageKey() {
+    return 'root:' + currentLogin.val.sub;
+};
 
 export class FileNode {
     public name: string;
@@ -44,16 +46,26 @@ computed(currentLogin, () => refreshRoot());
 export async function refreshRoot() {
     const fileNode = await _getRootFromServer();
     await _root.pub(fileNode);
-    sessionStorage.setItem(rootStorageKey, JSON.stringify(fileNode));
+    sessionStorage.setItem(_rootStorageKey(), JSON.stringify(fileNode));
 };
 
-export async function getFileAsJson<T>(path: string) {
+export async function getJsonFile<T>(path: string) {
     const response = await jsonGet<T>(makeUrl('/api/file', { path }));
     if (response.result) {
         return response.result;
     }
     else {
         return undefined;
+    }
+}
+
+export function getDirectoryName(path: string) {
+    const slash = path.lastIndexOf('/');
+    if (slash > -1) {
+        return path.substring(0, slash);
+    }
+    else {
+        return '';
     }
 }
 
@@ -68,7 +80,7 @@ async function _getRootFromServer() {
 }
 
 function _getRootFromStorage() {
-    const json = sessionStorage.getItem(rootStorageKey);
+    const json = sessionStorage.getItem(_rootStorageKey());
     if (json) {
         return new FileNode(parseJson(json));
     }

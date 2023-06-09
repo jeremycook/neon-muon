@@ -32,6 +32,10 @@ export async function jsonPost<TResult>(url: string, input?: object) {
     return await jsonFetch<TResult>({ url, method: 'POST' }, input);
 }
 
+export async function jsonPut<TResult>(url: string, input?: object) {
+    return await jsonFetch<TResult>({ url, method: 'PUT' }, input);
+}
+
 export async function jsonFetch<TResult>(init: { url: string } & RequestInit, input?: object): Promise<{ ok: boolean, status: number, result?: TResult, errorMessage?: string, errorResult?: any }> {
     try {
 

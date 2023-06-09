@@ -65,6 +65,15 @@ export function dynamic(arg0: Sub | Sub[], renderer?: () => DynamicNode): Segmen
     }
 }
 
+export function lazy(renderer: () => Promise<Node | Node[]>) {
+    const segment = createSegment();
+    renderer().then(node => Array.isArray(node)
+        ? mutateSegment(segment, ...node)
+        : mutateSegment(segment, node)
+    );
+    return segment;
+}
+
 export function when(condition: SubT<any>,
     truthyRenderer: () => (string | Node | Promise<string | Node>),
     elseRenderer?: () => (string | Node | Promise<string | Node>)): Segment {

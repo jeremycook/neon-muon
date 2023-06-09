@@ -38,3 +38,44 @@ const view = div({ class: 'site' },
 );
 
 document.getElementById('site')!.replaceWith(view);
+
+document.addEventListener('keyup', ev => {
+
+    const el = ev.target;
+    if (el instanceof HTMLTableCellElement && document.activeElement === el) {
+
+        // TODO: Account for shift, alt, ctrl, meta keys
+
+        switch (ev.key) {
+            case 'ArrowUp':
+                (el.closest('tr')?.previousElementSibling?.children[el.cellIndex] as any)?.focus?.();
+                break;
+
+            case 'ArrowDown':
+                (el.closest('tr')?.nextElementSibling?.children[el.cellIndex] as any)?.focus?.();
+                break;
+
+            case 'ArrowLeft':
+                (el.previousElementSibling as any)?.focus?.();
+                break;
+
+            case 'ArrowRight':
+                (el.nextElementSibling as any)?.focus?.();
+                break;
+
+            default:
+                break;
+        }
+    }
+})
+
+if (import.meta.env.DEV) {
+    // Development
+    document.addEventListener('keyup', ev => {
+        if (ev.target instanceof HTMLInputElement && ev.target.type === 'password') {
+            return;
+        }
+
+        console.debug({ key: ev.key, altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey, shiftKey: ev.shiftKey, code: ev.code });
+    });
+}

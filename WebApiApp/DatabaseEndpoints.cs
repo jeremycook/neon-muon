@@ -7,7 +7,7 @@ namespace WebApiApp;
 
 public class DatabaseEndpoints {
 
-    public static Database Database(
+    public static Database GetDatabase(
         NotebookManagerProvider notebookManagerProvider,
         string path
     ) {
