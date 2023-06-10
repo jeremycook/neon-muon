@@ -117,7 +117,7 @@ END IF;
             StoreType.Blob => Raw("BLOB"),
             StoreType.Boolean => Raw("INTEGER"),
             StoreType.Double => Raw("REAL"),
-            StoreType.Guid => Raw("TEXT"),
+            StoreType.Uuid => Raw("TEXT"),
             StoreType.Integer => Raw("INTEGER"),
             StoreType.Timestamp => Raw("TEXT"),
             _ => throw new NotImplementedException(storeType.ToString()),
@@ -128,7 +128,7 @@ END IF;
     {
         { StoreType.Boolean, "false" },
         { StoreType.Integer, "0" },
-        { StoreType.Guid, "gen_random_uuid()" },
+        { StoreType.Uuid, "gen_random_uuid()" },
         { StoreType.Text, "''" },
         { StoreType.Timestamp, "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
     };

@@ -1,5 +1,6 @@
 ﻿export type TagParams<TElement> = (
-    null
+    undefined
+    | null
     | false
     | string
     | Node
@@ -80,7 +81,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
     for (let i = 0; i < data.length; i++) {
         const content = data[i];
 
-        if (typeof content === "string") {
+        if (typeof content === 'string') {
             const child = createText(content);
             element.appendChild(child);
             newNodes.push(child);
@@ -102,7 +103,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                 }
             }
         }
-        else if (content === null || content === false) {
+        else if (typeof content === 'undefined' || content === null || content === false) {
             // Noop
         }
         else {

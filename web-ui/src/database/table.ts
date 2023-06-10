@@ -53,7 +53,7 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
 
                             if (confirmed) {
                                 const updateRecord = structuredClone(record);
-                                updateRecord[i] = value.val;
+                                updateRecord[i] = newValue;
                                 const response = await jsonPost('/api/update-records', {
                                     path: databasePath,
                                     tableName: dbTable.name,
@@ -113,7 +113,7 @@ async function modalCell<TValue extends (string | number | boolean | Date | null
 function changeType(value: string, storeType: StoreType) {
     switch (storeType) {
         case StoreType.Text:
-        case StoreType.Guid:
+        case StoreType.Uuid:
             return value;
 
         case StoreType.Boolean:

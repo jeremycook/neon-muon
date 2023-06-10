@@ -1,4 +1,4 @@
-import { modalConfirm } from '../ui/modals';
+import { modalConfirm, modalPrompt } from '../ui/modals';
 import icon from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
 import { button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
@@ -76,9 +76,9 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 }
 
 async function createTable(schema: Schema, onSuccess: Pub, databasePath: string) {
-    const tableName = prompt('New Table Name');
+    const tableName = await modalPrompt('New Table');
     if (tableName) {
-        const codeName = tableName.replace(' ', '');
+        const codeName = tableName.replace(/[^A-Za-z0-9_]/g, '');
         const primaryKeyColumnName = codeName + 'Id';
         const newTable = {
             '$type': 'CreateTable',
@@ -116,7 +116,7 @@ async function createTable(schema: Schema, onSuccess: Pub, databasePath: string)
 
 async function dropTable(tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
-    if (!confirm(`Are you sure you want to delete the ${[schema.name, tbl.name].filter(x => x?.length).join('.')} table? This cannot be undone.`)) {
+    if (!await modalConfirm(`Are you sure you want to delete the ${[schema.name, tbl.name].filter(x => x?.length).join('.')} table? This cannot be undone.`)) {
         return;
     }
 
@@ -159,22 +159,18 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, onSuccess:
 
 async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
-    const data = {
-        name: '',
-        storeType: StoreType.Text,
-        isNullable: true,
-    };
+    const data = new Column();
 
     const confirmed = await modalConfirm(
         section(
-            h1('Create Column'),
+            h2('New Column'),
             label(
                 div('Column Name'),
                 input({
                     value: data.name,
                     required: true,
+                    autofocus: true,
                     oninput(ev: { target: HTMLInputElement }) { data.name = ev.target.value },
-                    onmount(ev: { target: HTMLInputElement }) { ev.target.focus() },
                 }),
             ),
             label(
@@ -185,7 +181,7 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
                         required: true,
                         onchange(ev: { target: HTMLSelectElement }) { data.storeType = ev.target.value as StoreType }
                     },
-                    ...[StoreType.Blob, StoreType.Boolean, StoreType.Double, StoreType.Guid, StoreType.Integer, StoreType.Text, StoreType.Timestamp]
+                    ...Object.values(StoreType)
                         .map(storeType => option({ value: storeType, selected: data.storeType === storeType }, storeType))
                 )
             ),
@@ -204,16 +200,15 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
         return;
     }
 
-    const column = new Column(data);
     const response = await alterDatabase(databasePath, {
         '$type': 'CreateColumn',
         schemaName: schema.name,
         tableName: tbl.name,
-        column,
+        data,
     });
 
     if (response.ok) {
-        tbl.columns.push(column);
+        tbl.columns.push(data);
         onSuccess.pub();
     }
     else {
@@ -276,13 +271,15 @@ export class Table {
 }
 
 export enum StoreType {
+    Text = 'Text',
     Blob = 'Blob',
     Boolean = 'Boolean',
+    Date = 'Date',
     Double = 'Double',
-    Guid = 'Guid',
     Integer = 'Integer',
-    Text = 'Text',
+    Time = 'Time',
     Timestamp = 'Timestamp',
+    Uuid = 'Uuid',
 }
 
 export class Column {

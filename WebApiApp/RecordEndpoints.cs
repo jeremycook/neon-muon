@@ -156,25 +156,19 @@ WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identi
         return Results.Ok(changes);
     }
 
-    private static object? ChangeToStoreType(Column column, JsonElement? value) {
-        switch (column.StoreType) {
-            case StoreType.Text:
-                return value?.GetString();
-            case StoreType.Boolean:
-                return value?.GetBoolean();
-            case StoreType.Double:
-                return value?.GetDouble();
-            case StoreType.Guid:
-                return value?.GetGuid();
-            case StoreType.Integer:
-                return value?.GetInt64();
-            case StoreType.Timestamp:
-                return value?.GetDateTime();
-
-            case StoreType.Blob:
-            default:
-                throw new NotImplementedException(column.StoreType.ToString());
-        }
+    private static object? ChangeToStoreType(Column column, JsonElement? jsonElement) {
+        object? convertedValue = column.StoreType switch {
+            StoreType.Text => jsonElement?.GetString(),
+            StoreType.Boolean => jsonElement?.GetBoolean(),
+            StoreType.Date => jsonElement?.GetDateTime() is DateTime dateTime ? DateOnly.FromDateTime(dateTime) : null,
+            StoreType.Double => jsonElement?.GetDouble(),
+            StoreType.Integer => jsonElement?.GetInt64(),
+            StoreType.Time => jsonElement?.GetDateTime() is DateTime dateTime ? TimeOnly.FromDateTime(dateTime) : null,
+            StoreType.Timestamp => jsonElement?.GetDateTime(),
+            StoreType.Uuid => jsonElement?.GetGuid(),
+            _ => throw new NotImplementedException(column.StoreType.ToString()),
+        };
+        return convertedValue;
     }
 
     public static IResult DeleteRecords(

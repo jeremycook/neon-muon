@@ -122,7 +122,7 @@ END IF;
     {
         { StoreType.Boolean, "false" },
         { StoreType.Integer, "0" },
-        { StoreType.Guid, "gen_random_uuid()" },
+        { StoreType.Uuid, "gen_random_uuid()" },
         { StoreType.Text, "''" },
         { StoreType.Timestamp, "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
     };
