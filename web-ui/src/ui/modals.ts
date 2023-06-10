@@ -1,5 +1,5 @@
 import { TagParams } from '../utils/etc';
-import { button, div, form, h2, input, label, span } from '../utils/html';
+import { button, div, form, h2, input, label } from '../utils/html';
 
 export async function modalPrompt(text: string, title: string | undefined = undefined) {
 
@@ -47,6 +47,11 @@ export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
                         ev.preventDefault();
                         view.remove();
                         resolve(true);
+                    },
+                    onkeyup(ev: KeyboardEvent) {
+                        if (ev.ctrlKey && ev.key === 'Enter') {
+                            (ev.currentTarget as HTMLFormElement).dispatchEvent(new Event('submit'));
+                        }
                     }
                 },
                 ...props,

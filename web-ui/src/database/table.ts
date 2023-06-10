@@ -2,10 +2,10 @@ import { FileNode, getDirectoryName } from '../files/files';
 import { siteCard } from '../site/siteCard';
 import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
-import { div, h1, h2, input, table, tbody, td, th, thead, tr } from '../utils/html';
+import { div, h1, h2, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { computed, val } from '../utils/pubSub';
-import { getDatabase, Table, Database, getRecords, Column, StoreType, TableIndexType } from './database';
+import { getDatabase, Table, Database, getRecords, Column, StoreType, TableIndexType, Primitive } from './database';
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
 
@@ -28,6 +28,7 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
         ?.columns
         ?.map(name => dbTable.columns.findIndex(col => col.name === name))
         ?? [];
+
 
     return table({ class: 'bordered' },
         thead(
@@ -52,13 +53,11 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
                             const [confirmed, newValue] = await modalCell(dbTable.columns[i], item);
 
                             if (confirmed) {
-                                const updateRecord = structuredClone(record);
-                                updateRecord[i] = newValue;
                                 const response = await jsonPost('/api/update-records', {
                                     path: databasePath,
                                     tableName: dbTable.name,
-                                    columnNames: dbTable.columns.map(c => c.name),
-                                    records: [updateRecord]
+                                    columnNames: buildTableModificationColumns(dbTable.columns, pkColumns, i),
+                                    records: [buildTableModificationRecord(record, pkColumns, newValue)]
                                 });
                                 if (response.ok) {
                                     value.pub(newValue);
@@ -91,20 +90,35 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
     )
 }
 
-async function modalCell<TValue extends (string | number | boolean | Date | null)>(column: Column, value: TValue): Promise<[boolean, TValue | undefined]> {
+function buildTableModificationColumns(columns: Column[], pkColumns: number[], ...valueColumn: number[]) {
+    return pkColumns.concat(valueColumn).map(i => columns[i].name);
+}
+
+function buildTableModificationRecord(record: any[], pkColumns: number[], ...value: any[]) {
+    return [...record.filter((_, i) => pkColumns.includes(i)), ...value];
+}
+
+async function modalCell<TValue extends Primitive | null>(column: Column, value: TValue): Promise<[boolean, TValue | undefined]> {
 
     let newValue;
 
     const confirmed = await modalConfirm(
         h2(column.name),
-        input({
-            value: value?.toString() ?? '',
-            autoselect: true,
-            onchange(ev: Event) {
-                const self = ev.target as HTMLInputElement;
-                newValue = changeType(self.value, column.storeType);
-            }
-        })
+        textarea(
+            {
+                autoselect: true,
+                onchange(ev: Event) {
+                    const self = ev.target as HTMLInputElement;
+                    newValue = changeType(self.value, column.storeType);
+                },
+                onkeydown(ev: KeyboardEvent) {
+                    if (ev.ctrlKey && ev.key === 'Enter') {
+                        ev.preventDefault();
+                    }
+                }
+            },
+            value?.toString() ?? ''
+        )
     );
 
     return [confirmed, confirmed ? newValue : undefined];

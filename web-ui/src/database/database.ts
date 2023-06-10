@@ -270,6 +270,8 @@ export class Table {
     }
 }
 
+export type Primitive = string | number | boolean | Date;
+
 export enum StoreType {
     Text = 'Text',
     Blob = 'Blob',
