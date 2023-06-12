@@ -71,7 +71,7 @@ public static class SqliteDatabaseHelpers {
         return columnType switch {
             "TEXT" => StoreType.Text,
             "INTEGER" => StoreType.Integer,
-            "REAL" => StoreType.Double,
+            "REAL" => StoreType.Real,
             "BLOB" => StoreType.Blob,
             _ => throw new NotImplementedException(columnType),
         };

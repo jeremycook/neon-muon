@@ -2,9 +2,10 @@ import { FileNode, getDirectoryName } from '../files/files';
 import { siteCard } from '../site/siteCard';
 import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
-import { div, h1, h2, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
+import { div, h1, h2, input, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { computed, val } from '../utils/pubSub';
+import { unreachable } from '../utils/unreachable';
 import { getDatabase, Table, Database, getRecords, Column, StoreType, TableIndexType, Primitive } from './database';
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
@@ -29,7 +30,6 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
         ?.map(name => dbTable.columns.findIndex(col => col.name === name))
         ?? [];
 
-
     return table({ class: 'bordered' },
         thead(
             tr(...dbTable.columns.map(col =>
@@ -50,9 +50,9 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
                         });
 
                         const editValue = async (ev: Event): Promise<void> => {
-                            const [confirmed, newValue] = await modalCell(dbTable.columns[i], item);
+                            const newValue = await modalCell(dbTable.columns[i], item);
 
-                            if (confirmed) {
+                            if (typeof newValue !== 'undefined') {
                                 const response = await jsonPost('/api/update-records', {
                                     path: databasePath,
                                     tableName: dbTable.name,
@@ -81,7 +81,7 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
                                     }
                                 }
                             },
-                            dynamic(value, () => value.val?.toString() ?? '')
+                            dynamic(value, () => storeTypeToString(value.val, dbTable.columns[i].storeType))
                         )
                     }))
                 )
@@ -94,38 +94,90 @@ function buildTableModificationColumns(columns: Column[], pkColumns: number[], .
     return pkColumns.concat(valueColumn).map(i => columns[i].name);
 }
 
-function buildTableModificationRecord(record: any[], pkColumns: number[], ...value: any[]) {
-    return [...record.filter((_, i) => pkColumns.includes(i)), ...value];
+function buildTableModificationRecord(record: (Primitive | null)[], pkColumns: number[], ...value: (Primitive | null)[]) {
+    return [...pkColumns.map(i => record[i]), ...value];
 }
 
-async function modalCell<TValue extends Primitive | null>(column: Column, value: TValue): Promise<[boolean, TValue | undefined]> {
+async function modalCell<TValue extends Primitive | null>(column: Column, value: TValue): Promise<TValue | undefined> {
 
     let newValue;
 
     const confirmed = await modalConfirm(
         h2(column.name),
-        textarea(
-            {
-                autoselect: true,
-                onchange(ev: Event) {
-                    const self = ev.target as HTMLInputElement;
-                    newValue = changeType(self.value, column.storeType);
-                },
-                onkeydown(ev: KeyboardEvent) {
-                    if (ev.ctrlKey && ev.key === 'Enter') {
-                        ev.preventDefault();
+        column.storeType === StoreType.Text
+            ? textarea(
+                {
+                    autoselect: true,
+                    onchange(ev: Event) {
+                        const self = ev.target as HTMLInputElement;
+                        newValue = stringToStoreType(self.value, column.storeType);
+                    },
+                    onkeydown(ev: KeyboardEvent) {
+                        if (ev.ctrlKey && ev.key === 'Enter') {
+                            ev.preventDefault();
+                        }
                     }
-                }
-            },
-            value?.toString() ?? ''
-        )
+                },
+                value?.toString() ?? ''
+            )
+            : input(
+                {
+                    value: storeTypeToString(value, column.storeType),
+                    autoselect: true,
+                    onchange(ev: Event) {
+                        const self = ev.target as HTMLInputElement;
+                        newValue = stringToStoreType(self.value, column.storeType);
+                    },
+                    onkeydown(ev: KeyboardEvent) {
+                        if (ev.ctrlKey && ev.key === 'Enter') {
+                            ev.preventDefault();
+                        }
+                    }
+                },
+            )
     );
 
-    return [confirmed, confirmed ? newValue : undefined];
+    return confirmed ? newValue : undefined;
 }
 
-function changeType(value: string, storeType: StoreType) {
+function storeTypeToString(value: Primitive | null, storeType: StoreType): string {
     switch (storeType) {
+        case StoreType.Blob:
+            throw new Error('Not implemented: ' + storeType);
+
+        case StoreType.Text:
+        case StoreType.Uuid:
+            return value?.toString() ?? '';
+
+        case StoreType.Boolean:
+            return value?.toString() ?? '';
+
+        case StoreType.Currency:
+        case StoreType.Real:
+            return value?.toString() ?? '';
+
+        case StoreType.Integer:
+            return value?.toString() ?? '';
+
+        case StoreType.Date:
+            return value instanceof Date ? value.toDateString() : value?.toString() ?? '';
+        case StoreType.Time:
+            return value instanceof Date ? value.toTimeString() : value?.toString() ?? '';
+        case StoreType.Timestamp:
+            return value instanceof Date ? value.toISOString() : value?.toString() ?? '';
+
+        default:
+            unreachable(storeType);
+    }
+
+    return value?.toString() ?? '';
+}
+
+function stringToStoreType(value: string, storeType: StoreType) {
+    switch (storeType) {
+        case StoreType.Blob:
+            throw new Error('Not implemented: ' + storeType);
+
         case StoreType.Text:
         case StoreType.Uuid:
             return value;
@@ -133,17 +185,20 @@ function changeType(value: string, storeType: StoreType) {
         case StoreType.Boolean:
             return new Boolean(value);
 
-        case StoreType.Double:
+        case StoreType.Currency:
+        case StoreType.Real:
             return Number.parseFloat(value);
 
         case StoreType.Integer:
             return Number.parseInt(value);
 
+        case StoreType.Date:
+        case StoreType.Time:
         case StoreType.Timestamp:
-            return Date.parse(value);
+            return new Date(value);
 
         default:
-            throw new Error('Not supported store type: ' + storeType);
+            unreachable(storeType);
     }
 }
 

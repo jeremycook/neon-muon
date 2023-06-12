@@ -6,9 +6,10 @@ public enum StoreType {
     Text = 0,
     Blob,
     Boolean,
+    Currency,
     Date,
-    Double,
     Integer,
+    Real,
     Time,
     Timestamp,
     Uuid,
@@ -20,15 +21,17 @@ public static class StoreTypeHelpers {
         { StoreType.Text, typeof(string) },
         { StoreType.Blob, typeof(byte[]) },
         { StoreType.Boolean, typeof(bool) },
+        { StoreType.Currency, typeof(decimal) },
         { StoreType.Date, typeof(DateOnly) },
-        { StoreType.Double, typeof(double) },
         { StoreType.Integer, typeof(int) },
+        { StoreType.Real, typeof(double) },
         { StoreType.Time, typeof(TimeOnly) },
         { StoreType.Timestamp, typeof(DateTime) },
         { StoreType.Uuid, typeof(Guid) },
     }.ToImmutableDictionary();
 
-    public static IImmutableDictionary<Type, StoreType> ClrToStoreMap { get; } = StoreToClrMap.ToImmutableDictionary(o => o.Value, o => o.Key);
+    public static IImmutableDictionary<Type, StoreType> ClrToStoreMap { get; } = StoreToClrMap
+        .ToImmutableDictionary(o => o.Value, o => o.Key);
 
     public static StoreType ConvertClrTypeToStoreType(Type clrType) {
         var type = Nullable.GetUnderlyingType(clrType) ?? clrType;

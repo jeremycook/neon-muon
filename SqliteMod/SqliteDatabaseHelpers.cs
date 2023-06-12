@@ -1,10 +1,35 @@
 ﻿using DatabaseMod.Models;
 using Microsoft.Data.Sqlite;
 using SqlMod;
+using static SqlMod.Sql;
 
 namespace SqliteMod;
 
 public static class SqliteDatabaseHelpers {
+
+    // See: https://www.sqlite.org/datatype3.html#determination_of_column_affinity
+    public static Sql StoreTypeToSqliteType(StoreType storeType) {
+        return storeType switch {
+            StoreType.Text => Raw("TEXT"),
+            StoreType.Blob => Raw("BLOB"),
+            StoreType.Currency => Raw("CURRENCY NUMERIC"),
+            StoreType.Boolean => Raw("BOOLEAN INTEGER"),
+            StoreType.Real => Raw("REAL"),
+            StoreType.Uuid => Raw("UUID TEXT"),
+            StoreType.Integer => Raw("INTEGER"),
+            StoreType.Date => Raw("DATE TEXT"),
+            StoreType.Time => Raw("TIME TEXT"),
+            StoreType.Timestamp => Raw("TIMESTAMP TEXT"),
+            _ => Raw(storeType.ToString().ToUpperInvariant() + " TEXT"),
+        }; ; ;
+    }
+
+    public static StoreType DatabaseTypeToStoreType(string sqliteType) {
+        var text = sqliteType.Split(' ')[0];
+        var storeType = Enum.Parse<StoreType>(text, ignoreCase: true);
+        return storeType;
+    }
+
     public static void ContributeSqlite(this Database database, SqliteConnection connection) {
         var sql = Sql.Raw("""
             SELECT
@@ -38,7 +63,7 @@ public static class SqliteDatabaseHelpers {
             foreach (var columnMapping in tableMapping) {
                 table.Columns.GetOrAdd(new Column(
                     name: columnMapping.ColumnName,
-                    storeType: ConvertToStoreType(columnMapping.ColumnType),
+                    storeType: DatabaseTypeToStoreType(columnMapping.ColumnType),
                     isNullable: columnMapping.IsNullable,
                     defaultValueSql: columnMapping.DefaultValueSql,
                     computedColumnSql: null) {
@@ -61,16 +86,6 @@ public static class SqliteDatabaseHelpers {
                 primaryKeyColumns.Select(c => c.ColumnName)
             ));
         }
-    }
-
-    private static StoreType ConvertToStoreType(string columnType) {
-        return columnType switch {
-            "TEXT" => StoreType.Text,
-            "INTEGER" => StoreType.Integer,
-            "REAL" => StoreType.Double,
-            "BLOB" => StoreType.Blob,
-            _ => throw new NotImplementedException(columnType),
-        };
     }
 
     private class TableColumns {

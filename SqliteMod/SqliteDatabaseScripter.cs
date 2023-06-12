@@ -112,38 +112,33 @@ END IF;
     }
 
     private static Sql ScriptStoreType(StoreType storeType) {
-        return storeType switch {
-            StoreType.Text => Raw("TEXT"),
-            StoreType.Blob => Raw("BLOB"),
-            StoreType.Boolean => Raw("INTEGER"),
-            StoreType.Double => Raw("REAL"),
-            StoreType.Uuid => Raw("TEXT"),
-            StoreType.Integer => Raw("INTEGER"),
-            StoreType.Timestamp => Raw("TEXT"),
-            _ => throw new NotImplementedException(storeType.ToString()),
-        };
+        return SqliteDatabaseHelpers.StoreTypeToSqliteType(storeType);
     }
 
+    // Note: Sqlite cannot add a column with non-constant default
     private static readonly Dictionary<StoreType, string> DefaultValueSqlMap = new()
     {
-        { StoreType.Boolean, "false" },
+        { StoreType.Boolean, "0" },
+        { StoreType.Currency, "0" },
         { StoreType.Integer, "0" },
-        { StoreType.Uuid, "gen_random_uuid()" },
+        { StoreType.Real, "0" },
         { StoreType.Text, "''" },
-        { StoreType.Timestamp, "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')" },
+        //{ StoreType.Date, "date()" },
+        //{ StoreType.Time, "time()" },
+        //{ StoreType.Timestamp, "current_timestamp" },
+        //{ StoreType.Uuid, "uuid()" },
     };
 
     private static Sql ScriptColumnDefault(IReadOnlyColumn column) {
-        if (!string.IsNullOrWhiteSpace(column.DefaultValueSql)) {
-            if (column.DefaultValueSql != string.Empty) {
-                return Interpolate($" DEFAULT {column.DefaultValueSql}");
-            }
-            else if (DefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql)) {
-                return Interpolate($" DEFAULT {Raw(defaultValueSql)}");
-            }
+        if (!string.IsNullOrEmpty(column.DefaultValueSql)) {
+            return Interpolate($" DEFAULT ({Raw(column.DefaultValueSql)})");
         }
-
-        return Empty;
+        else if (!column.IsNullable && DefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql)) {
+            return Interpolate($" DEFAULT ({Raw(defaultValueSql)})");
+        }
+        else {
+            return Empty;
+        }
     }
 
     public static List<Sql> ScriptAlterations(IEnumerable<DatabaseAlteration> alterations) {

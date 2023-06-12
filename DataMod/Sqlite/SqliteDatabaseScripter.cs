@@ -117,7 +117,7 @@ END IF;
             StoreType.Text => Raw("TEXT"),
             StoreType.Blob => Raw("BLOB"),
             StoreType.Boolean => Raw("INTEGER"),
-            StoreType.Double => Raw("REAL"),
+            StoreType.Real => Raw("REAL"),
             StoreType.Uuid => Raw("TEXT"),
             StoreType.Integer => Raw("INTEGER"),
             StoreType.Timestamp => Raw("TEXT"),

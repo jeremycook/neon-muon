@@ -159,7 +159,7 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, onSuccess:
 
 async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, databasePath: string) {
 
-    const data = new Column();
+    const column = new Column();
 
     const confirmed = await modalConfirm(
         section(
@@ -167,30 +167,30 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
             label(
                 div('Column Name'),
                 input({
-                    value: data.name,
+                    value: column.name,
                     required: true,
                     autofocus: true,
-                    oninput(ev: { target: HTMLInputElement }) { data.name = ev.target.value },
+                    oninput(ev: { target: HTMLInputElement }) { column.name = ev.target.value },
                 }),
             ),
             label(
                 div('Type'),
                 select(
                     {
-                        value: data.storeType,
+                        value: column.storeType,
                         required: true,
-                        onchange(ev: { target: HTMLSelectElement }) { data.storeType = ev.target.value as StoreType }
+                        onchange(ev: { target: HTMLSelectElement }) { column.storeType = ev.target.value as StoreType }
                     },
                     ...Object.values(StoreType)
-                        .map(storeType => option({ value: storeType, selected: data.storeType === storeType }, storeType))
+                        .map(storeType => option({ value: storeType, selected: column.storeType === storeType }, storeType))
                 )
             ),
             label(
                 div('Optional'),
                 input({
                     type: 'checkbox',
-                    checked: data.isNullable,
-                    onchange(ev: { target: HTMLInputElement }) { data.isNullable = ev.target.checked }
+                    checked: column.isNullable,
+                    onchange(ev: { target: HTMLInputElement }) { column.isNullable = ev.target.checked }
                 })
             ),
         )
@@ -204,11 +204,11 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
         '$type': 'CreateColumn',
         schemaName: schema.name,
         tableName: tbl.name,
-        data,
+        column,
     });
 
     if (response.ok) {
-        tbl.columns.push(data);
+        tbl.columns.push(column);
         onSuccess.pub();
     }
     else {
@@ -276,9 +276,10 @@ export enum StoreType {
     Text = 'Text',
     Blob = 'Blob',
     Boolean = 'Boolean',
+    Currency = 'Currency',
     Date = 'Date',
-    Double = 'Double',
     Integer = 'Integer',
+    Real = 'Real',
     Time = 'Time',
     Timestamp = 'Timestamp',
     Uuid = 'Uuid',
