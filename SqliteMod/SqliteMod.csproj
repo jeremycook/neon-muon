@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DatabaseMod\DatabaseMod.csproj" />
+    <ProjectReference Include="..\LogMod\LogMod.csproj" />
     <ProjectReference Include="..\SqlMod\SqlMod.csproj" />
   </ItemGroup>
 

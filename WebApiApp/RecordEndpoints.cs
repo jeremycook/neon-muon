@@ -165,7 +165,7 @@ WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identi
             StoreType.Real => jsonElement?.GetDouble(),
             StoreType.Integer => jsonElement?.GetInt64(),
             StoreType.Date => jsonElement?.GetDateTime() is DateTime dateTime ? DateOnly.FromDateTime(dateTime) : null,
-            StoreType.Currency => jsonElement?.GetDecimal(),
+            StoreType.Numeric => jsonElement?.GetDecimal(),
             StoreType.Boolean => jsonElement?.GetBoolean(),
             _ => throw new NotImplementedException(column.StoreType.ToString()),
         };

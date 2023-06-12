@@ -4,6 +4,7 @@ using DatabaseMod.Models;
 using FileMod;
 using LoginApi;
 using LoginMod;
+using LogMod;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Data.Sqlite;
@@ -115,6 +116,8 @@ internal class Program {
                 app = builder.Build();
             }
 
+            Log.Factory = app.Services.GetRequiredService<ILoggerFactory>();
+
             { // Migrate databases
                 foreach (var group in migratableDbContexts.GroupBy(o => o.Value.ConnectionString)) {
                     var connectionStringBuilder = group.First().Value;
@@ -158,7 +161,7 @@ internal class Program {
                         }
                     }
 
-                    var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations);
+                    var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(alterations, suppressNotSupportedExceptions: true);
                     foreach (var sql in sqlStatements) {
                         connection.Execute(sql);
                     }

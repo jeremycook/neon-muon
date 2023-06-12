@@ -1,4 +1,6 @@
-﻿namespace SqlMod;
+﻿using System.Collections.Immutable;
+
+namespace SqlMod;
 
 public readonly struct Sql {
     public static implicit operator Sql(FormattableString sql) {
@@ -94,6 +96,7 @@ public readonly struct Sql {
     }
 
     public static Sql Empty { get; } = Raw(string.Empty);
+    public static IEnumerable<Sql> EmptyEnumerable { get; } = new[] { Empty }.ToImmutableArray();
 
     public static Sql Raw(string text) {
         return new(text, Array.Empty<object?>());

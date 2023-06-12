@@ -12,7 +12,7 @@ public static class SqliteDatabaseHelpers {
         return storeType switch {
             StoreType.Text => Raw("TEXT"),
             StoreType.Blob => Raw("BLOB"),
-            StoreType.Currency => Raw("CURRENCY NUMERIC"),
+            StoreType.Numeric => Raw("NUMERIC"),
             StoreType.Boolean => Raw("BOOLEAN INTEGER"),
             StoreType.Real => Raw("REAL"),
             StoreType.Uuid => Raw("UUID TEXT"),
@@ -21,7 +21,7 @@ public static class SqliteDatabaseHelpers {
             StoreType.Time => Raw("TIME TEXT"),
             StoreType.Timestamp => Raw("TIMESTAMP TEXT"),
             _ => Raw(storeType.ToString().ToUpperInvariant() + " TEXT"),
-        }; ; ;
+        };
     }
 
     public static StoreType DatabaseTypeToStoreType(string sqliteType) {
@@ -45,6 +45,7 @@ public static class SqliteDatabaseHelpers {
                 sqlite_master AS m
             JOIN
                 pragma_table_info(m.name) AS c
+            WHERE m.name NOT IN ('sqlite_sequence')
             ORDER BY
                 m.name,
                 c.cid

@@ -152,7 +152,7 @@ function storeTypeToString(value: Primitive | null, storeType: StoreType): strin
         case StoreType.Boolean:
             return value?.toString() ?? '';
 
-        case StoreType.Currency:
+        case StoreType.Numeric:
         case StoreType.Real:
             return value?.toString() ?? '';
 
@@ -185,7 +185,7 @@ function stringToStoreType(value: string, storeType: StoreType) {
         case StoreType.Boolean:
             return new Boolean(value);
 
-        case StoreType.Currency:
+        case StoreType.Numeric:
         case StoreType.Real:
             return Number.parseFloat(value);
 
