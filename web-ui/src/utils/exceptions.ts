@@ -1,6 +1,7 @@
-export class Exception {
+export class Exception extends Error {
     data: any[];
-    constructor(public message: string, ...data: any[]) {
+    constructor(message: string, ...data: any[]) {
+        super(message);
         this.data = data;
     }
 }
