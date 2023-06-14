@@ -19,7 +19,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
                 (database.val.schemas.length > 1 && h2(schema.name)),
                 p(
                     button({ onclick: async () => await createTable(schema, database, path) },
-                        icon("sparkle-16-regular"),
+                        icon("sparkle-regular"),
                         ' New Table'
                     ),
                 ),
@@ -29,11 +29,11 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
                         p({ class: 'flex gap-100' },
                             button({ onclick: async () => await createColumn(tbl, schema, database, path) },
-                                icon('sparkle-16-regular'),
+                                icon('sparkle-regular'),
                                 ' New Column'
                             ),
                             button({ onclick: async () => await dropTable(tbl, schema, database, path) },
-                                icon('delete-12-regular'),
+                                icon('delete-regular'),
                                 ' Delete Table'
                             ),
                         ),
@@ -56,7 +56,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
                                     ),
                                     td(
                                         button({ onclick: async () => await dropColumn(column, tbl, schema, database, path) },
-                                            icon('delete-12-regular')
+                                            icon('delete-regular')
                                         )
                                     )
                                 )),
