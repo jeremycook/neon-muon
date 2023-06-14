@@ -8,11 +8,10 @@ type DynamicNode =
 
 export function dynamic(value: SubT<string | Node>): Segment;
 export function dynamic(sub: Sub, renderer: () => DynamicNode): Segment;
-export function dynamic(subs: Sub[], renderer: () => DynamicNode): Segment;
-export function dynamic(arg0: Sub | Sub[], renderer?: () => DynamicNode): Segment {
+export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
 
     const segment = createSegment();
-    const begin = segment[0];
+    const end = segment[1] as Comment;
 
     if (typeof renderer === 'undefined') {
         if ((arg0 as PubSubT<string | Node>)?.val) {
@@ -43,26 +42,14 @@ export function dynamic(arg0: Sub | Sub[], renderer?: () => DynamicNode): Segmen
         }
     };
 
-    if (!Array.isArray(arg0)) {
-        begin.addEventListener('mount', () => {
-            const unsub = arg0.sub(subscription);
-            begin.addEventListener('unmount', unsub);
-            subscription();
-        });
+    arg0.sub(subscription);
+    
+    // Trigger the subscription when this element is mounted
+    end.addEventListener('mount', async () => {
+        await subscription();
+    });
 
-        return segment;
-    }
-    else {
-        begin.addEventListener('mount', () => {
-            for (let value of arg0) {
-                let unsub = value.sub(subscription);
-                segment[0].addEventListener('unmount', unsub);
-            }
-            subscription();
-        });
-
-        return segment;
-    }
+    return segment;
 }
 
 export function lazy(renderer: () => Promise<Node | Node[]>) {

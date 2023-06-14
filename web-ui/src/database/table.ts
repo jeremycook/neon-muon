@@ -49,7 +49,7 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
                             record[i] = value.val;
                         });
 
-                        const editValue = async (ev: Event): Promise<void> => {
+                        async function editValue(ev: Event): Promise<void> {
                             const newValue = await modalCell(dbTable.columns[i], item);
 
                             if (typeof newValue !== 'undefined') {
@@ -67,8 +67,9 @@ function databaseTable(dbTable: Table, _database: Database, databasePath: string
                                 }
                             }
 
-                            setTimeout(() => (ev.target as any)?.focus?.(), 200);
-                        };
+                            // Return focus to source
+                            (ev.target as any)?.focus?.();
+                        }
 
                         return td({ tabIndex: 0 },
                             !pkColumns.includes(i) && {

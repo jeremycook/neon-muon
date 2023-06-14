@@ -1,5 +1,5 @@
 ﻿export type TagParams<TElement> = (
-    undefined
+    | undefined
     | null
     | false
     | string
@@ -126,16 +126,18 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
 
                         if (name === 'autofocus' && val === true) {
                             element.addEventListener('mount', (ev: any) => {
-                                if (_isInViewport(ev.target)) {
-                                    ev.target.focus();
+                                console.log(ev);
+                                if (_isInViewport(ev.currentTarget)) {
+                                    ev.currentTarget.focus();
                                 }
                             });
                         }
                         else if (name === 'autoselect' && val === true) {
                             element.addEventListener('mount', (ev: any) => {
-                                if (_isInViewport(ev.target)) {
-                                    ev.target.focus();
-                                    ev.target.select();
+                                console.log(ev);
+                                if (_isInViewport(ev.currentTarget)) {
+                                    ev.currentTarget.focus();
+                                    ev.currentTarget.select();
                                 }
                             });
                         }
@@ -154,9 +156,8 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         }
     }
 
-    // Mount events must be dispatched after the nodes have had a chance to render
-    setTimeout(() => newNodes
-        .forEach(n => (n as Node).dispatchEvent(new Event('mount', { cancelable: false }))));
+    // Notify children that they have been mounted once this element has been mounted
+    element.addEventListener('mount', mountPropogator);
 
     return element as any;
 }
@@ -184,11 +185,12 @@ export function createComment(content: string) {
 export function createFragment(...nodes: (Node | string)[]) {
     const fragment = document.createDocumentFragment();
     fragment.append(...nodes);
+    fragment.addEventListener('mount', mountPropogator);
     return fragment;
 }
 
 /**
- * A series of nodes surrounded by begin and end Comments.
+ * A series of nodes surrounded a begin and an end Comment.
  */
 export type Segment = [Comment, ...Node[], Comment];
 
@@ -197,8 +199,8 @@ export type Segment = [Comment, ...Node[], Comment];
  * that can be manipulated later.
  * @param nodes
  */
-export function createSegment(...nodes: (string | Node)[]): Segment {
-    return [createComment(''), ...nodes.map(n => typeof n === 'string' ? createText(n) : n), createComment('')];
+export function createSegment(): Segment {
+    return [createComment(''), createComment('')];
 }
 
 /**
@@ -218,7 +220,7 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     while (node && node !== end) {
         const nextSibling = node.nextSibling;
 
-        node.dispatchEvent(new Event('unmount', { cancelable: false }));
+        node.dispatchEvent(createUnmountEvent());
         node.remove();
 
         node = nextSibling;
@@ -229,9 +231,27 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     begin.after(...addedNodes);
     segment.splice(1, segment.length - 2, ...addedNodes);
 
-    // Mount events must be dispatched after the nodes have had a chance to render
-    setTimeout(() => addedNodes
-        .forEach(n => n.dispatchEvent(new Event('mount', { cancelable: false }))));
+    // Notify new nodes that they have been mounted
+    for (const node of addedNodes) {
+        node.dispatchEvent(createMountEvent());
+    }
+}
+
+/** Propogates 'mount' events to its children. */
+export function mountPropogator(ev: Event): void {
+    for (const child of (ev.currentTarget as Node).childNodes) {
+        child.dispatchEvent(createMountEvent());
+    }
+}
+
+/** Returns a new 'mount' event. */
+export function createMountEvent(): Event {
+    return new Event('mount', { cancelable: false, bubbles: false });
+}
+
+
+function createUnmountEvent(): Event {
+    return new Event('unmount', { cancelable: false, bubbles: false });
 }
 
 function _isInViewport(element: Element) {

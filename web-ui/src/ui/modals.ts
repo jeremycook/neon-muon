@@ -1,4 +1,4 @@
-import { TagParams } from '../utils/etc';
+import { TagParams, createMountEvent } from '../utils/etc';
 import { button, div, form, h2, input, label } from '../utils/html';
 
 export async function modalPrompt(text: string, title: string | undefined = undefined) {
@@ -72,5 +72,6 @@ export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
         );
 
         document.body.append(view);
+        view.dispatchEvent(createMountEvent());
     });
 }

@@ -4,25 +4,35 @@ export function val<TValue>(value: TValue) {
 
 export function computed<TInput, TValue>(value: PubSubT<TInput>, computation: () => TValue) {
     const comp = new Val<TValue>(computation());
-
-    // Note that the unsubscribe is discarded
     value.sub(() => comp.pub(computation()));
-
     return comp;
 }
 
+/** @deprecated Experimental */
 export function proxy<TValue extends object>(value: TValue): TValue & PubSub {
 
-    const _subscriptions: (() => (void | Promise<void>))[] = [];
+    const _pointers: Symbol[] = [];
+    const _subscriptions = new WeakMap<Symbol, () => (void | Promise<void>)>();
 
     function sub(subscription: () => (void | Promise<void>)) {
-        _subscriptions.push(subscription);
-        return (): void => { _subscriptions.splice(_subscriptions.indexOf(subscription, 1)) };
+        const ptr = Symbol();
+        _pointers.push(ptr);
+        _subscriptions.set(ptr, subscription);
     }
 
     async function pub() {
-        for (const sub of _subscriptions) {
-            await sub();
+        await _dispatch();
+    }
+
+    async function _dispatch() {
+        for (const ptr of _pointers) {
+            const sub = _subscriptions.get(ptr);
+            if (sub) {
+                await sub();
+            }
+            else {
+                // TODO: Do we care about cleaning up dangling pointers
+            }
         }
     }
 
@@ -71,7 +81,7 @@ export interface PubT<TValue> extends Pub {
 }
 
 export interface Sub {
-    sub(subscription: () => (void | Promise<void>)): () => void;
+    sub(subscription: () => (void | Promise<void>)): void;
 }
 
 export interface SubT<TValue> extends Sub {
@@ -83,7 +93,8 @@ export interface PubSub extends Pub, Sub { }
 export interface PubSubT<TValue> extends PubT<TValue>, SubT<TValue> { }
 
 export class Val<TValue = unknown> implements PubSubT<TValue> {
-    private _subscriptions: (() => (void | Promise<void>))[] = [];
+    private _pointers: Symbol[] = [];
+    private _subscriptions = new WeakMap<Symbol, () => (void | Promise<void>)>();
 
     constructor(private _val: TValue) { }
 
@@ -92,8 +103,9 @@ export class Val<TValue = unknown> implements PubSubT<TValue> {
     }
 
     public sub(subscription: () => (void | Promise<void>)) {
-        this._subscriptions.push(subscription);
-        return (): void => { this._subscriptions.splice(this._subscriptions.indexOf(subscription, 1)) };
+        const ptr = Symbol();
+        this._pointers.push(ptr);
+        this._subscriptions.set(ptr, subscription);
     }
 
     public async pub(newValue?: TValue, options?: { force: boolean }) {
@@ -107,8 +119,14 @@ export class Val<TValue = unknown> implements PubSubT<TValue> {
     }
 
     private async _dispatch() {
-        for (const sub of this._subscriptions) {
-            await sub();
+        for (const ptr of this._pointers) {
+            const sub = this._subscriptions.get(ptr);
+            if (sub) {
+                await sub();
+            }
+            else {
+                // TODO: Do we care about cleaning up dangling pointers
+            }
         }
     }
 }

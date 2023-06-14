@@ -1,4 +1,4 @@
-import { PubSubT } from '../utils/pubSub';
+import { SubT } from '../utils/pubSub';
 import { svg } from '../utils/svg';
 
 const iconLookup = {
@@ -19,11 +19,11 @@ export type IconType = keyof typeof iconLookup;
 const fallbackDim = 16;
 const initialViewbox = '0 0 16 16';
 
-export default function icon(type: IconType | PubSubT<IconType>) {
+export default function icon(type: IconType | SubT<IconType>) {
     const element = svg({ 'viewBox': initialViewbox, 'aria-hidden': '', class: 'icon' });
 
     if (typeof type === 'string') {
-        // Fixed icon
+        // Static icon
         iconLookup[type]().then(module => {
             const data = module.default;
             element.setAttribute('viewBox', `0 0 ${data.width ?? fallbackDim} ${data.height ?? fallbackDim}`);
@@ -32,16 +32,14 @@ export default function icon(type: IconType | PubSubT<IconType>) {
     }
     else {
         // Dynamic icon
-        const sub = () => {
-            iconLookup[type.val]().then(module => {
-                const data = module.default;
-                element.setAttribute('viewBox', `0 0 ${data.width ?? fallbackDim} ${data.height ?? fallbackDim}`);
-                element.innerHTML = data.body; // The contents will be filled as soon as it is available.
-            });
+        const subscription = async () => {
+            const module = await iconLookup[type.val]();
+            const data = module.default;
+            element.setAttribute('viewBox', `0 0 ${data.width ?? fallbackDim} ${data.height ?? fallbackDim}`);
+            element.innerHTML = data.body; // The contents will be filled as soon as it is available.
         };
-        const unsub = type.sub(sub);
-        element.addEventListener('mount', () => sub());
-        element.addEventListener('unmount', () => unsub());
+        type.sub(subscription);
+        element.addEventListener('mount', subscription);
     }
 
     return element;

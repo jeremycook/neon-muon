@@ -38,6 +38,7 @@ const view = div({ class: 'site' },
 );
 
 document.getElementById('site')!.replaceWith(view);
+view.dispatchEvent(new Event('mount', { cancelable: false }));
 
 document.addEventListener('keyup', ev => {
 
