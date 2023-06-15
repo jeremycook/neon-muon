@@ -1,6 +1,6 @@
 import { mutateSegment, Segment, createSegment, createFragment } from './etc';
 import { Exception } from './exceptions';
-import { PubSubT, Sub, SubT } from './pubSub';
+import { Sub, SubT } from './pubSub';
 
 type DynamicNode =
     (string | Node | (string | Node)[])
@@ -14,9 +14,9 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
     const end = segment[1] as Comment;
 
     if (typeof renderer === 'undefined') {
-        if ((arg0 as PubSubT<string | Node>)?.val) {
+        if ((arg0 as SubT<string | Node>)?.val) {
             // Assuming .val is valid
-            renderer = () => (arg0 as PubSubT<string | Node>).val;
+            renderer = () => (arg0 as SubT<string | Node>).val;
         }
         else {
             throw new Exception('A renderer was not provided and could not be inferred.');
@@ -42,12 +42,11 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
         }
     };
 
-    arg0.sub(subscription);
-    
+    // React to dependency
+    arg0.sub(end, subscription);
+
     // Trigger the subscription when this element is mounted
-    end.addEventListener('mount', async () => {
-        await subscription();
-    });
+    end.addEventListener('mount', subscription);
 
     return segment;
 }

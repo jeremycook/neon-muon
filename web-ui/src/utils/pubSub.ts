@@ -4,36 +4,21 @@ export function val<TValue>(value: TValue) {
 
 export function computed<TInput, TValue>(value: PubSubT<TInput>, computation: () => TValue) {
     const comp = new Val<TValue>(computation());
-    value.sub(() => comp.pub(computation()));
+    value.sub(comp, () => comp.pub(computation()));
     return comp;
 }
 
 /** @deprecated Experimental */
 export function proxy<TValue extends object>(value: TValue): TValue & PubSub {
 
-    const _pointers: Symbol[] = [];
-    const _subscriptions = new WeakMap<Symbol, () => (void | Promise<void>)>();
+    const _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
 
-    function sub(subscription: () => (void | Promise<void>)) {
-        const ptr = Symbol();
-        _pointers.push(ptr);
-        _subscriptions.set(ptr, subscription);
+    function sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
+        _subscribe(_subscriptions, lifetimeOwner, subscription, 'proxy subscription');
     }
 
     async function pub() {
-        await _dispatch();
-    }
-
-    async function _dispatch() {
-        for (const ptr of _pointers) {
-            const sub = _subscriptions.get(ptr);
-            if (sub) {
-                await sub();
-            }
-            else {
-                // TODO: Do we care about cleaning up dangling pointers
-            }
-        }
+        await _dispatch(_subscriptions);
     }
 
     const handler: ProxyHandler<TValue> = {
@@ -81,7 +66,7 @@ export interface PubT<TValue> extends Pub {
 }
 
 export interface Sub {
-    sub(subscription: () => (void | Promise<void>)): void;
+    sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)): void;
 }
 
 export interface SubT<TValue> extends Sub {
@@ -93,8 +78,7 @@ export interface PubSub extends Pub, Sub { }
 export interface PubSubT<TValue> extends PubT<TValue>, SubT<TValue> { }
 
 export class Val<TValue = unknown> implements PubSubT<TValue> {
-    private _pointers: Symbol[] = [];
-    private _subscriptions = new WeakMap<Symbol, () => (void | Promise<void>)>();
+    private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
 
     constructor(private _val: TValue) { }
 
@@ -102,31 +86,42 @@ export class Val<TValue = unknown> implements PubSubT<TValue> {
         return this._val;
     }
 
-    public sub(subscription: () => (void | Promise<void>)) {
-        const ptr = Symbol();
-        this._pointers.push(ptr);
-        this._subscriptions.set(ptr, subscription);
+    public sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
+        _subscribe(this._subscriptions, lifetimeOwner, subscription, 'val subscription');
     }
 
     public async pub(newValue?: TValue, options?: { force: boolean }) {
         if (typeof newValue === 'undefined') {
-            await this._dispatch();
+            await _dispatch(this._subscriptions);
         }
         else if (options?.force || newValue !== this._val) {
             this._val = newValue;
-            await this._dispatch();
+            await _dispatch(this._subscriptions);
         }
     }
+}
 
-    private async _dispatch() {
-        for (const ptr of this._pointers) {
-            const sub = this._subscriptions.get(ptr);
-            if (sub) {
-                await sub();
-            }
-            else {
-                // TODO: Do we care about cleaning up dangling pointers
-            }
+function _subscribe(subscriptions: WeakRef<() => (void | Promise<void>)>[], lifetimeOwner: object, subscription: () => (void | Promise<void>), description: string) {
+    const sym = Symbol(description);
+    (lifetimeOwner as any)[sym] = subscription;
+    subscriptions.push(new WeakRef(subscription));
+}
+
+async function _dispatch(subscriptions: WeakRef<() => (void | Promise<void>)>[]) {
+    const gone: number[] = [];
+    let i = -1;
+    for (const ref of subscriptions) {
+        i += 1;
+
+        const sub = ref.deref();
+        if (sub) {
+            await sub();
         }
+        else {
+            gone.push(i);
+        }
+    }
+    for (const i of gone) {
+        subscriptions.splice(i, 1);
     }
 }

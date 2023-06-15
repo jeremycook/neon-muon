@@ -37,7 +37,7 @@ export default function icon(type: IconType | SubT<IconType>) {
             element.setAttribute('viewBox', `0 0 ${data.width ?? fallbackDim} ${data.height ?? fallbackDim}`);
             element.innerHTML = data.body; // The contents will be filled as soon as it is available.
         };
-        type.sub(subscription);
+        type.sub(element, subscription);
         element.addEventListener('mount', subscription);
     }
 
