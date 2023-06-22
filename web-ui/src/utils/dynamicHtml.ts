@@ -50,13 +50,19 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
 
     return segment;
 }
+export function lazy(promise: Promise<Node | Node[]>, loading?: Node): Segment;
+export function lazy(renderer: () => Promise<Node | Node[]>, loading?: Node): Segment;
+export function lazy(renderer: Promise<Node | Node[]> | (() => Promise<Node | Node[]>), loading?: Node): Segment {
+    const segment = loading ? createSegment(loading) : createSegment();
 
-export function lazy(renderer: () => Promise<Node | Node[]>) {
-    const segment = createSegment();
-    renderer().then(node => Array.isArray(node)
+    const promise = renderer instanceof Promise
+        ? renderer
+        : renderer();
+    promise.then(node => Array.isArray(node)
         ? mutateSegment(segment, ...node)
         : mutateSegment(segment, node)
     );
+
     return segment;
 }
 

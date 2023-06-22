@@ -93,6 +93,7 @@
     gap: var(--50);
 }
 
+.gap,
 .gap-100 {
     gap: var(--100);
 }
@@ -218,7 +219,7 @@ svg.icon {
 
 /* EXPERIMENTAL */
 
-/* .modal */
+/* .modal > form > .modal-footer */
 
 .modal {
     position: fixed;
@@ -234,6 +235,19 @@ svg.icon {
     gap: var(--100);
     justify-content: center;
     align-items: center;
+}
+
+.modal>form {
+    background: white;
+    border-radius: var(--radius);
+    border-style: var(--b-style);
+    padding: var(--100);
+    box-shadow: var(--shadow);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--100);
 }
 
 /* Tree */

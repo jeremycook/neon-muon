@@ -1,11 +1,11 @@
 ﻿using DatabaseMod.Models;
 using FileMod;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using SqliteMod;
 using SqlMod;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace WebApiApp;
 
@@ -56,14 +56,24 @@ public class RecordEndpoints {
 
     public record ChangeRecordsInput(
         string Path,
+        string TableSchema,
         string TableName,
         string[] ColumnNames,
         JsonElement?[][] Records
-    );
+    ) { }
+
+    public record InsertRecordsInput(
+        string Path,
+        string TableSchema,
+        string TableName,
+        string[] ColumnNames,
+        JsonElement?[][] Records,
+        string[] ReturningColumns
+    ) { }
 
     public static IResult InsertRecords(
         UserFileProvider fileProvider,
-        ChangeRecordsInput input
+        InsertRecordsInput input
     ) {
         var fileInfo = fileProvider.GetFileInfo(input.Path);
 
@@ -71,25 +81,35 @@ public class RecordEndpoints {
             return Results.NotFound();
         }
 
-        var commandSql = Sql.Interpolate($"""
-INSERT INTO {Sql.Identifier(input.TableName)} ({Sql.IdentifierList(input.ColumnNames)}) 
-VALUES ({Sql.Join("), (", input.Records.Select(
-    Sql.Value
-))})
-""");
-
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
-            Mode = SqliteOpenMode.ReadOnly,
         };
 
         using var connection = new SqliteConnection(builder.ConnectionString);
-        using var command = connection.CreateCommand(commandSql);
         connection.Open();
 
-        var changes = command.ExecuteNonQuery();
+        var database = connection.GetDatabase();
+        var table = database.GetTable(input.TableSchema, input.TableName);
+        var columnsByName = table.Columns.ToDictionary(o => o.Name);
+        var insertedColumns = input.ColumnNames
+            .Select((name, i) => new { name, i, column = columnsByName[name] })
+            .ToArray();
+        var returningColumns = input.ReturningColumns.Length > 0
+            ? input.ReturningColumns
+            : table.GetPrimaryKey().Columns.ToArray();
 
-        return Results.Ok(changes);
+        var returningRecords = new List<object?[]>();
+        foreach (var record in input.Records) {
+            var sql = Sql.Interpolate($"""
+INSERT INTO {Sql.Identifier(input.TableSchema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
+VALUES ({Sql.Join(", ", insertedColumns.Select(o => Sql.Value(ChangeToStoreType(o.column, record[o.i]) ?? DBNull.Value)))})
+RETURNING {Sql.IdentifierList(returningColumns)}
+""");
+            var newRecord = connection.First(sql, table.Columns.Select(column => column.StoreType).ToArray());
+            returningRecords.Add(newRecord);
+        }
+
+        return Results.Ok(returningRecords);
     }
 
     public static IResult UpdateRecords(
@@ -110,17 +130,15 @@ VALUES ({Sql.Join("), (", input.Records.Select(
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
-        var database = new Database();
-        database.ContributeSqlite(connection);
+        var database = connection.GetDatabase();
         var table = database.Schemas[0].Tables.Single(o => o.Name == input.TableName);
         var columnsByName = table.Columns.ToDictionary(o => o.Name);
 
-        var pk = table.Indexes.SingleOrDefault(x => x.IndexType == TableIndexType.PrimaryKey)?.Columns;
+        var pk = table.GetPrimaryKey()?.Columns;
 
         if (pk == null) {
             return Results.BadRequest("Cannot update values because this table doesn't have a primary key.");
         }
-
 
         var pkColumnNames = input.ColumnNames
             .Select((name, i) => new { name, i })
@@ -190,7 +208,6 @@ WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identi
 
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
-            Mode = SqliteOpenMode.ReadOnly,
         };
 
         using var connection = new SqliteConnection(builder.ConnectionString);

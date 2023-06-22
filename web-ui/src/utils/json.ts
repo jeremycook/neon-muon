@@ -1,4 +1,4 @@
-const isoRegex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))(?:Z|(\+|-)([\d|:]*))?$/;
+const isoRegex = /^(\d{4})-(\d{2})-(\d{2})(T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))(?:Z|(\+|-)([\d|:]*))?)?$/;
 
 /** Converts ISO date strings into Date objects. Leaves other values as-is. */
 export function parseValue(value: string | number | null) {

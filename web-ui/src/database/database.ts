@@ -237,7 +237,7 @@ export async function alterDatabase(databasePath: string, ...alterations: any[])
 
 export async function getRecords(databasePath: string, tableName: string, columnNames: string[]) {
     const url = makeUrl('/api/records', { path: databasePath, tableName, columnNames });
-    const response = await jsonGet<(null | boolean | number | string | Date)[][]>(url);
+    const response = await jsonGet<(Primitive | null)[][]>(url);
     return response.result ?? [];
 }
 

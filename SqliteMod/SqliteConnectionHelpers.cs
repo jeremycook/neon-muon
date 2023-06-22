@@ -1,11 +1,21 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using DatabaseMod.Models;
+using Microsoft.Data.Sqlite;
 using SqlMod;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Reflection.PortableExecutable;
 
 namespace SqliteMod;
 
 public static class SqliteConnectionHelpers {
+
+    public static Database GetDatabase(this SqliteConnection connection) {
+        var database = new Database();
+        database.ContributeSqlite(connection);
+        return database;
+    }
+
     public static SqliteCommand CreateCommand(this SqliteConnection connection, Sql sql) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
 
@@ -85,13 +95,53 @@ public static class SqliteConnectionHelpers {
         return list;
     }
 
+    public static object?[] First(this SqliteConnection connection, Sql sql, StoreType[] returningStoreTypes) {
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = CommandText;
+        command.Parameters.AddRange(ParameterValues);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) {
+            object?[] record = new object?[reader.FieldCount];
+            reader.GetValues(record);
+            for (int i = 0; i < reader.FieldCount; i++) {
+                record[i] = SqliteDatabaseHelpers.ConvertDatabaseValueToStoreValue(record[i]!, returningStoreTypes[i]);
+            }
+            return record;
+        }
+
+        throw new Exception("No records were returned.");
+    }
+
+    public static List<object?[]> List(this SqliteConnection connection, Sql sql, StoreType[] returningStoreTypes) {
+        var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = CommandText;
+        command.Parameters.AddRange(ParameterValues);
+
+        var list = new List<object?[]>();
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) {
+            object?[] record = new object?[reader.FieldCount];
+            reader.GetValues(record);
+            for (int i = 0; i < reader.FieldCount; i++) {
+                record[i] = SqliteDatabaseHelpers.ConvertDatabaseValueToStoreValue(record[i]!, returningStoreTypes[i]);
+            }
+            list.Add(record as dynamic);
+        }
+
+        return list;
+    }
+
     public static List<T> List<T>(SqliteCommand command) {
         var type = typeof(T);
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
         var list = new List<T>();
         using (var reader = command.ExecuteReader()) {
-
-            var columns = reader.GetColumnSchema();
 
             var primitive = underlyingType.IsPrimitive || underlyingType == typeof(string) || underlyingType == typeof(Guid);
             if (primitive) {
@@ -100,7 +150,20 @@ public static class SqliteConnectionHelpers {
                     list.Add(value);
                 }
             }
+            else if (underlyingType == typeof(object?[])) {
+                while (reader.Read()) {
+                    var record = new object?[reader.FieldCount];
+                    reader.GetValues(record);
+                    for (int i = 0; i < reader.FieldCount; i++) {
+                        if (record[i] == DBNull.Value) {
+                            record[i] = null;
+                        }
+                    }
+                    list.Add(record as dynamic);
+                }
+            }
             else {
+                var columns = reader.GetColumnSchema();
                 var columnNames = columns.Select(c => c.ColumnName).ToArray();
 
                 Func<object?[]?, T> itemActivator;

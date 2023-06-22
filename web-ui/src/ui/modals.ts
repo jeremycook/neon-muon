@@ -1,4 +1,4 @@
-import { TagParams, createMountEvent } from '../utils/etc';
+import { EventT, TagParams, mountElement, unmountElement } from '../utils/etc';
 import { button, div, form, h2, input, label } from '../utils/html';
 
 export async function modalPrompt(text: string, title: string | undefined = undefined) {
@@ -20,58 +20,56 @@ export async function modalPrompt(text: string, title: string | undefined = unde
 }
 
 export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
-
-    if (props.length === 1 && typeof props[0] === 'string') {
-        props = [
-            div(
-                { onmount(ev: Event) { (ev.target as HTMLDivElement).closest('form')?.querySelector('button')?.focus() } },
-                ...props
-            )
-        ]
-    }
-
     return new Promise<boolean>((resolve) => {
 
-        const view = div({ class: 'modal' },
-            {
-                onkeyup(ev: KeyboardEvent) {
-                    if (ev.key === 'Escape') {
-                        view.remove();
-                        resolve(false);
+        const view = div({ class: 'modal' }, {
+            onkeyup(ev: KeyboardEvent) {
+                if (ev.key === 'Escape') {
+                    unmountElement(view);
+                    resolve(false);
+                }
+            }
+        },
+            form({
+                onsubmit(ev: SubmitEvent) {
+                    ev.preventDefault();
+                    unmountElement(view);
+                    resolve(true);
+                },
+                onkeyup(ev: KeyboardEvent & EventT<HTMLFormElement>) {
+                    if (ev.ctrlKey && ev.key === 'Enter') {
+                        ev.currentTarget.dispatchEvent(new Event('submit'));
                     }
                 }
             },
-            form({ class: 'modal-content card' },
-                {
-                    onsubmit(ev: SubmitEvent) {
-                        ev.preventDefault();
-                        view.remove();
-                        resolve(true);
-                    },
-                    onkeyup(ev: KeyboardEvent) {
-                        if (ev.ctrlKey && ev.key === 'Enter') {
-                            (ev.currentTarget as HTMLFormElement).dispatchEvent(new Event('submit'));
-                        }
-                    }
-                },
                 ...props,
-                div({ class: 'flex gap-100' },
-                    button('OK'),
-                    button(
-                        {
-                            type: 'button',
-                            onclick() {
-                                view.remove();
-                                resolve(false);
+
+                div({ class: 'modal-footer' },
+                    button({
+                        onmount(ev: EventT<HTMLButtonElement>) {
+                            const form = ev.currentTarget.form!;
+                            if ((document.activeElement as any)?.form === form) {
+                                // Something in this form already has focus
+                            }
+                            else {
+                                // Focus on the first input-ish element
+                                (form.querySelector('button, input, select, textarea') as any)?.focus()
                             }
                         },
+                    }, 'OK'),
+                    button({
+                        type: 'button',
+                        onclick() {
+                            unmountElement(view);
+                            resolve(false);
+                        }
+                    },
                         'Cancel'
                     )
                 )
             )
         );
 
-        document.body.append(view);
-        view.dispatchEvent(createMountEvent());
+        mountElement(document.body, view);
     });
 }

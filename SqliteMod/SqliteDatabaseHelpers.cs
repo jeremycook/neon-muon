@@ -30,35 +30,44 @@ public static class SqliteDatabaseHelpers {
         return storeType;
     }
 
-    public static void ContributeSqlite(this Database database, SqliteConnection connection) {
-        var sql = Sql.Raw("""
-            SELECT
-                m.name as TableName,
-                m.type as TableType,
-                c.cid as ColumnPosition,
-                c.name as ColumnName,
-                c.type as ColumnType,
-                not c."notnull" as IsNullable,
-                c.dflt_value as DefaultValueSql,
-                c.pk as IsPrimaryKey
-            FROM
-                sqlite_master AS m
-            JOIN
-                pragma_table_info(m.name) AS c
-            WHERE m.name NOT IN ('sqlite_sequence')
-            ORDER BY
-                m.name,
-                c.cid
-            """);
+    public static object? ConvertDatabaseValueToStoreValue(object databaseValue, StoreType storeType) {
+        if (databaseValue == DBNull.Value) {
+            return null;
+        }
 
-        var tableColumnsList = connection.List<TableColumns>(sql);
+        return storeType switch {
+            StoreType.Text => (string)databaseValue,
+            StoreType.Blob => (byte[])databaseValue,
+            StoreType.Numeric => (decimal)databaseValue,
+            StoreType.Boolean => (bool)databaseValue,
+            StoreType.Real => (double)databaseValue,
+            StoreType.Uuid => Guid.Parse((string)databaseValue),
+            StoreType.Integer => (long)databaseValue,
+            StoreType.Date => DateOnly.Parse((string)databaseValue),
+            StoreType.Time => TimeOnly.Parse((string)databaseValue),
+            StoreType.Timestamp => DateTime.Parse((string)databaseValue),
+            _ => throw new NotImplementedException(storeType.ToString()),
+        };
+    }
+
+    public static void ContributeSqlite(this Database database, SqliteConnection connection) {
+        var tableColumns = connection
+            .List<ColumnRecord>(columnSql)
+            .GroupBy(o => o.TableName);
+        var tableIndexes = connection
+            .List<IndexRecord>(indexSql)
+            .GroupBy(g => g.TableName)
+            .ToDictionary(g => g.Key, tableGroup => tableGroup
+                .GroupBy(indexGroup => new { indexGroup.IndexName, indexGroup.IsNonUnique, indexGroup.IsUnique, indexGroup.IsPrimaryKey, indexGroup.Partial })
+                .ToDictionary(x => x.Key, indexGroup => indexGroup.Select(y => new { y.ColumnName, y.SequenceInIndex }).ToArray())
+            );
 
         if (database.Schemas.FirstOrDefault(o => o.Name == Schema.DefaultName) is not Schema schema) {
             schema = new();
             database.Schemas.Add(schema);
         }
 
-        foreach (var tableMapping in tableColumnsList.GroupBy(o => o.TableName)) {
+        foreach (var tableMapping in tableColumns) {
             var table = schema.Tables.GetOrAdd(new Table(tableMapping.Key));
 
             foreach (var columnMapping in tableMapping) {
@@ -72,24 +81,36 @@ public static class SqliteDatabaseHelpers {
                 });
             }
 
-            //foreach (var tableIndex in tableMapping.Table.Indexes)
-            //{
-            //    var index = table.Indexes.GetOrAdd(new TableIndex(tableIndex.Name, tableIndex.IsUnique ? TableIndexType.UniqueConstraint : TableIndexType.Index)
-            //    {
-            //        Columns = tableIndex.Columns.OrderBy(o => o.Order).Select(c => c.Name).ToList(),
-            //    });
-            //}
+            if (tableIndexes.TryGetValue(table.Name, out var indexes)) {
+                foreach (var dbIndex in indexes) {
+                    var index = table.Indexes.GetOrAdd(new TableIndex(
+                        dbIndex.Key.IndexName,
+                        dbIndex.Key.IsPrimaryKey ? TableIndexType.PrimaryKey
+                            : dbIndex.Key.IsUnique ? TableIndexType.UniqueConstraint
+                            : TableIndexType.Index,
+                        dbIndex.Value.OrderBy(o => o.SequenceInIndex).Select(c => c.ColumnName).ToList()
+                    ));
+                }
+            }
 
-            var primaryKeyColumns = tableMapping.Where(o => o.IsPrimaryKey);
-            table.Indexes.GetOrAdd(new TableIndex(
-                "pk_" + table.Name,
-                TableIndexType.PrimaryKey,
-                primaryKeyColumns.Select(c => c.ColumnName)
-            ));
+            if (!table.Indexes.Any(o => o.IndexType == TableIndexType.PrimaryKey)) {
+                var primaryKeyColumns = tableMapping
+                    .Where(o => o.PrimaryKey > 0)
+                    .OrderBy(o => o.PrimaryKey);
+                if (primaryKeyColumns.Any()) {
+                    // In SQLite this this kind of primary key does not show up in the list of indexes
+                    // We are making up the name of the primary key index
+                    table.Indexes.GetOrAdd(new TableIndex(
+                        "pk_" + table.Name,
+                        TableIndexType.PrimaryKey,
+                        primaryKeyColumns.Select(c => c.ColumnName)
+                    ));
+                }
+            }
         }
     }
 
-    private class TableColumns {
+    private class ColumnRecord {
         public string TableName { get; set; }
         public string TableType { get; set; }
         public int ColumnPosition { get; set; }
@@ -97,6 +118,60 @@ public static class SqliteDatabaseHelpers {
         public string ColumnType { get; set; }
         public bool IsNullable { get; set; }
         public string DefaultValueSql { get; set; }
-        public bool IsPrimaryKey { get; set; }
+        public int PrimaryKey { get; set; }
     }
+    private static readonly Sql columnSql = Raw("""
+        SELECT
+            m.name as TableName,
+            m.type as TableType,
+            c.cid as ColumnPosition,
+            c.name as ColumnName,
+            c.type as ColumnType,
+            not c."notnull" as IsNullable,
+            c.dflt_value as DefaultValueSql,
+            c.pk as PrimaryKey
+        FROM
+            sqlite_master AS m
+        JOIN
+            pragma_table_info(m.name) AS c
+        WHERE m.name NOT IN ('sqlite_sequence')
+        ORDER BY
+            m.name,
+            c.cid
+    """);
+
+    private class IndexRecord {
+        public string TableName { get; set; }
+        public string IndexName { get; set; }
+        public string ColumnName { get; set; }
+        public bool IsPrimaryKey { get; set; }
+        public bool IsNonUnique { get; set; }
+        public bool IsUnique { get; set; }
+        public int Partial { get; set; }
+        public int SequenceInIndex { get; set; }
+    }
+    private static readonly Sql indexSql = Raw("""
+        SELECT 
+            m.tbl_name as TableName,
+            il.name as IndexName,
+            ii.name as ColumnName,
+            CASE il.origin when 'pk' then 1 else 0 END as IsPrimaryKey,
+            CASE il.[unique] when 1 then 0 else 1 END as IsNonUnique,
+            il.[unique] as IsUnique,
+            il.partial as Partial,
+            il.seq as SequenceInIndex
+        FROM sqlite_master AS m,
+            pragma_index_list(m.name) AS il,
+            pragma_index_info(il.name) AS ii
+        GROUP BY
+            m.tbl_name,
+            il.name,
+            ii.name,
+            il.origin,
+            il.partial,
+            il.seq
+        ORDER BY
+            m.tbl_name,
+            il.seq
+    """);
 }

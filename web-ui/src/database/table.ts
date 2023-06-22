@@ -1,98 +1,162 @@
 import { FileNode, getDirectoryName } from '../files/files';
 import { siteCard } from '../site/siteCard';
+import icon from '../ui/icons';
 import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
-import { div, h1, h2, input, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
+import { EventT } from '../utils/etc';
+import { button, col, div, h1, h2, input, label, p, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { jsonPost } from '../utils/http';
-import { computed, val } from '../utils/pubSub';
-import { unreachable } from '../utils/unreachable';
+import { PubT, val } from '../utils/pubSub';
+import { UnreachableError } from '../utils/unreachable';
 import { getDatabase, Table, Database, getRecords, Column, StoreType, TableIndexType, Primitive } from './database';
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
 
     const databasePath = getDirectoryName(tableNode.path);
     const database = (await getDatabase(databasePath))!;
-    const table = database.schemas[0].tables.find(t => t.name === tableNode.name)!;
+    const tableInfo = database.schemas[0].tables.find(t => t.name === tableNode.name)!;
 
     return siteCard(
         h1(tableNode.name),
-        div(
-            databaseTable(table, database, databasePath)
+        ...lazy(
+            databaseTable(tableInfo, database, databasePath),
+            p('Loading...')
         )
     )
 }
 
-function databaseTable(dbTable: Table, _database: Database, databasePath: string) {
+async function databaseTable(tableInfo: Table, _database: Database, databasePath: string) {
 
-    const pkColumns = dbTable.indexes
+    const pkColumns = tableInfo.indexes
         .find(idx => idx.indexType === TableIndexType.primaryKey)
         ?.columns
-        ?.map(name => dbTable.columns.findIndex(col => col.name === name))
+        ?.map(name => tableInfo.columns.findIndex(col => col.name === name))
         ?? [];
 
-    return table({ class: 'bordered' },
-        thead(
-            tr(...dbTable.columns.map(col =>
-                th({ tabIndex: 0 }, col.name)
-            ))
+    const records = val(await getRecords(databasePath, tableInfo.name, tableInfo.columns.map(col => col.name)));
+
+    return div(
+        p(
+            button({ class: 'button' }, {
+                async onclick() {
+                    const newRecordColumns = getNewRecordColumns(tableInfo);
+                    const newRecord = createNewRecord(newRecordColumns)
+                        .map(val);
+
+                    const confirmed = await modalConfirm(
+                        h2('New Record'),
+                        ...newRecordColumns
+                            .map((column, i) =>
+                                label(
+                                    div(column.name),
+                                    valueEditor(column, newRecord[i])
+                                )
+                            )
+                    );
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    const response = await postInsertRecords(databasePath, '', tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
+                    if (response.result) {
+                        // Insert the returned records
+                        records.pub([
+                            ...response.result,
+                            ...records.val,
+                        ]);
+                    }
+                    else {
+                        alert(response.errorMessage ?? 'Something went wrong.');
+                    }
+                }
+            },
+                icon('sparkle-regular'), ' New Record')
         ),
-        tbody(
-            lazy(async () => {
-                const records = await getRecords(databasePath, dbTable.name, dbTable.columns.map(col => col.name));
 
-                return records.map(record =>
-                    tr(...record.map((item, i) => {
-                        const value = val(item);
+        table({ class: 'bordered' },
+            thead(
+                tr(...tableInfo.columns.map(col =>
+                    th({ tabIndex: 0 }, col.name)
+                ))
+            ),
+            tbody(dynamic(records, () => records.val.map(record =>
+                tr(...record.map((item, i) => {
+                    const value = val(item);
 
-                        computed(value, async () => {
-                            // Update state
-                            record[i] = value.val;
-                        });
+                    value.sub(record, async () => {
+                        // Update state
+                        record[i] = value.val;
+                    });
 
-                        async function editValue(ev: Event): Promise<void> {
-                            const newValue = await modalCell(dbTable.columns[i], item);
+                    async function editValue(ev: Event): Promise<void> {
+                        const newValue = await modalCell(tableInfo.columns[i], item);
 
-                            if (typeof newValue !== 'undefined') {
-                                const response = await jsonPost('/api/update-records', {
-                                    path: databasePath,
-                                    tableName: dbTable.name,
-                                    columnNames: buildTableModificationColumns(dbTable.columns, pkColumns, i),
-                                    records: [buildTableModificationRecord(record, pkColumns, newValue)]
-                                });
-                                if (response.ok) {
-                                    value.pub(newValue);
-                                }
-                                else {
-                                    alert(response.errorMessage ?? 'Something went wrong.');
-                                }
+                        if (typeof newValue !== 'undefined') {
+                            const response = await postUpdateRecords(databasePath, tableInfo, pkColumns, i, record, newValue);
+                            if (response.ok) {
+                                value.pub(newValue);
                             }
-
-                            // Return focus to source
-                            (ev.target as any)?.focus?.();
+                            else {
+                                alert(response.errorMessage ?? 'Something went wrong.');
+                            }
                         }
 
-                        return td({ tabIndex: 0 },
-                            !pkColumns.includes(i) && {
-                                async ondblclick(ev: Event) {
-                                    await editValue(ev);
-                                },
-                                async onkeyup(ev: KeyboardEvent) {
-                                    if (ev.key === 'F2' || ev.key === 'Enter' || ('a' <= ev.key && ev.key <= 'z')) {
-                                        await editValue(ev);
-                                    }
-                                }
+                        // Return focus to source
+                        (ev.target as any)?.focus?.();
+                    }
+
+                    return td({ tabIndex: 0 },
+                        !pkColumns.includes(i) && {
+                            async ondblclick(ev: Event) {
+                                await editValue(ev);
                             },
-                            dynamic(value, () => storeTypeToString(value.val, dbTable.columns[i].storeType))
-                        )
-                    }))
-                )
-            })
+                            async onkeyup(ev: KeyboardEvent) {
+                                if (ev.key === 'F2' || ev.key === 'Enter' || ev.key === ' ') {
+                                    await editValue(ev);
+                                }
+                            }
+                        },
+                        dynamic(value, () => storeTypeToString(value.val, tableInfo.columns[i].storeType))
+                    )
+                }))
+            )
+            ))
         )
     )
 }
 
-function buildTableModificationColumns(columns: Column[], pkColumns: number[], ...valueColumn: number[]) {
-    return pkColumns.concat(valueColumn).map(i => columns[i].name);
+async function postInsertRecords(databasePath: string, tableSchema: string, tableName: string, columns: string[], returningColumns: string[], newRecords: (Primitive | null)[][]) {
+    return await jsonPost<(Primitive | null)[][]>('/api/insert-records', {
+        path: databasePath,
+        tableSchema,
+        tableName,
+        columnNames: columns,
+        records: newRecords,
+        returningColumns,
+    });
+}
+
+async function postUpdateRecords(databasePath: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
+    return await jsonPost('/api/update-records', {
+        path: databasePath,
+        tableName: tableInfo.name,
+        columnNames: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
+        records: [buildTableModificationRecord(record, pkColumns, newValue)]
+    });
+}
+
+async function postDeleteRecords(databasePath: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
+    return await jsonPost('/api/delete-records', {
+        path: databasePath,
+        tableName: tableInfo.name,
+        columnNames: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
+        records: [buildTableModificationRecord(record, pkColumns, newValue)]
+    });
+}
+
+function buildTableModificationColumns(columns: Column[], pkColumns: number[], ...valueColumns: number[]) {
+    return pkColumns.concat(valueColumns).map(i => columns[i].name);
 }
 
 function buildTableModificationRecord(record: (Primitive | null)[], pkColumns: number[], ...value: (Primitive | null)[]) {
@@ -111,7 +175,7 @@ async function modalCell<TValue extends Primitive | null>(column: Column, value:
                     autoselect: true,
                     onchange(ev: Event) {
                         const self = ev.target as HTMLInputElement;
-                        newValue = stringToStoreType(self.value, column.storeType);
+                        newValue = stringToStoreType(self.value, column.storeType, column.isNullable);
                     },
                     onkeydown(ev: KeyboardEvent) {
                         if (ev.ctrlKey && ev.key === 'Enter') {
@@ -127,7 +191,7 @@ async function modalCell<TValue extends Primitive | null>(column: Column, value:
                     autoselect: true,
                     onchange(ev: Event) {
                         const self = ev.target as HTMLInputElement;
-                        newValue = stringToStoreType(self.value, column.storeType);
+                        newValue = stringToStoreType(self.value, column.storeType, column.isNullable);
                     },
                     onkeydown(ev: KeyboardEvent) {
                         if (ev.ctrlKey && ev.key === 'Enter') {
@@ -168,13 +232,16 @@ function storeTypeToString(value: Primitive | null, storeType: StoreType): strin
             return value instanceof Date ? value.toISOString() : value?.toString() ?? '';
 
         default:
-            unreachable(storeType);
+            throw new UnreachableError(storeType);
     }
-
-    return value?.toString() ?? '';
 }
 
-function stringToStoreType(value: string, storeType: StoreType) {
+function stringToStoreType(value: string, storeType: StoreType, isNullable: boolean): Primitive | null {
+    if (isNullable && !value) {
+        // Treat empty strings as null
+        return null;
+    }
+
     switch (storeType) {
         case StoreType.Blob:
             throw new Error('Not implemented: ' + storeType);
@@ -184,22 +251,99 @@ function stringToStoreType(value: string, storeType: StoreType) {
             return value;
 
         case StoreType.Boolean:
-            return new Boolean(value);
+            return value.startsWith('t') || value.startsWith('T');
 
         case StoreType.Numeric:
         case StoreType.Real:
-            return Number.parseFloat(value);
+            return value ? Number.parseFloat(value.replace(',', '')) : null; // Avoid NaN
 
         case StoreType.Integer:
-            return Number.parseInt(value);
+            return value ? Number.parseInt(value.replace(',', '')) : null; // Avoid NaN
 
         case StoreType.Date:
         case StoreType.Time:
         case StoreType.Timestamp:
-            return new Date(value);
+            return value ? new Date(value) : null;
 
         default:
-            unreachable(storeType);
+            throw new UnreachableError(storeType);
     }
 }
 
+function getNewRecordColumns(tableInfo: Table) {
+    const pkColumns = getPrimaryKeyIndexes(tableInfo);
+
+    return tableInfo.columns
+        .filter((_, i) => !pkColumns.includes(i));
+}
+
+function getPrimaryKeyIndexes(tableInfo: Table) {
+    return tableInfo.indexes
+        .find(idx => idx.indexType === TableIndexType.primaryKey)
+        ?.columns
+        ?.map(name => tableInfo.columns.findIndex(col => col.name === name))
+        ?? [];
+}
+
+function createNewRecord(columns: Column[]) {
+    return columns
+        .map(column => stringToStoreType('', column.storeType, column.isNullable));
+}
+
+function valueEditor(column: Column, value: PubT<Primitive | null>) {
+    switch (column.storeType) {
+        case StoreType.Blob:
+            throw new Error('Not implemented: ' + column.storeType);
+
+        case StoreType.Text:
+        case StoreType.Uuid:
+            return input({ class: 'value-editor-' + column.storeType }, {
+                value: storeTypeToString(value.val, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+            });
+
+        case StoreType.Boolean:
+            return div({ class: 'value-editor-' + column.storeType },
+                label(
+                    input({ type: 'radio' }, {
+                        value: 'true',
+                        checked: value.val === true,
+                        onchange() { value.pub(true); }
+                    }),
+                    'Yes'
+                ),
+                label(
+                    input({ type: 'radio' }, {
+                        value: 'false',
+                        checked: value.val !== true,
+                        onchange() { value.pub(false); }
+                    }),
+                    'No'
+                )
+            );
+
+        case StoreType.Numeric:
+        case StoreType.Real:
+            return input({ class: 'value-editor-' + column.storeType }, {
+                value: storeTypeToString(value.val, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+            });
+
+        case StoreType.Integer:
+            return input({ class: 'value-editor-' + column.storeType }, {
+                value: storeTypeToString(value.val, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+            });
+
+        case StoreType.Date:
+        case StoreType.Time:
+        case StoreType.Timestamp:
+            return input({ class: 'value-editor-' + column.storeType }, {
+                value: storeTypeToString(value.val, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+            });
+
+        default:
+            throw new UnreachableError(column.storeType);
+    }
+}

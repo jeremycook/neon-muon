@@ -1,4 +1,6 @@
-﻿export type TagParams<TElement> = (
+﻿export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
+
+export type TagParams<TElement> = (
     | undefined
     | null
     | false
@@ -199,8 +201,8 @@ export type Segment = [Comment, ...Node[], Comment];
  * that can be manipulated later.
  * @param nodes
  */
-export function createSegment(): Segment {
-    return [createComment(''), createComment('')];
+export function createSegment(...newNodes: Node[]): Segment {
+    return [createComment(''), ...newNodes, createComment('')];
 }
 
 /**
@@ -249,9 +251,18 @@ export function createMountEvent(): Event {
     return new Event('mount', { cancelable: false, bubbles: false });
 }
 
+export function mountElement(parent: ParentNode, child: Node) {
+    parent.append(child);
+    child.dispatchEvent(createMountEvent());
+}
 
-function createUnmountEvent(): Event {
+export function createUnmountEvent(): Event {
     return new Event('unmount', { cancelable: false, bubbles: false });
+}
+
+export function unmountElement(node: ChildNode) {
+    node.dispatchEvent(createUnmountEvent());
+    node.remove();
 }
 
 function _isInViewport(element: Element) {

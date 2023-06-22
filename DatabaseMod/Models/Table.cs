@@ -7,6 +7,7 @@ public interface IReadOnlyTable {
     IReadOnlyList<IReadOnlyTableIndex> Indexes { get; }
     string Name { get; }
     string? Owner { get; }
+    TableIndex? GetPrimaryKey();
 }
 
 public class Table : IReadOnlyTable {
@@ -26,4 +27,8 @@ public class Table : IReadOnlyTable {
 
     IReadOnlyList<IReadOnlyColumn> IReadOnlyTable.Columns => Columns;
     IReadOnlyList<IReadOnlyTableIndex> IReadOnlyTable.Indexes => Indexes;
+
+    public TableIndex GetPrimaryKey() {
+        return Indexes.Single(x => x.IndexType == TableIndexType.PrimaryKey);
+    }
 }
