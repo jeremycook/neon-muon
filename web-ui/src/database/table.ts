@@ -5,11 +5,10 @@ import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';
 import { button, div, h1, h2, input, label, p, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
-import { jsonPost } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
 import { UnreachableError } from '../utils/unreachable';
 import { getDatabase, Table, Database, Column, StoreType, TableIndexType, Primitive, Schema } from './database';
-import { selectRecords } from './records';
+import { deleteRecords, insertRecords, updateRecords, selectRecords } from './records';
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
 
@@ -35,8 +34,9 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
         ?.map(name => tableInfo.columns.findIndex(col => col.name === name))
         ?? [];
 
-    const records = await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name));
-    const rows = val(records.map(record => ({
+    const response = await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name));
+    const result = response.getResultOrThrow();
+    const rows = val(result.map(record => ({
         selected: val(false),
         record
     })));
@@ -64,7 +64,7 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
                         return;
                     }
 
-                    const response = await postInsertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
+                    const response = await insertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
                     if (response.result) {
                         // Insert the returned records
                         rows.pub([
@@ -98,7 +98,7 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
                         return;
                     }
 
-                    const response = await postDeleteRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(column => column.name), selectedRecords);
+                    const response = await deleteRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(column => column.name), selectedRecords);
                     if (response.ok) {
                         // Remove the deleted records
                         rows.pub(rows.val.filter(row => !selectedRecords.includes(row.record)));
@@ -157,7 +157,7 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
                             const newValue = await modalCell(tableInfo.columns[i], item);
 
                             if (typeof newValue !== 'undefined') {
-                                const response = await postUpdateRecords(databasePath, schema.name, tableInfo, pkColumns, i, record, newValue);
+                                const response = await updateRecords(databasePath, schema.name, tableInfo, pkColumns, i, record, newValue);
                                 if (response.ok) {
                                     value.pub(newValue);
                                 }
@@ -188,45 +188,6 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
             )))
         )
     )
-}
-
-async function postInsertRecords(databasePath: string, schema: string, table: string, columns: string[], returningColumns: string[], newRecords: (Primitive | null)[][]) {
-    return await jsonPost<(Primitive | null)[][]>('/api/insert-records', {
-        database: databasePath,
-        schema,
-        table,
-        columns,
-        records: newRecords,
-        returningColumns,
-    });
-}
-
-async function postUpdateRecords(databasePath: string, schema: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
-    return await jsonPost('/api/update-records', {
-        database: databasePath,
-        schema,
-        table: tableInfo.name,
-        columns: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
-        records: [buildTableModificationRecord(record, pkColumns, newValue)]
-    });
-}
-
-async function postDeleteRecords(databasePath: string, schema: string, table: string, columns: string[], records: (Primitive | null)[][]) {
-    return await jsonPost('/api/delete-records', {
-        database: databasePath,
-        schema,
-        table,
-        columns,
-        records,
-    });
-}
-
-function buildTableModificationColumns(columns: Column[], pkColumns: number[], ...valueColumns: number[]) {
-    return pkColumns.concat(valueColumns).map(i => columns[i].name);
-}
-
-function buildTableModificationRecord(record: (Primitive | null)[], pkColumns: number[], ...value: (Primitive | null)[]) {
-    return [...pkColumns.map(i => record[i]), ...value];
 }
 
 async function modalCell<TValue extends Primitive | null>(column: Column, value: TValue): Promise<TValue | undefined> {

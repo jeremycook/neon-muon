@@ -1,17 +1,17 @@
-import { Exception } from './exceptions';
 import { parseJson } from './json';
 import { log } from './log';
 
-export class HttpException extends Exception {
+export class HttpError extends Error {
     constructor(
-        public message: string,
-        public status?: number,
-        public statusText?: string,
+        message: string,
+        public status: number,
         public details?: any
     ) {
-        super(message, status, statusText, details);
+        super(message);
     }
 }
+
+export const ErrorUnknownStatusCode = -1;
 
 /** Parse {@param response} content using {@link parseJson}. */
 export const parseJsonResponse = async (response: Response) => {
@@ -19,7 +19,7 @@ export const parseJsonResponse = async (response: Response) => {
     if (!json) {
         return undefined;
     }
-    
+
     const result = parseJson(json);
     return result;
 }
@@ -36,7 +36,36 @@ export async function jsonPut<TResult>(url: string, input?: object) {
     return await jsonFetch<TResult>({ url, method: 'PUT' }, input);
 }
 
-export async function jsonFetch<TResult>(init: { url: string } & RequestInit, input?: object): Promise<{ ok: boolean, status: number, result?: TResult, errorMessage?: string, errorResult?: any }> {
+class JsonFetchResponse<TResult> {
+    public ok: boolean;
+    public status: number;
+    public result?: TResult;
+    public errorMessage?: string;
+    public errorResult?: any;
+    constructor(input: {
+        ok: boolean;
+        status: number;
+        result?: TResult;
+        errorMessage?: string;
+        errorResult?: any;
+    }) {
+        this.ok = input.ok;
+        this.status = input.status;
+        this.result = input.result;
+        this.errorMessage = input.errorMessage;
+        this.errorResult = input.errorResult;
+    }
+    public getResultOrThrow(): TResult {
+        if (this.ok) {
+            return this.result as TResult;
+        }
+        else {
+            throw new HttpError(this.errorMessage ?? 'Unknown error.', this.status, this.errorResult);
+        }
+    }
+};
+
+export async function jsonFetch<TResult>(init: { url: string } & RequestInit, input?: object): Promise<JsonFetchResponse<TResult>> {
     try {
 
         const body = input ? { body: JSON.stringify(input) } : {};
@@ -90,28 +119,22 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
             }
             log.error('Non-OK HTTP response. {ErrorMessage}.', response.bodyUsed ? response.body : 'No response body.');
         }
-        return {
+        return new JsonFetchResponse<TResult>({
             ok: response.ok,
             status: response.status,
             result,
             errorMessage,
             errorResult,
-        };
+        });
     }
     catch (err) {
-        if (err instanceof Exception) {
-            // Let it by
-            throw err;
-        }
-        else {
-            // Probably a transient connection issue,
-            // log and provide a helpful error message.
-            const errorMessage = 'Unable to connect to the server. Please check your Internet connection or try again later.';
-            return {
-                ok: false,
-                status: -1,
-                errorMessage,
-            };
-        }
+        // Probably a transient connection issue,
+        // log and provide a helpful error message.
+        const errorMessage = 'Unable to connect to the server. Please check your Internet connection or try again later.';
+        return new JsonFetchResponse<TResult>({
+            ok: false,
+            status: ErrorUnknownStatusCode,
+            errorMessage,
+        });
     }
 }

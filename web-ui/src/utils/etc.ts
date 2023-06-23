@@ -151,7 +151,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                         element.addEventListener(name.substring(2), val);
                     }
                     else {
-                        throw `The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`;
+                        throw new Error(`The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`);
                     }
                 }
             }
@@ -215,7 +215,7 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     const end = segment[segment.length - 1] as Comment;
 
     if (!(begin instanceof Comment) || !(end instanceof Comment)) {
-        throw 'Segments must begin and end with Comments.';
+        throw new Error('Segments must begin and end with Comments.');
     }
 
     let node = begin.nextSibling;

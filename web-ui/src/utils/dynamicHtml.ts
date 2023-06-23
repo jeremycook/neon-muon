@@ -1,5 +1,4 @@
 import { mutateSegment, Segment, createSegment, createFragment } from './etc';
-import { Exception } from './exceptions';
 import { Sub, SubT } from './pubSub';
 
 type DynamicNode =
@@ -19,7 +18,7 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
             renderer = () => (arg0 as SubT<string | Node>).val;
         }
         else {
-            throw new Exception('A renderer was not provided and could not be inferred.');
+            throw new Error('A renderer was not provided and could not be inferred.');
         }
     }
 
