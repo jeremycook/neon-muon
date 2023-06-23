@@ -1,6 +1,7 @@
 ﻿using DatabaseMod.Models;
 using Microsoft.Data.Sqlite;
 using SqlMod;
+using System.Text.Json;
 using static SqlMod.Sql;
 
 namespace SqliteMod;
@@ -48,6 +49,22 @@ public static class SqliteDatabaseHelpers {
             StoreType.Timestamp => DateTime.Parse((string)databaseValue),
             _ => throw new NotImplementedException(storeType.ToString()),
         };
+    }
+
+    public static object? ConvertJsonElementToStoreValue(JsonElement? jsonElement, StoreType storeType) {
+        object? convertedValue = storeType switch {
+            StoreType.Text => jsonElement?.GetString(),
+            StoreType.Uuid => jsonElement?.GetGuid(),
+            StoreType.Timestamp => jsonElement?.GetDateTime(),
+            StoreType.Time => jsonElement?.GetDateTime() is DateTime dateTime ? TimeOnly.FromDateTime(dateTime) : null,
+            StoreType.Real => jsonElement?.GetDouble(),
+            StoreType.Integer => jsonElement?.GetInt64(),
+            StoreType.Date => jsonElement?.GetDateTime() is DateTime dateTime ? DateOnly.FromDateTime(dateTime) : null,
+            StoreType.Numeric => jsonElement?.GetDecimal(),
+            StoreType.Boolean => jsonElement?.GetBoolean(),
+            _ => throw new NotImplementedException(storeType.ToString()),
+        };
+        return convertedValue;
     }
 
     public static void ContributeSqlite(this Database database, SqliteConnection connection) {

@@ -4,28 +4,30 @@ import icon from '../ui/icons';
 import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';
-import { button, col, div, h1, h2, input, label, p, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
+import { button, div, h1, h2, input, label, p, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
 import { UnreachableError } from '../utils/unreachable';
-import { getDatabase, Table, Database, getRecords, Column, StoreType, TableIndexType, Primitive } from './database';
+import { getDatabase, Table, Database, Column, StoreType, TableIndexType, Primitive, Schema } from './database';
+import { selectRecords } from './records';
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
 
     const databasePath = getDirectoryName(tableNode.path);
     const database = (await getDatabase(databasePath))!;
-    const tableInfo = database.schemas[0].tables.find(t => t.name === tableNode.name)!;
+    const schema = database.schemas[0];
+    const tableInfo = schema.tables.find(t => t.name === tableNode.name)!;
 
     return siteCard(
         h1(tableNode.name),
         ...lazy(
-            databaseTable(tableInfo, database, databasePath),
+            databaseTable(tableInfo, schema, database, databasePath),
             p('Loading...')
         )
     )
 }
 
-async function databaseTable(tableInfo: Table, _database: Database, databasePath: string) {
+async function databaseTable(tableInfo: Table, schema: Schema, _database: Database, databasePath: string) {
 
     const pkColumns = tableInfo.indexes
         .find(idx => idx.indexType === TableIndexType.primaryKey)
@@ -33,7 +35,7 @@ async function databaseTable(tableInfo: Table, _database: Database, databasePath
         ?.map(name => tableInfo.columns.findIndex(col => col.name === name))
         ?? [];
 
-    const records = val(await getRecords(databasePath, tableInfo.name, tableInfo.columns.map(col => col.name)));
+    const records = val(await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name)));
 
     return div(
         p(
@@ -58,7 +60,7 @@ async function databaseTable(tableInfo: Table, _database: Database, databasePath
                         return;
                     }
 
-                    const response = await postInsertRecords(databasePath, '', tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
+                    const response = await postInsertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
                     if (response.result) {
                         // Insert the returned records
                         records.pub([
@@ -93,7 +95,7 @@ async function databaseTable(tableInfo: Table, _database: Database, databasePath
                         const newValue = await modalCell(tableInfo.columns[i], item);
 
                         if (typeof newValue !== 'undefined') {
-                            const response = await postUpdateRecords(databasePath, tableInfo, pkColumns, i, record, newValue);
+                            const response = await postUpdateRecords(databasePath, schema.name, tableInfo, pkColumns, i, record, newValue);
                             if (response.ok) {
                                 value.pub(newValue);
                             }
@@ -126,31 +128,33 @@ async function databaseTable(tableInfo: Table, _database: Database, databasePath
     )
 }
 
-async function postInsertRecords(databasePath: string, tableSchema: string, tableName: string, columns: string[], returningColumns: string[], newRecords: (Primitive | null)[][]) {
+async function postInsertRecords(databasePath: string, schema: string, table: string, columns: string[], returningColumns: string[], newRecords: (Primitive | null)[][]) {
     return await jsonPost<(Primitive | null)[][]>('/api/insert-records', {
-        path: databasePath,
-        tableSchema,
-        tableName,
-        columnNames: columns,
+        database: databasePath,
+        schema,
+        table,
+        columns,
         records: newRecords,
         returningColumns,
     });
 }
 
-async function postUpdateRecords(databasePath: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
+async function postUpdateRecords(databasePath: string, schema: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
     return await jsonPost('/api/update-records', {
-        path: databasePath,
-        tableName: tableInfo.name,
-        columnNames: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
+        database: databasePath,
+        schema,
+        table: tableInfo.name,
+        columns: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
         records: [buildTableModificationRecord(record, pkColumns, newValue)]
     });
 }
 
-async function postDeleteRecords(databasePath: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
+async function postDeleteRecords(databasePath: string, schema: string, tableInfo: Table, pkColumns: number[], i: number, record: (Primitive | null)[], newValue: Primitive | null) {
     return await jsonPost('/api/delete-records', {
-        path: databasePath,
-        tableName: tableInfo.name,
-        columnNames: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
+        database: databasePath,
+        schema,
+        table: tableInfo.name,
+        columns: buildTableModificationColumns(tableInfo.columns, pkColumns, i),
         records: [buildTableModificationRecord(record, pkColumns, newValue)]
     });
 }

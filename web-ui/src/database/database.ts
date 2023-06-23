@@ -235,12 +235,6 @@ export async function alterDatabase(databasePath: string, ...alterations: any[])
     return response;
 }
 
-export async function getRecords(databasePath: string, tableName: string, columnNames: string[]) {
-    const url = makeUrl('/api/records', { path: databasePath, tableName, columnNames });
-    const response = await jsonGet<(Primitive | null)[][]>(url);
-    return response.result ?? [];
-}
-
 export class Database {
     public schemas: Schema[];
 

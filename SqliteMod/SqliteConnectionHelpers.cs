@@ -1,16 +1,16 @@
 ﻿using DatabaseMod.Models;
 using Microsoft.Data.Sqlite;
 using SqlMod;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Reflection.PortableExecutable;
 
 namespace SqliteMod;
 
 public static class SqliteConnectionHelpers {
 
     public static Database GetDatabase(this SqliteConnection connection) {
+        // TODO: Cache results based on connection string,
+        // and add an connection.InvalidateDatabase() extension method that will invalidate the cache
         var database = new Database();
         database.ContributeSqlite(connection);
         return database;
@@ -115,12 +115,14 @@ public static class SqliteConnectionHelpers {
         throw new Exception("No records were returned.");
     }
 
-    public static List<object?[]> List(this SqliteConnection connection, Sql sql, StoreType[] returningStoreTypes) {
+    public static List<object?[]> List(this SqliteConnection connection, Sql sql, IEnumerable<StoreType> returningStoreTypes) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+        var storeTypes = returningStoreTypes.ToArray();
 
         using var command = connection.CreateCommand();
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
+
 
         var list = new List<object?[]>();
 
@@ -129,7 +131,7 @@ public static class SqliteConnectionHelpers {
             object?[] record = new object?[reader.FieldCount];
             reader.GetValues(record);
             for (int i = 0; i < reader.FieldCount; i++) {
-                record[i] = SqliteDatabaseHelpers.ConvertDatabaseValueToStoreValue(record[i]!, returningStoreTypes[i]);
+                record[i] = SqliteDatabaseHelpers.ConvertDatabaseValueToStoreValue(record[i]!, storeTypes[i]);
             }
             list.Add(record as dynamic);
         }

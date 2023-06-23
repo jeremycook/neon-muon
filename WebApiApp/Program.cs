@@ -32,7 +32,7 @@ internal class Program {
         app.MapPost("/api/database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
 
         // Database records
-        app.MapGet("/api/records", RecordEndpoints.GetRecords).RequireAuthorization("Admin");
+        app.MapPut("/api/select-records", RecordEndpoints.SelectRecords).RequireAuthorization("Admin");
         app.MapPost("/api/insert-records", RecordEndpoints.InsertRecords).RequireAuthorization("Admin");
         app.MapPost("/api/update-records", RecordEndpoints.UpdateRecords).RequireAuthorization("Admin");
         app.MapPost("/api/delete-records", RecordEndpoints.DeleteRecords).RequireAuthorization("Admin");

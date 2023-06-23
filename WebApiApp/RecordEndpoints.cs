@@ -1,23 +1,32 @@
 ﻿using DatabaseMod.Models;
 using FileMod;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using SqliteMod;
 using SqlMod;
 using System.Text.Json;
-using System.Threading.Channels;
 
 namespace WebApiApp;
 
 public class RecordEndpoints {
 
-    public static IResult GetRecords(
+    public enum SortDirection {
+        Asc = 0,
+        Desc = 1,
+    }
+
+    public record SelectRecordsInput(
+        string Database,
+        string Schema,
+        string Table,
+        string[] Columns,
+        (string, SortDirection)[]? OrderBy = null
+    ) { }
+
+    public static IResult SelectRecords(
         UserFileProvider fileProvider,
-        string path,
-        string tableName,
-        [FromQuery] string[] columnNames
+        SelectRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(path);
+        var fileInfo = fileProvider.GetFileInfo(input.Database);
 
         if (!fileInfo.Exists) {
             return Results.NotFound();
@@ -30,40 +39,44 @@ public class RecordEndpoints {
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
 
-        //var countSql = Sql.Interpolate($"SELECT COUNT(*) FROM {Sql.Identifier(input.TableName)}");
-        //var totalRows = connection.Number(countSql);
+        var database = connection.GetDatabase();
+        var table = database.GetTable(input.Schema, input.Table);
 
-        var querySql = Sql.Interpolate($"SELECT {Sql.IdentifierList(columnNames)} FROM {Sql.Identifier(tableName)}");
-        using var command = connection.CreateCommand(querySql);
-
-        var columns = columnNames.Length;
-        var records = new List<object?[]>();
-
-        using var reader = command.ExecuteReader();
-        while (reader.Read()) {
-            var values = new object?[columns];
-            reader.GetValues(values);
-            records.Add(values);
-            for (int i = 0; i < columns; i++) {
-                if (values[i] == DBNull.Value) {
-                    values[i] = null;
-                }
-            }
+        var tableSchema = input.Schema;
+        var columnsByName = table.Columns.ToDictionary(o => o.Name);
+        var columnNames = input.Columns
+            .Select(name => columnsByName[name].Name)
+            .ToArray();
+        var storeTypes = columnNames
+            .Select(name => columnsByName[name].StoreType)
+            .ToArray();
+        (string, SortDirection)[] orderBy;
+        if (input.OrderBy?.Length > 0) {
+            orderBy = input.OrderBy;
         }
+        else {
+            var match =
+                table.Columns.FirstOrDefault(column => column.StoreType == StoreType.Text) ??
+                table.Columns.First();
+
+            orderBy = new[] {
+                (match.Name, SortDirection.Asc),
+            };
+        }
+
+        var sql = Sql.Interpolate($"""
+            SELECT {Sql.IdentifierList(columnNames)}
+            FROM {Sql.Identifier(tableSchema, table.Name)}
+            ORDER BY {Sql.Join(", ", orderBy.Select(x => Sql.Interpolate($"{Sql.Identifier(x.Item1)} {Sql.Raw(x.Item2 == SortDirection.Desc ? "DESC" : "")}")))}
+        """);
+
+        var records = connection.List(sql, storeTypes);
 
         return Results.Ok(records);
     }
 
-    public record ChangeRecordsInput(
-        string Path,
-        string TableSchema,
-        string TableName,
-        string[] ColumnNames,
-        JsonElement?[][] Records
-    ) { }
-
     public record InsertRecordsInput(
-        string Path,
+        string Database,
         string TableSchema,
         string TableName,
         string[] ColumnNames,
@@ -75,8 +88,7 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         InsertRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Path);
-
+        var fileInfo = fileProvider.GetFileInfo(input.Database);
         if (!fileInfo.Exists) {
             return Results.NotFound();
         }
@@ -84,15 +96,15 @@ public class RecordEndpoints {
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
         };
-
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
+        using var transaction = connection.BeginTransaction();
 
         var database = connection.GetDatabase();
         var table = database.GetTable(input.TableSchema, input.TableName);
         var columnsByName = table.Columns.ToDictionary(o => o.Name);
         var insertedColumns = input.ColumnNames
-            .Select((name, i) => new { name, i, column = columnsByName[name] })
+            .Select((name, i) => new { i, name, storeType = columnsByName[name].StoreType })
             .ToArray();
         var returningColumns = input.ReturningColumns.Length > 0
             ? input.ReturningColumns
@@ -101,22 +113,32 @@ public class RecordEndpoints {
         var returningRecords = new List<object?[]>();
         foreach (var record in input.Records) {
             var sql = Sql.Interpolate($"""
-INSERT INTO {Sql.Identifier(input.TableSchema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
-VALUES ({Sql.Join(", ", insertedColumns.Select(o => Sql.Value(ChangeToStoreType(o.column, record[o.i]) ?? DBNull.Value)))})
-RETURNING {Sql.IdentifierList(returningColumns)}
-""");
+                INSERT INTO {Sql.Identifier(input.TableSchema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
+                VALUES ({Sql.Join(", ", insertedColumns.Select(o => Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], o.storeType) ?? DBNull.Value)))})
+                RETURNING {Sql.IdentifierList(returningColumns)}
+            """);
             var newRecord = connection.First(sql, table.Columns.Select(column => column.StoreType).ToArray());
             returningRecords.Add(newRecord);
         }
 
+        transaction.Commit();
+
         return Results.Ok(returningRecords);
     }
 
+    public record UpdateRecordsInput(
+        string Database,
+        string Schema,
+        string Table,
+        string[] Columns,
+        JsonElement?[][] Records
+    ) { }
+
     public static IResult UpdateRecords(
         UserFileProvider fileProvider,
-        ChangeRecordsInput input
+        UpdateRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Path);
+        var fileInfo = fileProvider.GetFileInfo(input.Database);
 
         if (!fileInfo.Exists) {
             return Results.NotFound();
@@ -125,13 +147,12 @@ RETURNING {Sql.IdentifierList(returningColumns)}
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
         };
-
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
         var database = connection.GetDatabase();
-        var table = database.Schemas[0].Tables.Single(o => o.Name == input.TableName);
+        var table = database.GetTable(input.Schema, input.Table);
         var columnsByName = table.Columns.ToDictionary(o => o.Name);
 
         var pk = table.GetPrimaryKey()?.Columns;
@@ -140,7 +161,7 @@ RETURNING {Sql.IdentifierList(returningColumns)}
             return Results.BadRequest("Cannot update values because this table doesn't have a primary key.");
         }
 
-        var pkColumnNames = input.ColumnNames
+        var pkColumnNames = input.Columns
             .Select((name, i) => new { name, i })
             .Where(o => pk.Contains(o.name))
             .ToArray();
@@ -149,7 +170,7 @@ RETURNING {Sql.IdentifierList(returningColumns)}
             return Results.BadRequest("The tables primary keys must be provided.");
         }
 
-        var modifiedColumnNames = input.ColumnNames
+        var modifiedColumnNames = input.Columns
             .Select((name, i) => new { name, i })
             .Except(pkColumnNames)
             .ToArray();
@@ -161,10 +182,10 @@ RETURNING {Sql.IdentifierList(returningColumns)}
         var changes = 0;
         foreach (var record in input.Records) {
             var sql = Sql.Interpolate($"""
-UPDATE {Sql.Identifier(input.TableName)}
-SET {Sql.Join(", ", modifiedColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(ChangeToStoreType(columnsByName[o.name], record[o.i]) ?? DBNull.Value)}")))}
-WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(ChangeToStoreType(columnsByName[o.name], record[o.i]))}")))}
-""");
+                UPDATE {Sql.Identifier(input.Schema, input.Table)}
+                SET {Sql.Join(", ", modifiedColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], columnsByName[o.name].StoreType) ?? DBNull.Value)}")))}
+                WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], columnsByName[o.name].StoreType))}")))}
+            """);
             using var command = connection.CreateCommand(sql);
             changes += command.ExecuteNonQuery();
         }
@@ -174,48 +195,39 @@ WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identi
         return Results.Ok(changes);
     }
 
-    private static object? ChangeToStoreType(Column column, JsonElement? jsonElement) {
-        object? convertedValue = column.StoreType switch {
-            StoreType.Text => jsonElement?.GetString(),
-            StoreType.Uuid => jsonElement?.GetGuid(),
-            StoreType.Timestamp => jsonElement?.GetDateTime(),
-            StoreType.Time => jsonElement?.GetDateTime() is DateTime dateTime ? TimeOnly.FromDateTime(dateTime) : null,
-            StoreType.Real => jsonElement?.GetDouble(),
-            StoreType.Integer => jsonElement?.GetInt64(),
-            StoreType.Date => jsonElement?.GetDateTime() is DateTime dateTime ? DateOnly.FromDateTime(dateTime) : null,
-            StoreType.Numeric => jsonElement?.GetDecimal(),
-            StoreType.Boolean => jsonElement?.GetBoolean(),
-            _ => throw new NotImplementedException(column.StoreType.ToString()),
-        };
-        return convertedValue;
-    }
+    public record DeleteRecordsInput(
+        string Path,
+        string Schema,
+        string Table,
+        string[] Columns,
+        JsonElement?[][] Records
+    ) { }
 
     public static IResult DeleteRecords(
         UserFileProvider fileProvider,
-        ChangeRecordsInput input
+        DeleteRecordsInput input
     ) {
         var fileInfo = fileProvider.GetFileInfo(input.Path);
-
         if (!fileInfo.Exists) {
             return Results.NotFound();
         }
 
-        var commandSql = Sql.Interpolate($"DELETE FROM {Sql.Identifier(input.TableName)} WHERE ({Sql.Join(") OR (", input.Records.Select(r =>
-            Sql.Join(" AND ", r.Select((value, i) =>
-                Sql.Interpolate($"{Sql.Identifier(input.ColumnNames[i])} = {Sql.Value(value)}")
-            ))
-        ))})");
+        var sql = Sql.Interpolate($"""
+            DELETE
+            FROM {Sql.Identifier(input.Schema, input.Table)}
+            WHERE ({Sql.Join(") OR (", input.Records.Select(r =>
+                Sql.Join(" AND ", r.Select((value, i) =>
+                    Sql.Interpolate($"{Sql.Identifier(input.Columns[i])} = {Sql.Value(value)}")
+                ))
+            ))})
+        """);
 
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
         };
-
         using var connection = new SqliteConnection(builder.ConnectionString);
-        using var command = connection.CreateCommand(commandSql);
         connection.Open();
-
-        // TODO: Exception handling
-        var changes = command.ExecuteNonQuery();
+        var changes = connection.Execute(sql);
 
         return Results.Ok(changes);
     }
