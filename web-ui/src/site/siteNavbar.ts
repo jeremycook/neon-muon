@@ -1,5 +1,5 @@
 import { CurrentLogin, Login } from '../login/loginInfo';
-import icon from '../ui/icons';
+import { icon } from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
 import { a, button, div, small, span } from '../utils/html';
 

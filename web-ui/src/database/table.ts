@@ -1,6 +1,6 @@
 import { FileNode, getDirectoryName } from '../files/files';
 import { siteCard } from '../site/siteCard';
-import icon from '../ui/icons';
+import { icon } from '../ui/icons';
 import { modalConfirm } from '../ui/modals';
 import { dynamic, lazy } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';

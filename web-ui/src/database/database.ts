@@ -1,5 +1,5 @@
 import { modalConfirm, modalPrompt } from '../ui/modals';
-import icon from '../ui/icons';
+import { icon } from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
 import { button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';

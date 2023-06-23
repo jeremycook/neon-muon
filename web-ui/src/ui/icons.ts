@@ -18,7 +18,7 @@ export type IconType = keyof typeof iconLookup;
 const fallbackDim = 16;
 const initialViewbox = '0 0 16 16';
 
-export default function icon(type: IconType | SubT<IconType>) {
+export function icon(type: IconType | SubT<IconType>) {
     const element = svg({ 'viewBox': initialViewbox, 'aria-hidden': '', class: 'icon' });
 
     if (typeof type === 'string') {
