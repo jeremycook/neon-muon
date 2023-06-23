@@ -24,7 +24,7 @@ function AuthenticatedNavbar(login: Login) {
                 span({ class: 'sr-only' }, 'Notifications'),
             ),
             div({ class: 'navbar-item dropdown' },
-                button({ type: 'button', id: 'site-navbar-user-dropdown' },
+                button({ id: 'site-navbar-user-dropdown' },
                     icon('person-regular'),
                     span({ class: 'sr-only' }, 'Profile'),
                 ),

@@ -77,9 +77,9 @@ public class RecordEndpoints {
 
     public record InsertRecordsInput(
         string Database,
-        string TableSchema,
-        string TableName,
-        string[] ColumnNames,
+        string Schema,
+        string Table,
+        string[] Columns,
         JsonElement?[][] Records,
         string[] ReturningColumns
     ) { }
@@ -101,9 +101,9 @@ public class RecordEndpoints {
         using var transaction = connection.BeginTransaction();
 
         var database = connection.GetDatabase();
-        var table = database.GetTable(input.TableSchema, input.TableName);
+        var table = database.GetTable(input.Schema, input.Table);
         var columnsByName = table.Columns.ToDictionary(o => o.Name);
-        var insertedColumns = input.ColumnNames
+        var insertedColumns = input.Columns
             .Select((name, i) => new { i, name, storeType = columnsByName[name].StoreType })
             .ToArray();
         var returningColumns = input.ReturningColumns.Length > 0
@@ -113,7 +113,7 @@ public class RecordEndpoints {
         var returningRecords = new List<object?[]>();
         foreach (var record in input.Records) {
             var sql = Sql.Interpolate($"""
-                INSERT INTO {Sql.Identifier(input.TableSchema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
+                INSERT INTO {Sql.Identifier(input.Schema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
                 VALUES ({Sql.Join(", ", insertedColumns.Select(o => Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], o.storeType) ?? DBNull.Value)))})
                 RETURNING {Sql.IdentifierList(returningColumns)}
             """);
@@ -196,7 +196,7 @@ public class RecordEndpoints {
     }
 
     public record DeleteRecordsInput(
-        string Path,
+        string Database,
         string Schema,
         string Table,
         string[] Columns,
@@ -207,26 +207,31 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         DeleteRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Path);
+        var fileInfo = fileProvider.GetFileInfo(input.Database);
         if (!fileInfo.Exists) {
             return Results.NotFound();
         }
-
-        var sql = Sql.Interpolate($"""
-            DELETE
-            FROM {Sql.Identifier(input.Schema, input.Table)}
-            WHERE ({Sql.Join(") OR (", input.Records.Select(r =>
-                Sql.Join(" AND ", r.Select((value, i) =>
-                    Sql.Interpolate($"{Sql.Identifier(input.Columns[i])} = {Sql.Value(value)}")
-                ))
-            ))})
-        """);
 
         var builder = new SqliteConnectionStringBuilder() {
             DataSource = fileInfo.PhysicalPath!,
         };
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
+
+        var database = connection.GetDatabase();
+        var table = database.GetTable(input.Schema, input.Table);
+        var columnsByName = table.Columns.ToDictionary(o => o.Name);
+        var storeTypes = input.Columns.Select(columnName => columnsByName[columnName].StoreType).ToArray();
+
+        var sql = Sql.Interpolate($"""
+            DELETE FROM {Sql.Identifier(input.Schema, input.Table)}
+            WHERE ({Sql.Join(") OR (", input.Records.Select(r =>
+                Sql.Join(" AND ", r.Select((value, i) =>
+                    Sql.Interpolate($"(({Sql.Identifier(input.Columns[i])} IS NULL AND {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(value, storeTypes[i]) ?? DBNull.Value)} IS NULL) OR {Sql.Identifier(input.Columns[i])} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(value, storeTypes[i]) ?? DBNull.Value)})")
+                ))
+            ))})
+        """);
+
         var changes = connection.Execute(sql);
 
         return Results.Ok(changes);

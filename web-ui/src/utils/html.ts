@@ -61,7 +61,7 @@ export function br(...data: TagParams<HTMLBRElement>[]) {
 }
 
 export function button(...data: TagParams<HTMLButtonElement>[]) {
-    return createHtmlElement('button', ...data);
+    return createHtmlElement('button', { type: 'button' }, ...data);
 }
 
 export function canvas(...data: TagParams<HTMLCanvasElement>[]) {

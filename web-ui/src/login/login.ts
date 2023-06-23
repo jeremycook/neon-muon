@@ -29,7 +29,7 @@ export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: stri
                 input({ type: 'password', required: true, oninput(ev: ValueEvent) { data.password = ev.target.value } }),
             ),
             div({ class: 'flex flex-between' },
-                button('Login'),
+                button({ type: 'submit' }, 'Login'),
                 a({ href: makeUrl('/register', { redirectUrl }) }, 'Register'),
             ),
         ),

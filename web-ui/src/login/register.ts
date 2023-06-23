@@ -27,7 +27,7 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
                 input({ type: 'password', id: 'password', required: true, oninput(ev: ValueEvent) { data.password = ev.target.value } }),
             ),
             div({ class: 'flex flex-between' },
-                button('Register'),
+                button({ type: 'submit' }, 'Register'),
                 a({ href: makeUrl('/login', { redirectUrl }) }, 'Login'),
             ),
         ),

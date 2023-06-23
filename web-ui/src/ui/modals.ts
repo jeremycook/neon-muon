@@ -45,7 +45,7 @@ export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
                 ...props,
 
                 div({ class: 'modal-footer' },
-                    button({
+                    button({ type: 'submit' }, {
                         onmount(ev: EventT<HTMLButtonElement>) {
                             const form = ev.currentTarget.form!;
                             if ((document.activeElement as any)?.form === form) {
@@ -58,7 +58,6 @@ export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
                         },
                     }, 'OK'),
                     button({
-                        type: 'button',
                         onclick() {
                             unmountElement(view);
                             resolve(false);
