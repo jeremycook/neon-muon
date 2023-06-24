@@ -1,5 +1,6 @@
 import { currentLogin } from '../login/loginInfo';
-import { jsonGet } from '../utils/http';
+import { modalPrompt } from '../ui/modals';
+import { jsonGet, jsonPost } from '../utils/http';
 import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
 import { makeUrl } from '../utils/url';
@@ -59,6 +60,18 @@ export async function getJsonFile<T>(path: string) {
     }
 }
 
+export async function promptRenameFileNode(fileNode: FileNode) {
+    const newName = await modalPrompt('Enter a new name for ' + fileNode.path + ':');
+
+    if (!newName) {
+        return undefined;
+    }
+
+    const response = await renameFileNode(fileNode.path, newName);
+    const result = response.getResultOrThrow();
+    return result.path;
+}
+
 export function getDirectoryName(path: string) {
     const slash = path.lastIndexOf('/');
     if (slash > -1) {
@@ -87,4 +100,10 @@ function _getRootFromStorage() {
     else {
         return new FileNode();
     }
+}
+export async function renameFileNode(path: string, newName: string) {
+    return await jsonPost<FileNode>('/api/rename-file', {
+        path,
+        newName
+    });
 }

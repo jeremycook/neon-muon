@@ -26,6 +26,7 @@ internal class Program {
         // Files
         app.MapGet("/api/file-node", FileEndpoints.GetRootFileNode).RequireAuthorization("Admin");
         app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
+        app.MapPost("/api/rename-file", FileEndpoints.RenameFile).RequireAuthorization("Admin");
 
         // Database
         app.MapGet("/api/database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");

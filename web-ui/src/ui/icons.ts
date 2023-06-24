@@ -5,9 +5,11 @@ const iconLookup = {
     'alert-regular': () => import('@iconify-icons/fluent/alert-16-regular'),
     'caret-right-regular': () => import('@iconify-icons/fluent/caret-right-16-regular'),
     'delete-regular': () => import('@iconify-icons/fluent/delete-16-regular'),
+    'arrow-download-regular': () => import('@iconify-icons/fluent/arrow-download-16-regular'),
     'home-regular': () => import('@iconify-icons/fluent/home-16-regular'),
     'mail-read-regular': () => import('@iconify-icons/fluent/mail-read-16-regular'),
     'mail-unread-regular': () => import('@iconify-icons/fluent/mail-unread-16-regular'),
+    'rename-regular': () => import('@iconify-icons/fluent/rename-16-regular'),
     'person-regular': () => import('@iconify-icons/fluent/person-16-regular'),
     'sparkle-regular': () => import('@iconify-icons/fluent/sparkle-16-regular'),
 }
@@ -18,6 +20,7 @@ export type IconType = keyof typeof iconLookup;
 const fallbackDim = 16;
 const initialViewbox = '0 0 16 16';
 
+/** Find more at: https://icon-sets.iconify.design/fluent/ */
 export function icon(type: IconType | SubT<IconType>) {
     const element = svg({ 'viewBox': initialViewbox, 'aria-hidden': '', class: 'icon' });
 

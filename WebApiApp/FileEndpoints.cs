@@ -77,4 +77,31 @@ public static class FileEndpoints {
 
         return Results.File(fileInfo.PhysicalPath!, fileDownloadName: fileInfo.Name);
     }
+
+    public record RenameFileInput(string Path, string NewName);
+
+    public static IResult RenameFile(
+        UserFileProvider userFileProvider,
+        RenameFileInput input
+    ) {
+        var fileInfo = userFileProvider.GetFileInfo(input.Path);
+
+        if (!fileInfo.Exists) {
+            return Results.NotFound();
+        }
+
+        var dir = Path.GetDirectoryName(input.Path);
+        var newPath = Path.Combine(dir, input.NewName);
+
+        var movedFileInfo = userFileProvider.GetFileInfo(newPath);
+
+        if (movedFileInfo.Exists) {
+            return Results.BadRequest("A file already exists where this file would be moved to.");
+        }
+
+        File.Move(fileInfo.PhysicalPath!, movedFileInfo.PhysicalPath!);
+
+        var fileNode = GetFileNode(userFileProvider, movedFileInfo);
+        return Results.Ok(fileNode);
+    }
 }
