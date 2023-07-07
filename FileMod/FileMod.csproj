@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="7.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DatabaseMod\DatabaseMod.csproj" />
+    <ProjectReference Include="..\SqliteMod\SqliteMod.csproj" />
+  </ItemGroup>
+
 </Project>

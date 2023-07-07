@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using NotebookMod;
 using SqliteMod;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,13 +23,13 @@ internal class Program {
         app.MapGet("/api/login-info", LoginEndpoints.LoginInfo).AllowAnonymous();
 
         // Files
-        app.MapGet("/api/file-node", FileEndpoints.GetRootFileNode).RequireAuthorization("Admin");
-        app.MapGet("/api/file", FileEndpoints.GetFile).RequireAuthorization("Admin");
-        app.MapPost("/api/rename-file", FileEndpoints.RenameFile).RequireAuthorization("Admin");
+        app.MapGet("/api/download-file", FileEndpoints.DownloadFile).RequireAuthorization("Admin");
+        app.MapGet("/api/get-file-node", FileEndpoints.GetFileNode).RequireAuthorization("Admin");
+        app.MapPost("/api/move-file", FileEndpoints.MoveFile).RequireAuthorization("Admin");
 
         // Database
-        app.MapGet("/api/database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");
-        app.MapPost("/api/database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
+        app.MapGet("/api/get-database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");
+        app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
 
         // Database records
         app.MapPut("/api/select-records", RecordEndpoints.SelectRecords).RequireAuthorization("Admin");
@@ -108,11 +107,6 @@ internal class Program {
                 //    var database = new Database<ContentContext>();
                 //    database.ContributeQueryContext(typeof(ContentContext));
                 //}
-
-                // Notebooks
-                {
-                    serviceCollection.AddSingleton<NotebookManagerProvider>();
-                }
 
                 app = builder.Build();
             }

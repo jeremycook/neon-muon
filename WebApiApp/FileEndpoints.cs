@@ -1,107 +1,60 @@
 ﻿using DatabaseMod.Models;
 using FileMod;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.FileProviders;
 using SqliteMod;
 
 namespace WebApiApp;
 
-public static class FileEndpoints {
-    public static FileNode GetRootFileNode(
-        UserFileProvider fileProvider
+public class FileEndpoints {
+    public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
+        FileNode fileNode = fileProvider.GetFileNode(path);
+
+        if (fileNode.Name.EndsWith(".db")) {
+            fileNode = GetDatabaseFileNode(fileProvider, path);
+        }
+
+        return fileNode;
+    }
+
+    public static IResult DownloadFile(
+        UserFileProvider userFileProvider,
+        string path
     ) {
-        var rootFileNode = new FileNode("", "", true, fileProvider.GetDirectoryContents("").Select(fi => GetFileNode(fileProvider, fi)).ToArray());
-        return rootFileNode;
+        var physicalPath = userFileProvider.GetFullPath(path);
+        return Results.File(physicalPath, fileDownloadName: Path.GetFileName(path));
     }
 
-    private static FileNode GetFileNode(IFileProvider fileProvider, IFileInfo fileInfo) {
-        string subpath = fileInfo.Name;
-        if (fileInfo.IsDirectory) {
-            return new FileNode(fileInfo.Name, subpath, true, fileProvider.GetDirectoryContents(subpath).Select(fi => GetFileNode(fileProvider, fi, subpath)).ToArray());
-        }
-        else if (fileInfo.Name.EndsWith(".db")) {
-            return GetDatabaseFileNode(fileInfo, subpath);
-        }
-        else {
-            return new FileNode(fileInfo.Name, subpath, false, null);
-        }
+    public record MoveFileInput(string Path, string NewPath);
+    public static void MoveFile(
+        UserFileProvider userFileProvider,
+        MoveFileInput input
+    ) {
+        userFileProvider.Move(input.Path, input.NewPath);
     }
 
-    private static FileNode GetFileNode(IFileProvider fileProvider, IFileInfo fileInfo, string prefix) {
-        string subpath = prefix + "/" + fileInfo.Name;
-        if (fileInfo.IsDirectory) {
-            return new FileNode(fileInfo.Name, subpath, true, fileProvider.GetDirectoryContents(subpath).Select(fi => GetFileNode(fileProvider, fi, subpath)).ToArray());
-        }
-        else if (fileInfo.Name.EndsWith(".db")) {
-            return GetDatabaseFileNode(fileInfo, subpath);
-        }
-        else {
-            return new FileNode(fileInfo.Name, subpath, false, null);
-        }
-    }
+    private static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, string path) {
+        string fullPath = fileProvider.GetFullPath(path);
+        string filename = Path.GetFileName(fullPath);
 
-    /// <summary>
-    /// List the database and its tables
-    /// </summary>
-    /// <param name="fileInfo"></param>
-    /// <param name="subpath"></param>
-    /// <returns></returns>
-    private static FileNode GetDatabaseFileNode(IFileInfo fileInfo, string subpath) {
         var database = new Database();
         {
             var builder = new SqliteConnectionStringBuilder() {
-                DataSource = fileInfo.PhysicalPath!,
+                DataSource = fullPath,
+                Mode = SqliteOpenMode.ReadOnly,
             };
             using var connection = new SqliteConnection(builder.ConnectionString);
             connection.Open();
             database.ContributeSqlite(connection);
         }
 
-        FileNode[] children = database.Schemas
-            .SelectMany(schema => schema.Tables)
-            .Select(table => new FileNode(table.Name, subpath + "/" + table.Name, false, null))
-            .ToArray();
+        var children = database.Schemas
+            .SelectMany(schema => schema.Name == string.Empty
+                ? schema.Tables.Select(table => new FileNode(table.Name, path + "/main/" + table.Name, false, null))
+                : schema.Tables.Select(table => new FileNode(table.Name, path + "/" + schema.Name + "/" + table.Name, false, null))
+            )
+            .OrderBy(table => table.Name)
+            .ToList();
 
-        return new FileNode(fileInfo.Name, subpath, true, children);
-    }
-
-    public static IResult GetFile(
-        UserFileProvider userFileProvider,
-        string path
-    ) {
-        var fileInfo = userFileProvider.GetFileInfo(path);
-
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
-
-        return Results.File(fileInfo.PhysicalPath!, fileDownloadName: fileInfo.Name);
-    }
-
-    public record RenameFileInput(string Path, string NewName);
-
-    public static IResult RenameFile(
-        UserFileProvider userFileProvider,
-        RenameFileInput input
-    ) {
-        var fileInfo = userFileProvider.GetFileInfo(input.Path);
-
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
-
-        var dir = Path.GetDirectoryName(input.Path);
-        var newPath = Path.Combine(dir, input.NewName);
-
-        var movedFileInfo = userFileProvider.GetFileInfo(newPath);
-
-        if (movedFileInfo.Exists) {
-            return Results.BadRequest("A file already exists where this file would be moved to.");
-        }
-
-        File.Move(fileInfo.PhysicalPath!, movedFileInfo.PhysicalPath!);
-
-        var fileNode = GetFileNode(userFileProvider, movedFileInfo);
-        return Results.Ok(fileNode);
+        return new FileNode(filename, path, true, children);
     }
 }

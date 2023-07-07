@@ -1,6 +1,7 @@
 ﻿using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using NotebookMod;
+using FileMod;
+using Microsoft.Data.Sqlite;
 using SqliteMod;
 
 namespace WebApiApp;
@@ -8,26 +9,28 @@ namespace WebApiApp;
 public class DatabaseEndpoints {
 
     public static Database GetDatabase(
-        NotebookManagerProvider notebookManagerProvider,
+        UserFileProvider fileProvider,
         string path
     ) {
-        var notebookManager = notebookManagerProvider.GetNotebookManager(path);
+        var fullPath = fileProvider.GetFullPath(path);
 
-        var database = new Database();
-        {
-            using var connection = notebookManager.CreateConnection();
-            connection.Open();
-            database.ContributeSqlite(connection);
-        }
+        var builder = new SqliteConnectionStringBuilder() {
+            DataSource = fullPath,
+            Mode = SqliteOpenMode.ReadOnly,
+        };
+        using var connection = new SqliteConnection(builder.ConnectionString);
+        connection.Open();
+
+        var database = connection.GetDatabase();
         return database;
     }
 
     public static IResult AlterDatabase(
-        NotebookManagerProvider notebookManagerProvider,
+        UserFileProvider fileProvider,
         string path,
         DatabaseAlteration[] databaseAlterations
     ) {
-        var notebookManager = notebookManagerProvider.GetNotebookManager(path);
+        var fullPath = fileProvider.GetFullPath(path);
 
         var validAlterations = new[] {
             typeof(CreateColumn),
@@ -48,15 +51,22 @@ public class DatabaseEndpoints {
 
         var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(databaseAlterations);
 
-        using var connection = notebookManager.CreateConnection();
+        var builder = new SqliteConnectionStringBuilder() {
+            DataSource = fullPath,
+        };
+        using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
-        try {
-            foreach (var sql in sqlStatements) {
-                connection.Execute(sql);
+        using (var transaction = connection.BeginTransaction()) {
+            try {
+                foreach (var sql in sqlStatements) {
+                    connection.Execute(sql);
+                }
             }
-        }
-        catch (Exception ex) {
-            return Results.BadRequest(ex.Message);
+            catch (Exception ex) {
+                return Results.BadRequest(ex.Message);
+            }
+
+            transaction.Commit();
         }
 
         return Results.Ok();

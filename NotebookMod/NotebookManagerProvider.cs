@@ -9,7 +9,7 @@ public class NotebookManagerProvider {
         return manager;
     }
 
-    private readonly PhysicalFileProvider userFileProvider;
+    private readonly UserFileProvider userFileProvider;
 
     public NotebookManagerProvider(UserFileProvider userFileProvider) {
         this.userFileProvider = userFileProvider;

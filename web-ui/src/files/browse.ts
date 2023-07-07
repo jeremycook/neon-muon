@@ -5,7 +5,7 @@ import { pagePage as pageApp } from '../notebooks/page';
 import { icon } from '../ui/icons';
 import { a, button, div, h1, li, ul } from '../utils/html';
 import { makeUrl, redirect } from '../utils/url';
-import { FileNode, root, refreshRoot, promptRenameFileNode } from './files';
+import { FileNode, root, refreshRoot, promptMoveFileNode } from './files';
 
 const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node | Promise<undefined | Node>)))[] = [
     ({ path }: { path: string; }) => path.endsWith('.page') && pageApp,
@@ -55,11 +55,17 @@ function defaultDirectoryApp({ fileNode }: { fileNode: FileNode; }) {
         h1(fileNode.name),
         div({ class: 'flex gap mb' },
             button({ class: 'button' }, {
-                onclick() {
-
+                async onclick() {
+                    const newFilePath = await promptMoveFileNode(fileNode);
+                    if (newFilePath) {
+                        console.log(newFilePath);
+                        await refreshRoot();
+                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        return;
+                    }
                 }
             },
-                icon('rename-regular'), ' Rename'
+                icon('rename-regular'), ' Move'
             ),
             button({ class: 'button' }, {
                 onclick() {
@@ -76,21 +82,26 @@ function defaultDirectoryApp({ fileNode }: { fileNode: FileNode; }) {
         ))
     );
 }
+
 function defaultFileApp({ fileNode }: { fileNode: FileNode; }) {
     return div(
         h1(fileNode.name),
         div({ class: 'flex gap' },
-            a({ class: 'button', href: makeUrl('/api/file', { path: fileNode.path }) },
+            a({ class: 'button', href: makeUrl('/api/download-file', { path: fileNode.path }) },
                 icon('arrow-download-regular'), ' Download'
             ),
             button({ class: 'button' }, {
                 async onclick() {
-                    const newFilePath = await promptRenameFileNode(fileNode);
-                    await refreshRoot();
-                    redirect(makeUrl('/browse', { path: newFilePath }));
+                    const newFilePath = await promptMoveFileNode(fileNode);
+                    if (newFilePath) {
+                        console.log(newFilePath);
+                        await refreshRoot();
+                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        return;
+                    }
                 }
             },
-                icon('rename-regular'), ' Rename'
+                icon('rename-regular'), ' Move'
             ),
             button({ class: 'button' }, {
                 onclick() {

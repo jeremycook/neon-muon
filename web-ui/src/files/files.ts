@@ -1,5 +1,5 @@
 import { currentLogin } from '../login/loginInfo';
-import { modalPrompt } from '../ui/modals';
+import { modalConfirm, modalPrompt } from '../ui/modals';
 import { jsonGet, jsonPost } from '../utils/http';
 import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
@@ -51,7 +51,7 @@ export async function refreshRoot() {
 };
 
 export async function getJsonFile<T>(path: string) {
-    const response = await jsonGet<T>(makeUrl('/api/file', { path }));
+    const response = await jsonGet<T>(makeUrl('/api/download-file', { path }));
     if (response.result) {
         return response.result;
     }
@@ -60,16 +60,21 @@ export async function getJsonFile<T>(path: string) {
     }
 }
 
-export async function promptRenameFileNode(fileNode: FileNode) {
-    const newName = await modalPrompt('Enter a new name for ' + fileNode.path + ':');
+export async function promptMoveFileNode(fileNode: FileNode) {
+    const newPath = await modalPrompt('Enter a new path:', '', fileNode.path);
 
-    if (!newName) {
+    if (!newPath) {
         return undefined;
     }
 
-    const response = await renameFileNode(fileNode.path, newName);
-    const result = response.getResultOrThrow();
-    return result.path;
+    const response = await moveFileNode(fileNode.path, newPath);
+    if (response.ok) {
+        await refreshRoot();
+        return newPath;
+    }
+    else {
+        await modalConfirm(response.errorMessage ?? 'An error occured.');
+    }
 }
 
 export function getDirectoryName(path: string) {
@@ -83,7 +88,7 @@ export function getDirectoryName(path: string) {
 }
 
 async function _getRootFromServer() {
-    const response = await jsonGet<FileNode>('/api/file-node');
+    const response = await jsonGet<FileNode>(makeUrl('/api/get-file-node', { path: '' }));
     if (response.result) {
         return new FileNode(response.result);
     }
@@ -101,9 +106,9 @@ function _getRootFromStorage() {
         return new FileNode();
     }
 }
-export async function renameFileNode(path: string, newName: string) {
-    return await jsonPost<FileNode>('/api/rename-file', {
+export async function moveFileNode(path: string, newPath: string) {
+    return await jsonPost('/api/move-file', {
         path,
-        newName
+        newPath,
     });
 }

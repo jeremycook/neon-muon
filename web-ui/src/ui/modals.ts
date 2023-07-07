@@ -1,8 +1,7 @@
 import { EventT, TagParams, mountElement, unmountElement } from '../utils/etc';
 import { button, div, form, h2, input, label } from '../utils/html';
 
-export async function modalPrompt(text: string, title: string | undefined = undefined) {
-
+export async function modalPrompt(text: string, title: string = '', initialValue: string = '') {
     let data = '';
 
     const confirmed = await modalConfirm(
@@ -11,6 +10,7 @@ export async function modalPrompt(text: string, title: string | undefined = unde
             div(text),
             input({
                 autofocus: true,
+                value: initialValue,
                 onchange(ev: Event) { data = (ev.target as HTMLInputElement).value }
             })
         )

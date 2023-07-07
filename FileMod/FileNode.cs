@@ -1,3 +1,4 @@
 ﻿namespace FileMod;
 
-public record FileNode(string Name, string Path, bool IsExpandable, FileNode[]? Children);
+// TODO: Change IsExpandable to HasChildren
+public record FileNode(string Name, string Path, bool IsExpandable, List<FileNode>? Children);

@@ -219,7 +219,7 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
 //#region API
 
 export async function getDatabase(databasePath: string) {
-    const url = makeUrl('/api/database', { path: databasePath });
+    const url = makeUrl('/api/get-database', { path: databasePath });
     const response = await jsonGet<Database>(url);
     if (response.result) {
         return new Database(response.result);
@@ -230,7 +230,7 @@ export async function getDatabase(databasePath: string) {
 }
 
 export async function alterDatabase(databasePath: string, ...alterations: any[]) {
-    const url = makeUrl('/api/database', { path: databasePath });
+    const url = makeUrl('/api/alter-database', { path: databasePath });
     const response = await jsonPost(url, alterations);
     return response;
 }

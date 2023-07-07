@@ -26,14 +26,10 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         SelectRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Database);
-
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
+        var fullPath = fileProvider.GetFullPath(input.Database);
 
         var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fileInfo.PhysicalPath!,
+            DataSource = fullPath,
             Mode = SqliteOpenMode.ReadOnly,
         };
         using var connection = new SqliteConnection(builder.ConnectionString);
@@ -88,13 +84,10 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         InsertRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Database);
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
+        var fullPath = fileProvider.GetFullPath(input.Database);
 
         var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fileInfo.PhysicalPath!,
+            DataSource = fullPath,
         };
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
@@ -138,14 +131,10 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         UpdateRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Database);
-
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
+        var fullPath = fileProvider.GetFullPath(input.Database);
 
         var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fileInfo.PhysicalPath!,
+            DataSource = fullPath,
         };
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
@@ -207,13 +196,10 @@ public class RecordEndpoints {
         UserFileProvider fileProvider,
         DeleteRecordsInput input
     ) {
-        var fileInfo = fileProvider.GetFileInfo(input.Database);
-        if (!fileInfo.Exists) {
-            return Results.NotFound();
-        }
+        var fullPath = fileProvider.GetFullPath(input.Database);
 
         var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fileInfo.PhysicalPath!,
+            DataSource = fullPath,
         };
         using var connection = new SqliteConnection(builder.ConnectionString);
         connection.Open();
