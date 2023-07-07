@@ -182,8 +182,6 @@ export async function moveFileNode(path: string, newPath: string) {
     });
 }
 
-
-
 export function getFilesFromDataTransfer(dataTransfer: DataTransfer | null) {
     const files: File[] = [];
     if (dataTransfer) {

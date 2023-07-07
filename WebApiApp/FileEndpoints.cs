@@ -42,26 +42,20 @@ public class FileEndpoints {
     ) {
         var fullPath = userFileProvider.GetFullPath(path);
 
-        string directory;
-        if (Directory.Exists(fullPath)) {
-            directory = path;
-        }
-        else if (File.Exists(fullPath)) {
-            var segments = path.Split('/');
-            directory = string.Join('/', segments.Take(segments.Length - 1));
-        }
-        else {
+        if (!Directory.Exists(fullPath)) {
             throw new ArgumentException($"The path is invalid.", nameof(path));
         }
 
+        var prefix = path != string.Empty ? path + '/' : string.Empty;
         var uploads = httpContext.Request.Form.Files
             .Select(file => (
                 file,
-                path: directory + '/' + file.FileName,
-                destinationPath: userFileProvider.GetFullPath(directory + '/' + file.FileName)
+                path: prefix + file.FileName,
+                destinationPath: userFileProvider.GetFullPath(prefix + file.FileName)
             ))
             .ToArray();
 
+        // TODO: Rename files if they already exist instead of erroring out
         var alreadyExists = uploads.Where(upload => Path.Exists(upload.destinationPath));
         if (alreadyExists.Any()) {
             return Results.BadRequest($"The following files already exist: {string.Join("; ", alreadyExists.Select(x => x.path))}. No files were uploaded.");
