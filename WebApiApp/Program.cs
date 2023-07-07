@@ -26,6 +26,7 @@ internal class Program {
         app.MapGet("/api/download-file", FileEndpoints.DownloadFile).RequireAuthorization("Admin");
         app.MapGet("/api/get-file-node", FileEndpoints.GetFileNode).RequireAuthorization("Admin");
         app.MapPost("/api/move-file", FileEndpoints.MoveFile).RequireAuthorization("Admin");
+        app.MapPost("/api/upload-files", FileEndpoints.UploadFiles).RequireAuthorization("Admin");
 
         // Database
         app.MapGet("/api/get-database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");

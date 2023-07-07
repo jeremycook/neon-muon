@@ -228,7 +228,7 @@ svg.icon {
     left: 0;
     right: 0;
     padding: var(--100);
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     display: flex;
     flex-direction: column;

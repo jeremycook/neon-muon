@@ -7,10 +7,13 @@ namespace WebApiApp;
 
 public class FileEndpoints {
     public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
-        FileNode fileNode = fileProvider.GetFileNode(path);
 
-        if (fileNode.Name.EndsWith(".db")) {
+        FileNode fileNode;
+        if (path.EndsWith(".db")) {
             fileNode = GetDatabaseFileNode(fileProvider, path);
+        }
+        else {
+            fileNode = fileProvider.GetFileNode(path);
         }
 
         return fileNode;
@@ -30,6 +33,47 @@ public class FileEndpoints {
         MoveFileInput input
     ) {
         userFileProvider.Move(input.Path, input.NewPath);
+    }
+
+    public static IResult UploadFiles(
+        HttpContext httpContext,
+        UserFileProvider userFileProvider,
+        string path
+    ) {
+        var fullPath = userFileProvider.GetFullPath(path);
+
+        string directory;
+        if (Directory.Exists(fullPath)) {
+            directory = path;
+        }
+        else if (File.Exists(fullPath)) {
+            var segments = path.Split('/');
+            directory = string.Join('/', segments.Take(segments.Length - 1));
+        }
+        else {
+            throw new ArgumentException($"The path is invalid.", nameof(path));
+        }
+
+        var uploads = httpContext.Request.Form.Files
+            .Select(file => (
+                file,
+                path: directory + '/' + file.FileName,
+                destinationPath: userFileProvider.GetFullPath(directory + '/' + file.FileName)
+            ))
+            .ToArray();
+
+        var alreadyExists = uploads.Where(upload => Path.Exists(upload.destinationPath));
+        if (alreadyExists.Any()) {
+            return Results.BadRequest($"The following files already exist: {string.Join("; ", alreadyExists.Select(x => x.path))}. No files were uploaded.");
+        }
+
+        foreach (var (file, _, destinationPath) in uploads) {
+            using var source = file.OpenReadStream();
+            using var destination = File.Open(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            source.CopyTo(destination);
+        }
+
+        return Results.Ok();
     }
 
     private static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, string path) {

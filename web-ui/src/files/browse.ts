@@ -1,11 +1,8 @@
-import { databaseApp as databaseApp } from '../database/database';
+import { databaseApp } from '../database/database';
 import { tableApp } from '../database/table';
 import { notFoundPage } from '../errors/not-found';
 import { pagePage as pageApp } from '../notebooks/page';
-import { icon } from '../ui/icons';
-import { a, button, div, h1, li, ul } from '../utils/html';
-import { makeUrl, redirect } from '../utils/url';
-import { FileNode, root, refreshRoot, promptMoveFileNode } from './files';
+import { fileApp, folderApp, refreshRoot, root } from './files';
 
 const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node | Promise<undefined | Node>)))[] = [
     ({ path }: { path: string; }) => path.endsWith('.page') && pageApp,
@@ -43,73 +40,9 @@ export async function browsePage(props: { path: string; }) {
     }
 
     if (fileNode.isExpandable) {
-        return defaultDirectoryApp(appProps);
+        return folderApp(appProps);
     }
     else {
-        return defaultFileApp(appProps);
+        return fileApp(appProps);
     }
-}
-
-function defaultDirectoryApp({ fileNode }: { fileNode: FileNode; }) {
-    return div(
-        h1(fileNode.name),
-        div({ class: 'flex gap mb' },
-            button({ class: 'button' }, {
-                async onclick() {
-                    const newFilePath = await promptMoveFileNode(fileNode);
-                    if (newFilePath) {
-                        console.log(newFilePath);
-                        await refreshRoot();
-                        redirect(makeUrl('/browse', { path: newFilePath }));
-                        return;
-                    }
-                }
-            },
-                icon('rename-regular'), ' Move'
-            ),
-            button({ class: 'button' }, {
-                onclick() {
-
-                }
-            },
-                icon('delete-regular'), ' Delete'
-            ),
-        ),
-        ul(...fileNode.children!.map(item =>
-            li(
-                a({ href: makeUrl('/browse', { path: item.path }) }, item.name)
-            )
-        ))
-    );
-}
-
-function defaultFileApp({ fileNode }: { fileNode: FileNode; }) {
-    return div(
-        h1(fileNode.name),
-        div({ class: 'flex gap' },
-            a({ class: 'button', href: makeUrl('/api/download-file', { path: fileNode.path }) },
-                icon('arrow-download-regular'), ' Download'
-            ),
-            button({ class: 'button' }, {
-                async onclick() {
-                    const newFilePath = await promptMoveFileNode(fileNode);
-                    if (newFilePath) {
-                        console.log(newFilePath);
-                        await refreshRoot();
-                        redirect(makeUrl('/browse', { path: newFilePath }));
-                        return;
-                    }
-                }
-            },
-                icon('rename-regular'), ' Move'
-            ),
-            button({ class: 'button' }, {
-                onclick() {
-
-                }
-            },
-                icon('delete-regular'), ' Delete'
-            ),
-        )
-    );
 }
