@@ -23,7 +23,6 @@ export function proxy<TValue extends object>(value: TValue): TValue & PubSub {
 
     const handler: ProxyHandler<TValue> = {
         get(target, p, receiver) {
-            console.log(target, p, receiver)
             switch (p) {
                 case 'pub':
                     return pub;
@@ -36,7 +35,6 @@ export function proxy<TValue extends object>(value: TValue): TValue & PubSub {
             }
         },
         set(target, p, newValue, receiver) {
-            console.log(target, p, newValue, receiver)
             if ((target as any)[p] !== newValue) {
                 const result = Reflect.set(target, p, newValue, receiver);
                 pub();

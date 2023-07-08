@@ -7,17 +7,26 @@ import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
 import { makeUrl, redirect } from '../utils/url';
 
-
-
 export function folderApp({ fileNode }: { fileNode: FileNode; }) {
     return div(
         h1(fileNode.name),
         div({ class: 'flex gap mb' },
             button({ class: 'button' }, {
                 async onclick() {
-                    const newFilePath = await promptMoveFileNode(fileNode);
+                    const newFilePath = await promptCreateFile(fileNode);
                     if (newFilePath) {
-                        console.log(newFilePath);
+                        await refreshRoot();
+                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        return;
+                    }
+                }
+            },
+                icon('sparkle-regular'), ' Create'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const newFilePath = await promptMoveFile(fileNode);
+                    if (newFilePath) {
                         await refreshRoot();
                         redirect(makeUrl('/browse', { path: newFilePath }));
                         return;
@@ -51,9 +60,8 @@ export function fileApp({ fileNode }: { fileNode: FileNode; }) {
             ),
             button({ class: 'button' }, {
                 async onclick() {
-                    const newFilePath = await promptMoveFileNode(fileNode);
+                    const newFilePath = await promptMoveFile(fileNode);
                     if (newFilePath) {
-                        console.log(newFilePath);
                         await refreshRoot();
                         redirect(makeUrl('/browse', { path: newFilePath }));
                         return;
@@ -118,7 +126,7 @@ export async function refreshRoot() {
     sessionStorage.setItem(_rootStorageKey(), JSON.stringify(fileNode));
 };
 
-export async function getJsonFile<T>(path: string) {
+export async function downloadJsonFile<T>(path: string) {
     const response = await jsonGet<T>(makeUrl('/api/download-file', { path }));
     if (response.result) {
         return response.result;
@@ -128,14 +136,33 @@ export async function getJsonFile<T>(path: string) {
     }
 }
 
-export async function promptMoveFileNode(fileNode: FileNode) {
+export async function promptCreateFile(parentNode: FileNode) {
+    const fileName = await modalPrompt('Name of new file:');
+
+    if (!fileName) {
+        return undefined;
+    }
+
+    const path = parentNode.path + '/' + fileName;
+    
+    const response = await createFile(path);
+    if (response.ok) {
+        await refreshRoot();
+        return path;
+    }
+    else {
+        await modalConfirm(response.errorMessage ?? 'An error occured.');
+    }
+}
+
+export async function promptMoveFile(fileNode: FileNode) {
     const newPath = await modalPrompt('Enter a new path:', '', fileNode.path);
 
     if (!newPath) {
         return undefined;
     }
 
-    const response = await moveFileNode(fileNode.path, newPath);
+    const response = await moveFile(fileNode.path, newPath);
     if (response.ok) {
         await refreshRoot();
         return newPath;
@@ -175,7 +202,13 @@ function _getRootFromStorage() {
     }
 }
 
-export async function moveFileNode(path: string, newPath: string) {
+export async function createFile(path: string) {
+    return await jsonPost('/api/create-file', {
+        path,
+    });
+}
+
+export async function moveFile(path: string, newPath: string) {
     return await jsonPost('/api/move-file', {
         path,
         newPath,

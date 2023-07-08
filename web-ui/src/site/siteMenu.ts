@@ -1,4 +1,4 @@
-import { FileNode, getFilesFromDataTransfer, moveFileNode, refreshRoot, root, uploadFiles } from '../files/files.ts';
+import { FileNode, getFilesFromDataTransfer, moveFile, refreshRoot, root, uploadFiles } from '../files/files.ts';
 import { isAuthenticated } from '../login/loginInfo.ts';
 import { nestedListUI } from '../ui/nestedUI.ts';
 import { dynamic, when } from '../utils/dynamicHtml.ts';
@@ -48,7 +48,7 @@ function _fileNodeRender(item: FileNode): Node[] {
                 if (json) {
                     const fileNode = <FileNode>JSON.parse(ev.dataTransfer!.getData('text/x-file-node'));
                     const newPath = (destinationDirectory ? destinationDirectory + '/' : '') + fileNode.name;
-                    const response = await moveFileNode(fileNode.path, newPath);
+                    const response = await moveFile(fileNode.path, newPath);
                     if (response.errorMessage) {
                         alert(response.errorMessage);
                     }

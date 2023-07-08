@@ -1,4 +1,6 @@
-﻿namespace FileMod;
+﻿using System.Text;
+
+namespace FileMod;
 
 public class UserFileProvider {
     private readonly string basePath;
@@ -11,10 +13,31 @@ public class UserFileProvider {
         this.basePath = basePath;
     }
 
+    /// <summary>
+    /// Creates a UTF-8 text file at <paramref name="path"/>.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public void CreateTextFile(string path) {
+        var fullPath = GetFullPath(path);
+
+        if (Path.Exists(fullPath)) {
+            throw new ArgumentException($"A file or directory already exists at {path}.", nameof(path));
+        }
+
+        File.WriteAllText(fullPath, "", Encoding.UTF8);
+    }
+
     public bool Exists(string path) {
         return Path.Exists(GetFullPath(path));
     }
 
+    /// <summary>
+    /// Changes the file or directory at <paramref name="path"/> to <paramref name="newPath"/>.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <param name="newPath"></param>
+    /// <exception cref="ArgumentException"></exception>
     public void Move(string path, string newPath) {
         var fullPath = GetFullPath(path);
         var newFullPath = GetFullPath(newPath);

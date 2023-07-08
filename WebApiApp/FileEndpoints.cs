@@ -6,6 +6,14 @@ using SqliteMod;
 namespace WebApiApp;
 
 public class FileEndpoints {
+    public record CreateFileInput(string Path);
+    public static void CreateFile(
+        UserFileProvider userFileProvider,
+        CreateFileInput input
+    ) {
+        userFileProvider.CreateTextFile(input.Path);
+    }
+
     public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
 
         FileNode fileNode;

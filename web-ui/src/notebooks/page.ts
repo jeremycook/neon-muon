@@ -1,11 +1,11 @@
-import { FileNode, getJsonFile } from '../files/files';
+import { FileNode, downloadJsonFile } from '../files/files';
 import { dynamic } from '../utils/dynamicHtml';
 import { div, h1 } from '../utils/html';
 import { val } from '../utils/pubSub';
 
 export async function pagePage({ fileNode }: { fileNode: FileNode }) {
 
-    const page = await getJsonFile<Page>(fileNode.path);
+    const page = await downloadJsonFile<Page>(fileNode.path);
 
     if (!page) {
         return;

@@ -128,7 +128,6 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
 
                         if (name === 'autofocus' && val === true) {
                             element.addEventListener('mount', (ev: any) => {
-                                console.log(ev);
                                 if (_isInViewport(ev.currentTarget)) {
                                     ev.currentTarget.focus();
                                 }
@@ -136,7 +135,6 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                         }
                         else if (name === 'autoselect' && val === true) {
                             element.addEventListener('mount', (ev: any) => {
-                                console.log(ev);
                                 if (_isInViewport(ev.currentTarget)) {
                                     ev.currentTarget.focus();
                                     ev.currentTarget.select();
