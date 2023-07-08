@@ -61,10 +61,6 @@ internal class Program {
                     }
                 }
 
-                // OpenAPI https://aka.ms/aspnetcore/swashbuckle
-                serviceCollection.AddEndpointsApiExplorer();
-                serviceCollection.AddSwaggerGen();
-
                 // Auth
                 serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                     .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
@@ -172,25 +168,10 @@ internal class Program {
                     app.MapReverseProxy();
                 }
 
-                app.UseSwagger();
-                app.UseSwaggerUI();
-
                 app.UseRouting();
 
                 app.UseAuthentication();
                 app.UseAuthorization();
-
-                // Require authentication to access Swagger
-                app.Use(async (context, next) => {
-                    var path = context.Request.Path;
-                    if (path.Value?.Contains("/swagger/", StringComparison.OrdinalIgnoreCase) == true) {
-                        if (!context.User.Identity!.IsAuthenticated) {
-                            context.Response.Redirect("/login");
-                            return;
-                        }
-                    }
-                    await next();
-                });
 
                 //app.MapControllers();
 
