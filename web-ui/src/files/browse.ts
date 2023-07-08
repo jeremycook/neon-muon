@@ -5,6 +5,7 @@ import { pagePage as pageApp } from '../notebooks/page';
 import { fileApp, folderApp, refreshRoot, root } from './files';
 
 const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node | Promise<undefined | Node>)))[] = [
+    ({ path }: { path?: string; }) => !path && folderApp,
     ({ path }: { path: string; }) => path.endsWith('.page') && pageApp,
     ({ path }: { path: string; }) => path.endsWith('.db') && databaseApp,
     ({ path }: { path: string; }) => path.includes('.db/') && tableApp,

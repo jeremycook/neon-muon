@@ -1,7 +1,8 @@
 import { currentLogin } from '../login/loginInfo';
 import { icon } from '../ui/icons';
 import { modalConfirm, modalPrompt } from '../ui/modals';
-import { div, h1, button, ul, li, a } from '../utils/html';
+import { EventT } from '../utils/etc';
+import { a, button, div, h1, input, li, ul } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
@@ -15,7 +16,6 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
                 async onclick() {
                     const newFilePath = await promptCreateFile(fileNode);
                     if (newFilePath) {
-                        await refreshRoot();
                         redirect(makeUrl('/browse', { path: newFilePath }));
                         return;
                     }
@@ -27,13 +27,22 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
                 async onclick() {
                     const newFolderPath = await promptCreateFolder(fileNode);
                     if (newFolderPath) {
-                        await refreshRoot();
                         redirect(makeUrl('/browse', { path: newFolderPath }));
                         return;
                     }
                 }
             },
                 icon('folder-add-regular'), ' New Folder'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const success = await promptUpload(fileNode);
+                    if (success) {
+                        return;
+                    }
+                }
+            },
+                icon('arrow-upload-regular'), ' Upload'
             ),
             ...(fileNode.path === ''
                 ? []
@@ -42,7 +51,6 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
                         async onclick() {
                             const newFilePath = await promptMoveFile(fileNode);
                             if (newFilePath) {
-                                await refreshRoot();
                                 redirect(makeUrl('/browse', { path: newFilePath }));
                                 return;
                             }
@@ -54,7 +62,6 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
                         async onclick() {
                             const success = await promptDeleteFile(fileNode);
                             if (success) {
-                                await refreshRoot();
                                 redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
                                 return;
                             }
@@ -93,7 +100,6 @@ export function fileApp({ fileNode }: { fileNode: FileNode; }) {
                 async onclick() {
                     const success = await promptDeleteFile(fileNode);
                     if (success) {
-                        await refreshRoot();
                         redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
                         return;
                     }
@@ -233,6 +239,33 @@ export async function promptMoveFile(fileNode: FileNode) {
     }
     else {
         await modalConfirm(response.errorMessage ?? 'An error occured.');
+    }
+}
+
+export async function promptUpload(fileNode: FileNode): Promise<boolean> {
+
+    let ref: HTMLInputElement = null!;
+    const confirm = await modalConfirm(
+        'Select the files you want to upload:',
+        input({ type: 'file', multiple: true, required: true }, {
+            onmount(ev: EventT<HTMLInputElement>) {
+                ref = ev.currentTarget;
+            }
+        })
+    );
+
+    if (!confirm || !ref.files) {
+        return false;
+    }
+
+    const response = await uploadFiles(fileNode.path, [...ref.files]);
+    if (response.ok) {
+        await refreshRoot();
+        return true;
+    }
+    else {
+        await modalConfirm('An error occured.');
+        return false;
     }
 }
 

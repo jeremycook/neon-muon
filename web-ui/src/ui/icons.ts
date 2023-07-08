@@ -4,6 +4,7 @@ import { svg } from '../utils/svg';
 const iconLookup = {
     'alert-regular': () => import('@iconify-icons/fluent/alert-16-regular'),
     'arrow-download-regular': () => import('@iconify-icons/fluent/arrow-download-16-regular'),
+    'arrow-upload-regular': () => import('@iconify-icons/fluent/arrow-upload-16-regular'),
     'caret-right-regular': () => import('@iconify-icons/fluent/caret-right-16-regular'),
     'delete-regular': () => import('@iconify-icons/fluent/delete-16-regular'),
     'folder-add-regular': () => import('@iconify-icons/fluent/folder-add-16-regular'),
