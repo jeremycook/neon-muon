@@ -128,13 +128,13 @@ public static class SqliteDatabaseHelpers {
     }
 
     private class ColumnRecord {
-        public string TableName { get; set; }
-        public string TableType { get; set; }
+        public string TableName { get; set; } = null!;
+        public string TableType { get; set; } = null!;
         public int ColumnPosition { get; set; }
-        public string ColumnName { get; set; }
-        public string ColumnType { get; set; }
+        public string ColumnName { get; set; } = null!;
+        public string ColumnType { get; set; } = null!;
         public bool IsNullable { get; set; }
-        public string DefaultValueSql { get; set; }
+        public string DefaultValueSql { get; set; } = null!;
         public int PrimaryKey { get; set; }
     }
     private static readonly Sql columnSql = Raw("""
@@ -158,9 +158,9 @@ public static class SqliteDatabaseHelpers {
     """);
 
     private class IndexRecord {
-        public string TableName { get; set; }
-        public string IndexName { get; set; }
-        public string ColumnName { get; set; }
+        public string TableName { get; set; } = null!;
+        public string IndexName { get; set; } = null!;
+        public string ColumnName { get; set; } = null!;
         public bool IsPrimaryKey { get; set; }
         public bool IsNonUnique { get; set; }
         public bool IsUnique { get; set; }
