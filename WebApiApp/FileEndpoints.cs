@@ -55,7 +55,7 @@ public class FileEndpoints {
             ))
             .ToArray();
 
-        // TODO: Rename files if they already exist instead of erroring out
+        // TODO: Rename files (i.e. "filename 1.jpg", "filename 2.jpg", etc.) if they already exist instead of erroring out
         var alreadyExists = uploads.Where(upload => Path.Exists(upload.destinationPath));
         if (alreadyExists.Any()) {
             return Results.BadRequest($"The following files already exist: {string.Join("; ", alreadyExists.Select(x => x.path))}. No files were uploaded.");
