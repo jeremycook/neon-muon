@@ -1,4 +1,4 @@
-import { FileNode, getDirectoryName } from '../files/files';
+import { FileNode, getParentPath } from '../files/files';
 import { siteCard } from '../site/siteCard';
 import { icon } from '../ui/icons';
 import { modalConfirm } from '../ui/modals';
@@ -12,7 +12,7 @@ import { deleteRecords, insertRecords, updateRecords, selectRecords } from './re
 
 export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
 
-    const databasePath = getDirectoryName(tableNode.path);
+    const databasePath = getParentPath(tableNode.path);
     const database = (await getDatabase(databasePath))!;
     const schema = database.schemas[0];
     const tableInfo = schema.tables.find(t => t.name === tableNode.name)!;

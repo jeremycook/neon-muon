@@ -14,6 +14,21 @@ public class UserFileProvider {
     }
 
     /// <summary>
+    /// Creates a folder at <paramref name="path"/>.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public void CreateFolder(string path) {
+        var fullPath = GetFullPath(path);
+
+        if (Path.Exists(fullPath)) {
+            throw new ArgumentException($"A file or directory already exists at {path}.", nameof(path));
+        }
+
+        Directory.CreateDirectory(fullPath);
+    }
+
+    /// <summary>
     /// Creates a UTF-8 text file at <paramref name="path"/>.
     /// </summary>
     /// <param name="path"></param>
@@ -28,6 +43,21 @@ public class UserFileProvider {
         File.WriteAllText(fullPath, "", Encoding.UTF8);
     }
 
+    public void Delete(string path) {
+        if (string.IsNullOrWhiteSpace(path)) {
+            throw new ArgumentException($"The root directory cannot be deleted.", nameof(path));
+        }
+
+        var fullPath = GetFullPath(path);
+
+        if (Directory.Exists(fullPath)) {
+            Directory.Delete(fullPath, recursive: true);
+        }
+        else if (File.Exists(fullPath)) {
+            File.Delete(fullPath);
+        }
+    }
+
     public bool Exists(string path) {
         return Path.Exists(GetFullPath(path));
     }
@@ -39,6 +69,10 @@ public class UserFileProvider {
     /// <param name="newPath"></param>
     /// <exception cref="ArgumentException"></exception>
     public void Move(string path, string newPath) {
+        if (string.IsNullOrWhiteSpace(path)) {
+            throw new ArgumentException($"The root directory cannot be moved.", nameof(path));
+        }
+
         var fullPath = GetFullPath(path);
         var newFullPath = GetFullPath(newPath);
 

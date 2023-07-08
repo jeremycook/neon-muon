@@ -21,27 +21,47 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
                     }
                 }
             },
-                icon('sparkle-regular'), ' Create'
+                icon('text-add-regular'), ' New File'
             ),
             button({ class: 'button' }, {
                 async onclick() {
-                    const newFilePath = await promptMoveFile(fileNode);
-                    if (newFilePath) {
+                    const newFolderPath = await promptCreateFolder(fileNode);
+                    if (newFolderPath) {
                         await refreshRoot();
-                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        redirect(makeUrl('/browse', { path: newFolderPath }));
                         return;
                     }
                 }
             },
-                icon('rename-regular'), ' Move'
+                icon('folder-add-regular'), ' New Folder'
             ),
-            button({ class: 'button' }, {
-                onclick() {
-
-                }
-            },
-                icon('delete-regular'), ' Delete'
-            ),
+            ...(fileNode.path === ''
+                ? []
+                : [
+                    button({ class: 'button' }, {
+                        async onclick() {
+                            const newFilePath = await promptMoveFile(fileNode);
+                            if (newFilePath) {
+                                await refreshRoot();
+                                redirect(makeUrl('/browse', { path: newFilePath }));
+                                return;
+                            }
+                        }
+                    },
+                        icon('rename-regular'), ' Move'
+                    ),
+                    button({ class: 'button' }, {
+                        async onclick() {
+                            const success = await promptDeleteFile(fileNode);
+                            if (success) {
+                                await refreshRoot();
+                                redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
+                                return;
+                            }
+                        }
+                    },
+                        icon('delete-regular'), ' Delete'
+                    )]),
         ),
         ul(...fileNode.children!.map(item =>
             li(
@@ -62,7 +82,6 @@ export function fileApp({ fileNode }: { fileNode: FileNode; }) {
                 async onclick() {
                     const newFilePath = await promptMoveFile(fileNode);
                     if (newFilePath) {
-                        await refreshRoot();
                         redirect(makeUrl('/browse', { path: newFilePath }));
                         return;
                     }
@@ -71,8 +90,13 @@ export function fileApp({ fileNode }: { fileNode: FileNode; }) {
                 icon('rename-regular'), ' Move'
             ),
             button({ class: 'button' }, {
-                onclick() {
-
+                async onclick() {
+                    const success = await promptDeleteFile(fileNode);
+                    if (success) {
+                        await refreshRoot();
+                        redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
+                        return;
+                    }
                 }
             },
                 icon('delete-regular'), ' Delete'
@@ -101,7 +125,10 @@ export class FileNode {
     }
 
     get(path: string): FileNode | undefined {
-        if (path.includes('/')) {
+        if (path === '') {
+            return this;
+        }
+        else if (path.includes('/')) {
             const slash = path.indexOf('/');
             const name = path.substring(0, slash);
             const rest = path.substring(slash + 1);
@@ -143,8 +170,8 @@ export async function promptCreateFile(parentNode: FileNode) {
         return undefined;
     }
 
-    const path = parentNode.path + '/' + fileName;
-    
+    const path = (parentNode.path ? (parentNode.path + '/') : '') + fileName;
+
     const response = await createFile(path);
     if (response.ok) {
         await refreshRoot();
@@ -152,6 +179,43 @@ export async function promptCreateFile(parentNode: FileNode) {
     }
     else {
         await modalConfirm(response.errorMessage ?? 'An error occured.');
+    }
+}
+
+export async function promptCreateFolder(parentNode: FileNode) {
+    const folderName = await modalPrompt('Name of new folder:');
+
+    if (!folderName) {
+        return undefined;
+    }
+
+    const path = (parentNode.path ? (parentNode.path + '/') : '') + folderName;
+
+    const response = await createFolder(path);
+    if (response.ok) {
+        await refreshRoot();
+        return path;
+    }
+    else {
+        await modalConfirm(response.errorMessage ?? 'An error occured.');
+    }
+}
+
+export async function promptDeleteFile(node: FileNode): Promise<boolean> {
+    const confirm = await modalConfirm(`Delete ${node.path} and all of its children? This operation cannot be undone.`);
+
+    if (!confirm) {
+        return false;
+    }
+
+    const response = await deleteFile(node.path);
+    if (response.ok) {
+        await refreshRoot();
+        return true;
+    }
+    else {
+        await modalConfirm(response.errorMessage ?? 'An error occured.');
+        return false;
     }
 }
 
@@ -172,7 +236,8 @@ export async function promptMoveFile(fileNode: FileNode) {
     }
 }
 
-export function getDirectoryName(path: string) {
+/** Returns the parent's path. */
+export function getParentPath(path: string) {
     const slash = path.lastIndexOf('/');
     if (slash > -1) {
         return path.substring(0, slash);
@@ -204,6 +269,18 @@ function _getRootFromStorage() {
 
 export async function createFile(path: string) {
     return await jsonPost('/api/create-file', {
+        path,
+    });
+}
+
+export async function createFolder(path: string) {
+    return await jsonPost('/api/create-folder', {
+        path,
+    });
+}
+
+export async function deleteFile(path: string) {
+    return await jsonPost('/api/delete-file', {
         path,
     });
 }

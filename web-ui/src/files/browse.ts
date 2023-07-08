@@ -11,7 +11,7 @@ const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node |
 ];
 
 export async function browsePage(props: { path: string; }) {
-    const fileNode = root.val.get(props.path);
+    const fileNode = root.val.get(props.path ?? '');
 
     if (!fileNode) {
         await refreshRoot();

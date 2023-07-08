@@ -24,6 +24,8 @@ internal class Program {
 
         // Files
         app.MapPost("/api/create-file", FileEndpoints.CreateFile).RequireAuthorization("Admin");
+        app.MapPost("/api/create-folder", FileEndpoints.CreateFolder).RequireAuthorization("Admin");
+        app.MapPost("/api/delete-file", FileEndpoints.DeleteFile).RequireAuthorization("Admin");
         app.MapGet("/api/download-file", FileEndpoints.DownloadFile).RequireAuthorization("Admin");
         app.MapGet("/api/get-file-node", FileEndpoints.GetFileNode).RequireAuthorization("Admin");
         app.MapPost("/api/move-file", FileEndpoints.MoveFile).RequireAuthorization("Admin");

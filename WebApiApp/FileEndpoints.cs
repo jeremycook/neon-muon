@@ -14,6 +14,14 @@ public class FileEndpoints {
         userFileProvider.CreateTextFile(input.Path);
     }
 
+    public record CreateFolderInput(string Path);
+    public static void CreateFolder(
+        UserFileProvider userFileProvider,
+        CreateFolderInput input
+    ) {
+        userFileProvider.CreateFolder(input.Path);
+    }
+
     public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
 
         FileNode fileNode;
@@ -25,6 +33,14 @@ public class FileEndpoints {
         }
 
         return fileNode;
+    }
+
+    public record DeleteFileInput(string Path);
+    public static void DeleteFile(
+        UserFileProvider userFileProvider,
+        DeleteFileInput input
+    ) {
+        userFileProvider.Delete(input.Path);
     }
 
     public static IResult DownloadFile(

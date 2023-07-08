@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "WebApiApp"
+		},
+		{
+			"path": "FileMod"
+		},
+		{
+			"path": "LoginApi"
+		},
+		{
+			"path": "LogMod"
+		},
+		{
+			"path": "SqliteMod"
+		},
+		{
+			"path": "DatabaseMod"
+		},
+		{
+			"path": "LoginMod"
+		}
+	],
+	"settings": {}
+}
