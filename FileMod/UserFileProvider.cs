@@ -115,7 +115,9 @@ public class UserFileProvider {
 
     public FileNode GetFileNode(string path) {
         string fullPath = GetFullPath(path);
-        string filename = Path.GetFileName(fullPath);
+        string filename = path == string.Empty
+            ? "Root"
+            : Path.GetFileName(fullPath);
 
         if (Directory.Exists(fullPath)) {
             return new FileNode(filename, path, true, GetChildFileNames(path).Select(childFileName => GetFileNode(path != string.Empty ? path + "/" + childFileName : childFileName)).ToList());

@@ -3,7 +3,7 @@ import { isAuthenticated } from '../login/loginInfo.ts';
 import { nestedListUI } from '../ui/nestedUI.ts';
 import { dynamic, when } from '../utils/dynamicHtml.ts';
 import { createFragment } from '../utils/etc.ts';
-import { a, div } from '../utils/html.ts';
+import { a, div, li, ul } from '../utils/html.ts';
 import { makeUrl } from '../utils/url.ts';
 
 export function siteMenu() {
@@ -16,12 +16,22 @@ export function siteMenu() {
                 ev.stopPropagation();
 
                 const files = getFilesFromDataTransfer(ev.dataTransfer);
-                await uploadFiles('', files);
-                // TODO: Announce success/failure
-                await refreshRoot();
+
+                if (files.length > 0) {
+                    const response = await uploadFiles('', files);
+                    if (!response.ok) {
+                        alert(await response.text() || 'An error occurred while trying to upload files.');
+                    }
+                    await refreshRoot();
+                }
             }
         },
-            ...dynamic(root, () => nestedListUI(root.val.children!, _fileNodeRender))
+            ul(
+                li(
+                    a({ href: makeUrl('/browse', { path: '' }) }, 'Root'),
+                    ...dynamic(root, () => nestedListUI(root.val.children!, _fileNodeRender))
+                ),
+            ),
         )
     );
 
@@ -50,19 +60,19 @@ function _fileNodeRender(item: FileNode): Node[] {
                     const newPath = (destinationDirectory ? destinationDirectory + '/' : '') + fileNode.name;
                     const response = await moveFile(fileNode.path, newPath);
                     if (response.errorMessage) {
-                        alert(response.errorMessage);
+                        alert(response.errorMessage || 'An error occurred while trying to move a file.');
                     }
+                    await refreshRoot();
                 }
 
                 const files = getFilesFromDataTransfer(ev.dataTransfer);
                 if (files.length > 0) {
                     const response = await uploadFiles(destinationDirectory, files);
                     if (!response.ok) {
-                        alert('An error occurred while trying to upload files.');
+                        alert(await response.text() || 'An error occurred while trying to upload files.');
                     }
+                    await refreshRoot();
                 }
-
-                await refreshRoot();
             }
         },
             item.name

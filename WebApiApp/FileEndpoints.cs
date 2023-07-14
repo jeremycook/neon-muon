@@ -59,6 +59,14 @@ public class FileEndpoints {
         userFileProvider.Move(input.Path, input.NewPath);
     }
 
+    /// <summary>
+    /// Upload files into the folder identified by <paramref name="path"/>.
+    /// </summary>
+    /// <param name="httpContext"></param>
+    /// <param name="userFileProvider"></param>
+    /// <param name="path">The path to the folder the files should be uploaded into. Missing folders will be created.</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public static IResult UploadFiles(
         HttpContext httpContext,
         UserFileProvider userFileProvider,
@@ -67,7 +75,7 @@ public class FileEndpoints {
         var fullPath = userFileProvider.GetFullPath(path);
 
         if (!Directory.Exists(fullPath)) {
-            throw new ArgumentException($"The path is invalid.", nameof(path));
+            Directory.CreateDirectory(fullPath);
         }
 
         var prefix = path != string.Empty ? path + '/' : string.Empty;
