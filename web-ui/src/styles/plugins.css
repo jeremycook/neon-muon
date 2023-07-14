@@ -201,6 +201,14 @@ svg.icon {
 
 /* .w-? */
 
+.w-fit {
+    width: fit-content;
+}
+
+.w-fill {
+    width: 100%;
+}
+
 .w-200 {
     max-width: var(--200px);
 }
@@ -215,6 +223,16 @@ svg.icon {
 
 .w-1200 {
     max-width: var(--1200px);
+}
+
+/* .h-? */
+
+.h-fit {
+    height: fit-content;
+}
+
+.h-fill {
+    height: 100%;
 }
 
 /* EXPERIMENTAL */

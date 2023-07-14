@@ -11,29 +11,41 @@ import { makeUrl, redirect } from '../utils/url';
 export function folderApp({ fileNode }: { fileNode: FileNode; }) {
     return div(
         h1(fileNode.name),
-        div({ class: 'flex gap mb' },
-            button({ class: 'button' }, {
-                async onclick() {
-                    const newFilePath = await promptCreateFile(fileNode);
-                    if (newFilePath) {
-                        redirect(makeUrl('/browse', { path: newFilePath }));
-                        return;
-                    }
-                }
-            },
-                icon('text-add-regular'), ' New File'
+        div({ class: 'flex mb' },
+
+            div({ class: 'dropdown' },
+                button({ id: 'files-app-new-dropdown', class: 'button' },
+                    icon('sparkle-regular'), ' New',
+                ),
+                div({ class: 'dropdown-anchor', 'aria-labelledby': 'files-app-new-dropdown' },
+                    div({ class: 'dropdown-content' },
+                        button({
+                            async onclick() {
+                                const newFilePath = await promptCreateFile(fileNode);
+                                if (newFilePath) {
+                                    redirect(makeUrl('/browse', { path: newFilePath }));
+                                    return;
+                                }
+                            }
+                        },
+                            icon('text-add-regular'), ' New File'
+                        ),
+                        button({
+                            async onclick() {
+                                const newFolderPath = await promptCreateFolder(fileNode);
+                                if (newFolderPath) {
+                                    redirect(makeUrl('/browse', { path: newFolderPath }));
+                                    return;
+                                }
+                            }
+                        },
+                            icon('folder-add-regular'), ' New Folder'
+                        ),
+                    ),
+                )
             ),
-            button({ class: 'button' }, {
-                async onclick() {
-                    const newFolderPath = await promptCreateFolder(fileNode);
-                    if (newFolderPath) {
-                        redirect(makeUrl('/browse', { path: newFolderPath }));
-                        return;
-                    }
-                }
-            },
-                icon('folder-add-regular'), ' New Folder'
-            ),
+
+
             button({ class: 'button' }, {
                 async onclick() {
                     const success = await promptUpload(fileNode);
