@@ -2,16 +2,39 @@
 using FileMod;
 using Microsoft.Data.Sqlite;
 using SqliteMod;
+using SqlMod;
 
 namespace WebApiApp;
 
 public class FileEndpoints {
     public record CreateFileInput(string Path);
-    public static void CreateFile(
+    public static IResult CreateFile(
         UserFileProvider userFileProvider,
         CreateFileInput input
     ) {
-        userFileProvider.CreateTextFile(input.Path);
+        if (input.Path.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) {
+            var fullPath = userFileProvider.GetFullPath(input.Path);
+
+            if (Path.Exists(fullPath)) {
+                return Results.BadRequest($"A file already exists at {input.Path}.");
+            }
+
+            {
+                var builder = new SqliteConnectionStringBuilder() {
+                    DataSource = fullPath,
+                    Mode = SqliteOpenMode.ReadWriteCreate,
+                };
+                using var connection = new SqliteConnection(builder.ConnectionString);
+                connection.Open();
+                connection.Execute(Sql.Raw("CREATE TABLE Temp (Id INTEGER PRIMARY KEY);"));
+                connection.Execute(Sql.Raw("DROP TABLE Temp;"));
+            }
+            return Results.Ok();
+        }
+        else {
+            userFileProvider.CreateTextFile(input.Path);
+            return Results.Ok();
+        }
     }
 
     public record CreateFolderInput(string Path);

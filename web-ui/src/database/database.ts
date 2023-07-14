@@ -1,21 +1,50 @@
 import { modalConfirm, modalPrompt } from '../ui/modals';
 import { icon } from '../ui/icons';
 import { dynamic } from '../utils/dynamicHtml';
-import { button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
+import { a, button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
-import { makeUrl } from '../utils/url';
-import { FileNode } from '../files/files';
+import { makeUrl, redirect } from '../utils/url';
+import { FileNode, getParentPath, promptDeleteFile, promptMoveFile } from '../files/files';
 
 export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
     const path = fileNode.path;
     const database = val(new Database());
 
-    const view = div({ class: 'card' },
-        h1('Database'),
+    const view = div(
+        h1(fileNode.name),
+
+        div({ class: 'flex mb' },
+            a({ class: 'button', href: makeUrl('/api/download-file', { path: fileNode.path }) },
+                icon('arrow-download-regular'), ' Download'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const newFilePath = await promptMoveFile(fileNode);
+                    if (newFilePath) {
+                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        return;
+                    }
+                }
+            },
+                icon('rename-regular'), ' Move'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const success = await promptDeleteFile(fileNode);
+                    if (success) {
+                        redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
+                        return;
+                    }
+                }
+            },
+                icon('delete-regular'), ' Delete'
+            ),
+        ),
+
         dynamic(database, () => database.val.schemas.map(schema =>
-            div(
+            div({ class: 'card' },
                 (database.val.schemas.length > 1 && h2(schema.name)),
                 p(
                     button({ onclick: async () => await createTable(schema, database, path) },
@@ -64,7 +93,8 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
                         ),
                     )),
                 )
-            )))
+            )
+        ))
     );
 
     const result = await getDatabase(path);

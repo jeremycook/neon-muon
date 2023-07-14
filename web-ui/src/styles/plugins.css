@@ -255,6 +255,10 @@ svg.icon {
     align-items: center;
 }
 
+.modal>* {
+    max-width: 100%;
+}
+
 .modal>form {
     background: white;
     border-radius: var(--radius);

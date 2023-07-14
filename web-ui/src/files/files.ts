@@ -93,7 +93,7 @@ export function folderApp({ fileNode }: { fileNode: FileNode; }) {
 export function fileApp({ fileNode }: { fileNode: FileNode; }) {
     return div(
         h1(fileNode.name),
-        div({ class: 'flex gap' },
+        div({ class: 'flex' },
             a({ class: 'button', href: makeUrl('/api/download-file', { path: fileNode.path }) },
                 icon('arrow-download-regular'), ' Download'
             ),
