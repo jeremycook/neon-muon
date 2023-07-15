@@ -7,6 +7,7 @@ using LoginMod;
 using LogMod;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SqliteMod;
@@ -46,15 +47,19 @@ internal class Program {
     private static void Main(string[] args) {
         WebApplication app;
         {
-            ConfigurationManager configuration;
             Dictionary<Type, SqliteConnectionStringBuilder> migratableDbContexts = new();
             bool enableReverseProxy;
 
             // Configure services
             {
                 var builder = WebApplication.CreateBuilder(args);
-                configuration = builder.Configuration;
-                IServiceCollection serviceCollection = builder.Services;
+                var configuration = builder.Configuration;
+
+                // An appsettings file generally for production
+                var appsettingsPath = configuration.GetValue<string>("appsettings");
+                if (appsettingsPath != null) {
+                    configuration.AddJsonFile(Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath), optional: false, reloadOnChange: true);
+                }
 
                 // Reverse proxy
                 {
@@ -66,9 +71,9 @@ internal class Program {
                 }
 
                 // Auth
-                serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                     .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
-                serviceCollection.AddAuthorization(options => {
+                builder.Services.AddAuthorization(options => {
                     options.FallbackPolicy = options.DefaultPolicy;
                     options.AddPolicy("Admin", auth => auth.RequireRole("Admin"));
                     options.AddPolicy("Elevated", auth => auth.RequireRole("Admin").RequireClaim("Elevated"));
@@ -89,7 +94,7 @@ internal class Program {
                         ?? throw new Exception("Missing \"App:UserFilesRoot\" configuration.");
                     var userFilesRoot = Path.GetFullPath(configuredPath, builder.Environment.ContentRootPath);
                     Directory.CreateDirectory(userFilesRoot);
-                    serviceCollection.AddSingleton(new UserFileProvider(userFilesRoot));
+                    builder.Services.AddSingleton(new UserFileProvider(userFilesRoot));
                 }
 
                 // Login
@@ -99,8 +104,8 @@ internal class Program {
                     string loginConnectionString = loginCSB.ConnectionString;
 
                     migratableDbContexts.Add(typeof(LoginDbContext), loginCSB);
-                    serviceCollection.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
-                    serviceCollection.AddScoped<LoginServices>();
+                    builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
+                    builder.Services.AddScoped<LoginServices>();
                 }
 
                 //// Content
@@ -166,6 +171,18 @@ internal class Program {
 
             // Configure the HTTP request pipeline.
             {
+                app.UseForwardedHeaders(new ForwardedHeadersOptions {
+                    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                });
+
+                if (app.Configuration.GetSection("ForceHttps").Get<bool>() == true) {
+                    const string https = "https";
+                    app.Use((context, next) => {
+                        context.Request.Scheme = https;
+                        return next(context);
+                    });
+                }
+
                 app.UseHttpsRedirection();
 
                 if (enableReverseProxy) {
