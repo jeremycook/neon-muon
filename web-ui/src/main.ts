@@ -9,6 +9,7 @@ import { dynamic } from './utils/dynamicHtml.ts';
 import { currentLocation } from './utils/routed.ts';
 import { log } from './utils/log.ts';
 import { siteMenu } from './site/siteMenu.ts';
+import { dispatchMountEvent } from './utils/etc.ts';
 
 const view = div({ class: 'site' },
     div({ class: 'site-desktop' },
@@ -38,7 +39,7 @@ const view = div({ class: 'site' },
 );
 
 document.getElementById('site')!.replaceWith(view);
-view.dispatchEvent(new Event('mount', { cancelable: false }));
+dispatchMountEvent(view);
 
 document.addEventListener('keyup', ev => {
 

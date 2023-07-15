@@ -1,4 +1,6 @@
-﻿export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
+﻿import { template } from './html';
+
+export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
 
 export type TagParams<TElement> = (
     | undefined
@@ -127,17 +129,17 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                         element.setAttribute(name, val);
 
                         if (name === 'autofocus' && val === true) {
-                            element.addEventListener('mount', (ev: any) => {
+                            addMountEventListener(element, ev => {
                                 if (_isInViewport(ev.currentTarget)) {
                                     ev.currentTarget.focus();
                                 }
                             });
                         }
                         else if (name === 'autoselect' && val === true) {
-                            element.addEventListener('mount', (ev: any) => {
+                            addMountEventListener(element, ev => {
                                 if (_isInViewport(ev.currentTarget)) {
                                     ev.currentTarget.focus();
-                                    ev.currentTarget.select();
+                                    (ev.currentTarget as any).select();
                                 }
                             });
                         }
@@ -146,7 +148,17 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                         element.removeAttribute(name);
                     }
                     else if (typeofVal === "function" && name.startsWith('on')) {
-                        element.addEventListener(name.substring(2), val);
+                        switch (name) {
+                            case 'onmount':
+                                addMountEventListener(element, val);
+                                break;
+                            case 'onunmount':
+                                addUnmountEventListener(element, val);
+                                break;
+                            default:
+                                element.addEventListener(name.substring(2), val);
+                                break;
+                        }
                     }
                     else {
                         throw new Error(`The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`);
@@ -155,9 +167,6 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
             }
         }
     }
-
-    // Notify children that they have been mounted once this element has been mounted
-    element.addEventListener('mount', mountPropogator);
 
     return element as any;
 }
@@ -185,22 +194,21 @@ export function createComment(content: string) {
 export function createFragment(...nodes: (Node | string)[]) {
     const fragment = document.createDocumentFragment();
     fragment.append(...nodes);
-    fragment.addEventListener('mount', mountPropogator);
     return fragment;
 }
 
 /**
  * A series of nodes surrounded a begin and an end Comment.
  */
-export type Segment = [Comment, ...Node[], Comment];
+export type Segment = [HTMLTemplateElement, ...Node[], HTMLTemplateElement];
 
 /**
- * Creates a series of nodes surrounded by begin and end Comments
+ * Creates a series of nodes surrounded by begin and end template elements
  * that can be manipulated later.
  * @param nodes
  */
 export function createSegment(...newNodes: Node[]): Segment {
-    return [createComment(''), ...newNodes, createComment('')];
+    return [template(), ...newNodes, template()];
 }
 
 /**
@@ -210,19 +218,16 @@ export function createSegment(...newNodes: Node[]): Segment {
  */
 export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) {
     const begin = segment[0];
-    const end = segment[segment.length - 1] as Comment;
+    const end = segment[segment.length - 1] as HTMLTemplateElement;
 
-    if (!(begin instanceof Comment) || !(end instanceof Comment)) {
-        throw new Error('Segments must begin and end with Comments.');
+    if (!(begin instanceof HTMLTemplateElement) || !(end instanceof HTMLTemplateElement)) {
+        throw new Error('Segments must begin and end with template elements.');
     }
 
     let node = begin.nextSibling;
     while (node && node !== end) {
         const nextSibling = node.nextSibling;
-
-        node.dispatchEvent(createUnmountEvent());
-        node.remove();
-
+        unmountElement(node);
         node = nextSibling;
     }
 
@@ -232,34 +237,69 @@ export function mutateSegment(segment: Segment, ...newNodes: (string | Node)[]) 
     segment.splice(1, segment.length - 2, ...addedNodes);
 
     // Notify new nodes that they have been mounted
-    for (const node of addedNodes) {
-        node.dispatchEvent(createMountEvent());
+    dispatchMountEvent(...addedNodes);
+}
+
+export function addMountEventListener<TCurrentTarget extends Element>(
+    element: TCurrentTarget,
+    listener: (this: TCurrentTarget, ev: EventT<TCurrentTarget>) => any,
+    options?: boolean | AddEventListenerOptions | undefined
+) {
+    element.setAttribute('mountable', '');
+    element.addEventListener('mount', listener as any, options);
+}
+
+export function addUnmountEventListener<TCurrentTarget extends Element>(
+    element: TCurrentTarget,
+    listener: (this: TCurrentTarget, ev: EventT<TCurrentTarget>) => any,
+    options?: boolean | AddEventListenerOptions | undefined
+) {
+    element.setAttribute('mountable', '');
+    element.addEventListener('unmount', listener as any, options);
+}
+
+export function dispatchMountEvent(...nodes: Node[]) {
+    for (const ancestor of nodes) {
+        if (ancestor instanceof Element) {
+            if (ancestor.matches('[mountable]')) {
+                ancestor.dispatchEvent(createMountEvent());
+            }
+            for (const descendant of ancestor.querySelectorAll('[mountable]')) {
+                descendant.dispatchEvent(createMountEvent());
+            }
+        }
     }
 }
 
-/** Propogates 'mount' events to its children. */
-export function mountPropogator(ev: Event): void {
-    for (const child of (ev.currentTarget as Node).childNodes) {
-        child.dispatchEvent(createMountEvent());
+export function dispatchUnmountEvent(...nodes: Node[]) {
+    for (const ancestor of nodes) {
+        if (ancestor instanceof Element) {
+            if (ancestor.matches('[mountable]')) {
+                ancestor.dispatchEvent(createUnmountEvent());
+            }
+            for (const descendant of ancestor.querySelectorAll('[mountable]')) {
+                descendant.dispatchEvent(createUnmountEvent());
+            }
+        }
     }
 }
 
-/** Returns a new 'mount' event. */
+/** Returns a new mount event. */
 export function createMountEvent(): Event {
     return new Event('mount', { cancelable: false, bubbles: false });
-}
-
-export function mountElement(parent: ParentNode, child: Node) {
-    parent.append(child);
-    child.dispatchEvent(createMountEvent());
 }
 
 export function createUnmountEvent(): Event {
     return new Event('unmount', { cancelable: false, bubbles: false });
 }
 
+export function mountElement(parent: Element, child: Node) {
+    parent.append(child);
+    dispatchMountEvent(child);
+}
+
 export function unmountElement(node: ChildNode) {
-    node.dispatchEvent(createUnmountEvent());
+    dispatchUnmountEvent(node);
     node.remove();
 }
 

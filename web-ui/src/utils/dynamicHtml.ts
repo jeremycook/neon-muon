@@ -1,4 +1,4 @@
-import { mutateSegment, Segment, createSegment, createFragment } from './etc';
+import { Segment, addMountEventListener, createFragment, createSegment, mutateSegment } from './etc';
 import { Sub, SubT } from './pubSub';
 
 type DynamicNode =
@@ -10,7 +10,7 @@ export function dynamic(sub: Sub, renderer: () => DynamicNode): Segment;
 export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
 
     const segment = createSegment();
-    const end = segment[1] as Comment;
+    const end = segment[1] as HTMLTemplateElement;
 
     if (typeof renderer === 'undefined') {
         if ((arg0 as SubT<string | Node>)?.val) {
@@ -45,7 +45,7 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
     arg0.sub(end, subscription);
 
     // Trigger the subscription when this element is mounted
-    end.addEventListener('mount', subscription);
+    addMountEventListener(end, subscription);
 
     return segment;
 }

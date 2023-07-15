@@ -1,3 +1,4 @@
+import { addMountEventListener } from '../utils/etc';
 import { SubT } from '../utils/pubSub';
 import { svg } from '../utils/svg';
 
@@ -44,7 +45,7 @@ export function icon(type: IconType | SubT<IconType>) {
             element.innerHTML = data.body; // The contents will be filled as soon as it is available.
         };
         type.sub(element, subscription);
-        element.addEventListener('mount', subscription);
+        addMountEventListener(element, subscription);
     }
 
     return element;
