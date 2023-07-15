@@ -102,21 +102,40 @@ public class RecordEndpoints {
         var returningColumns = input.ReturningColumns.Length > 0
             ? input.ReturningColumns
             : table.GetPrimaryKey().Columns.ToArray();
+        IEnumerable<IEnumerable<Sql>> sqlRecords = input.Records
+            .Select(record => insertedColumns.Select(o => Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], o.storeType) ?? DBNull.Value)));
 
+        var returningRecords = InsertSqlRecords(connection, input.Schema, table, input.Columns, sqlRecords, returningColumns);
+
+        transaction.Commit();
+
+        return Results.Ok(returningRecords);
+    }
+
+    public static List<object?[]> InsertSqlRecords(SqliteConnection connection, string schemaName, Table table, string[] columns, IEnumerable<IEnumerable<Sql>> records, string[] returningColumns) {
         var returningRecords = new List<object?[]>();
-        foreach (var record in input.Records) {
+        foreach (var record in records) {
             var sql = Sql.Interpolate($"""
-                INSERT INTO {Sql.Identifier(input.Schema, table.Name)} ({Sql.IdentifierList(insertedColumns.Select(column => column.name))})
-                VALUES ({Sql.Join(", ", insertedColumns.Select(o => Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], o.storeType) ?? DBNull.Value)))})
+                INSERT INTO {Sql.Identifier(schemaName, table.Name)} ({Sql.IdentifierList(columns)})
+                VALUES ({Sql.Join(", ", record)})
                 RETURNING {Sql.IdentifierList(returningColumns)}
             """);
             var newRecord = connection.First(sql, table.Columns.Select(column => column.StoreType).ToArray());
             returningRecords.Add(newRecord);
         }
+        return returningRecords;
+    }
 
-        transaction.Commit();
-
-        return Results.Ok(returningRecords);
+    public static int InsertSqlRecords(SqliteConnection connection, string schemaName, Table table, string[] columns, IEnumerable<IEnumerable<Sql>> records) {
+        var changes = 0;
+        foreach (var record in records) {
+            var sql = Sql.Interpolate($"""
+                INSERT INTO {Sql.Identifier(schemaName, table.Name)} ({Sql.IdentifierList(columns)})
+                VALUES ({Sql.Join(", ", record)})
+            """);
+            changes += connection.Execute(sql);
+        }
+        return changes;
     }
 
     public record UpdateRecordsInput(

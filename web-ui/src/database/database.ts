@@ -5,7 +5,7 @@ import { a, button, details, div, h1, h2, input, label, option, p, section, sele
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
 import { makeUrl, redirect } from '../utils/url';
-import { FileNode, getParentPath, promptDeleteFile, promptMoveFile } from '../files/files';
+import { FileNode, getParentPath, promptDeleteFile, promptMoveFile, refreshRoot } from '../files/files';
 
 export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
@@ -44,7 +44,32 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
         ),
 
         dynamic(database, () => database.val.schemas.map(schema =>
-            div({ class: 'card' },
+            div({ class: 'card' }, {
+                ondragover(ev: DragEvent) { ev.preventDefault(); },
+                async ondrop(ev: DragEvent) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+
+                    const json = ev.dataTransfer!.getData('text/x-file-node');
+                    if (json) {
+                        const sourceNode = <FileNode>JSON.parse(ev.dataTransfer!.getData('text/x-file-node'));
+                        const response = await createTableBasedOnFileNode(fileNode.path, sourceNode.path);
+                        if (response.errorMessage) {
+                            alert(response.errorMessage || 'An error occurred while trying to move a file.');
+                        }
+                        await refreshRoot();
+                    }
+
+                    // TODO? const files = getFilesFromDataTransfer(ev.dataTransfer);
+                    // if (files.length > 0) {
+                    //     const response = await uploadFiles(destinationDirectory, files);
+                    //     if (!response.ok) {
+                    //         alert(await response.text() || 'An error occurred while trying to upload files.');
+                    //     }
+                    //     await refreshRoot();
+                    // }
+                }
+            },
                 (database.val.schemas.length > 1 && h2(schema.name)),
                 p(
                     button({ onclick: async () => await createTable(schema, database, path) },
@@ -103,6 +128,13 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
     }
 
     return view;
+}
+
+export async function moveFile(path: string, newPath: string) {
+    return await jsonPost('/api/move-file', {
+        path,
+        newPath,
+    });
 }
 
 async function createTable(schema: Schema, onSuccess: Pub, databasePath: string) {
@@ -247,6 +279,13 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
 }
 
 //#region API
+
+export async function createTableBasedOnFileNode(databasePath: string, sourcePath: string) {
+    const url = makeUrl('/api/create-table-based-on-file-node', { path: databasePath });
+    const data = { sourcePath };
+    const response = await jsonPost(url, data);
+    return response;
+}
 
 export async function getDatabase(databasePath: string) {
     const url = makeUrl('/api/get-database', { path: databasePath });

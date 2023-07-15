@@ -34,6 +34,7 @@ internal class Program {
         // Database
         app.MapGet("/api/get-database", DatabaseEndpoints.GetDatabase).RequireAuthorization("Admin");
         app.MapPost("/api/alter-database", DatabaseEndpoints.AlterDatabase).RequireAuthorization("Admin");
+        app.MapPost("/api/create-table-based-on-file-node", DatabaseEndpoints.CreateTableBasedOnFileNode).RequireAuthorization("Admin");
 
         // Database records
         app.MapPut("/api/select-records", RecordEndpoints.SelectRecords).RequireAuthorization("Admin");

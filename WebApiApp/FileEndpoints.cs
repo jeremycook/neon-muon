@@ -49,7 +49,7 @@ public class FileEndpoints {
 
         FileNode fileNode;
         if (path.EndsWith(".db")) {
-            fileNode = GetDatabaseFileNode(fileProvider, path);
+            fileNode = DatabaseEndpoints.GetDatabaseFileNode(fileProvider, path);
         }
         else {
             fileNode = fileProvider.GetFileNode(path);
@@ -123,31 +123,5 @@ public class FileEndpoints {
         }
 
         return Results.Ok();
-    }
-
-    private static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, string path) {
-        string fullPath = fileProvider.GetFullPath(path);
-        string filename = Path.GetFileName(fullPath);
-
-        var database = new Database();
-        {
-            var builder = new SqliteConnectionStringBuilder() {
-                DataSource = fullPath,
-                Mode = SqliteOpenMode.ReadOnly,
-            };
-            using var connection = new SqliteConnection(builder.ConnectionString);
-            connection.Open();
-            database.ContributeSqlite(connection);
-        }
-
-        var children = database.Schemas
-            .SelectMany(schema => schema.Name == string.Empty
-                ? schema.Tables.Select(table => new FileNode(table.Name, path + "/main/" + table.Name, false, null))
-                : schema.Tables.Select(table => new FileNode(table.Name, path + "/" + schema.Name + "/" + table.Name, false, null))
-            )
-            .OrderBy(table => table.Name)
-            .ToList();
-
-        return new FileNode(filename, path, true, children);
     }
 }

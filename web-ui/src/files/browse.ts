@@ -12,17 +12,15 @@ const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node |
 ];
 
 export async function browsePage(props: { path: string; }) {
-    const fileNode = root.val.get(props.path ?? '');
+    let fileNode = root.val.get(props.path ?? '');
 
     if (!fileNode) {
+        // Make sure the tree is up-to-date
         await refreshRoot();
+        fileNode = root.val.get(props.path ?? '');
     }
 
-    if (!fileNode) {
-        return notFoundPage();
-    }
-
-    const appProps = { fileNode, ...props };
+    const appProps = { fileNode, path: props.path };
 
     // First matching app wins.
     let app;
@@ -40,10 +38,14 @@ export async function browsePage(props: { path: string; }) {
         }
     }
 
+    if (typeof fileNode === 'undefined') {
+        return notFoundPage();
+    }
+
     if (fileNode.isExpandable) {
-        return folderApp(appProps);
+        return folderApp({ fileNode });
     }
     else {
-        return fileApp(appProps);
+        return fileApp({ fileNode });
     }
 }

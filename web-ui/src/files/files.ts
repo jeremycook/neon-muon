@@ -292,6 +292,17 @@ export function getParentPath(path: string) {
     }
 }
 
+/** Returns the filename of this path or empty string if it is root. */
+export function getFilename(path: string) {
+    const slash = path.lastIndexOf('/');
+    if (slash > -1) {
+        return path.substring(slash + 1);
+    }
+    else {
+        return '';
+    }
+}
+
 async function _getRootFromServer() {
     const response = await jsonGet<FileNode>(makeUrl('/api/get-file-node', { path: '' }));
     if (response.result) {

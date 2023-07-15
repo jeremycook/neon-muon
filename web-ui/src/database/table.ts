@@ -1,4 +1,4 @@
-import { FileNode, getParentPath } from '../files/files';
+import { getFilename, getParentPath } from '../files/files';
 import { siteCard } from '../site/siteCard';
 import { icon } from '../ui/icons';
 import { modalConfirm } from '../ui/modals';
@@ -7,21 +7,21 @@ import { EventT } from '../utils/etc';
 import { button, div, h1, h2, input, label, p, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { PubT, val } from '../utils/pubSub';
 import { UnreachableError } from '../utils/unreachable';
-import { getDatabase, Table, Database, Column, StoreType, TableIndexType, Primitive, Schema } from './database';
-import { deleteRecords, insertRecords, updateRecords, selectRecords } from './records';
+import { Column, Database, Primitive, Schema, StoreType, Table, TableIndexType, getDatabase } from './database';
+import { deleteRecords, insertRecords, selectRecords, updateRecords } from './records';
 
-export async function tableApp({ fileNode: tableNode }: { fileNode: FileNode }) {
-
-    const databasePath = getParentPath(tableNode.path);
+export async function tableApp({ path }: { path: string }) {
+    const databasePath = getParentPath(path);
     const database = (await getDatabase(databasePath))!;
     const schema = database.schemas[0];
-    const tableInfo = schema.tables.find(t => t.name === tableNode.name)!;
+    const tableName = getFilename(path);
+    const tableInfo = schema.tables.find(t => t.name === tableName)!;
 
     return siteCard(
-        h1(tableNode.name),
+        h1(tableInfo.name),
         ...lazy(
             databaseTable(tableInfo, schema, database, databasePath),
-            p('Loading...')
+            p('Loading…')
         )
     )
 }
@@ -76,7 +76,7 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
                         ]);
                     }
                     else {
-                        alert(response.errorMessage ?? 'Something went wrong.');
+                        alert(response.errorMessage || 'Something went wrong.');
                     }
                 }
             },
@@ -104,7 +104,7 @@ async function databaseTable(tableInfo: Table, schema: Schema, _database: Databa
                         rows.pub(rows.val.filter(row => !selectedRecords.includes(row.record)));
                     }
                     else {
-                        alert(response.errorMessage ?? 'Something went wrong.');
+                        alert(response.errorMessage || 'Something went wrong.');
                     }
                 }
             },
