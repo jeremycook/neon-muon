@@ -7,7 +7,7 @@ export async function homePage() {
 
     const view = siteCard(
         h1(dynamic(currentLogin, () => 'Welcome ' + currentLogin.val.name)),
-        p('Please enjoy your visit.'),
+        p('Enjoy your visit.'),
         p(dynamic(currentLogin, () => currentLogin.val.auth
             ? a({ href: '/logout' }, 'Logout')
             : a({ href: '/login' }, 'Login')

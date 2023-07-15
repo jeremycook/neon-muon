@@ -167,12 +167,12 @@ public class DatabaseEndpoints {
         return Results.Ok();
     }
 
-    public static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, string path) {
-        string fullPath = fileProvider.GetFullPath(path);
+    public static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, FileNode fileNode) {
+        string fullPath = fileProvider.GetFullPath(fileNode.Path);
         string filename = Path.GetFileName(fullPath);
 
         var database = new Database();
-        {
+        try {
             var builder = new SqliteConnectionStringBuilder() {
                 DataSource = fullPath,
                 Mode = SqliteOpenMode.ReadOnly,
@@ -181,15 +181,19 @@ public class DatabaseEndpoints {
             connection.Open();
             database.ContributeSqlite(connection);
         }
+        catch (SqliteException) {
+            // TODO: Log error
+            return fileNode;
+        }
 
         var children = database.Schemas
             .SelectMany(schema => schema.Name == string.Empty
-                ? schema.Tables.Select(table => new FileNode(table.Name, path + "/main/" + table.Name, false, null))
-                : schema.Tables.Select(table => new FileNode(table.Name, path + "/" + schema.Name + "/" + table.Name, false, null))
+                ? schema.Tables.Select(table => new FileNode(table.Name, fileNode.Path + "/" + table.Name, false, null))
+                : schema.Tables.Select(table => new FileNode(table.Name, fileNode.Path + "/" + schema.Name + "/" + table.Name, false, null))
             )
             .OrderBy(table => table.Name)
             .ToList();
 
-        return new FileNode(filename, path, true, children);
+        return new FileNode(filename, fileNode.Path, true, children);
     }
 }

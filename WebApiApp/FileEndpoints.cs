@@ -1,5 +1,4 @@
-﻿using DatabaseMod.Models;
-using FileMod;
+﻿using FileMod;
 using Microsoft.Data.Sqlite;
 using SqliteMod;
 using SqlMod;
@@ -46,15 +45,25 @@ public class FileEndpoints {
     }
 
     public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
+        FileNode fileNode = fileProvider.GetFileNode(path);
+        fileNode = WalkFileNode(fileNode, fileNode => {
+            if (fileNode.Path.EndsWith(".db")) {
+                return DatabaseEndpoints.GetDatabaseFileNode(fileProvider, fileNode);
+            }
+            else {
+                return fileNode;
+            }
+        });
+        return fileNode;
+    }
 
-        FileNode fileNode;
-        if (path.EndsWith(".db")) {
-            fileNode = DatabaseEndpoints.GetDatabaseFileNode(fileProvider, path);
+    private static FileNode WalkFileNode(FileNode fileNode, Func<FileNode, FileNode> func) {
+        fileNode = func(fileNode);
+        if (fileNode.Children?.Any() == true) {
+            for (int i = 0; i < fileNode.Children.Count; i++) {
+                fileNode.Children[i] = WalkFileNode(fileNode.Children[i], func);
+            }
         }
-        else {
-            fileNode = fileProvider.GetFileNode(path);
-        }
-
         return fileNode;
     }
 
