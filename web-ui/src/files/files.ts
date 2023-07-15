@@ -159,12 +159,16 @@ export class FileNode {
     }
 }
 
+// TODO? let _lastGetRootFromServer = 0;
 const _root = val(_getRootFromStorage());
+export const root: SubT<FileNode> = _root;
+
 refreshRoot();
 
-export const root: SubT<FileNode> = _root;
+/** Refresh root when the current login changes. */
 computed(currentLogin, () => refreshRoot());
 
+/** Last refresh in UNIX epoch ms. */
 export async function refreshRoot() {
     const fileNode = await _getRootFromServer();
     await _root.pub(fileNode);
@@ -304,8 +308,17 @@ export function getFilename(path: string) {
 }
 
 async function _getRootFromServer() {
+    // TODO? const now = Date.now();
+    // const elapsed = now - _lastGetRootFromServer;
+    // if (elapsed < 100) {
+    //     console.log('Getting root skipped', elapsed)
+    //     return _root.val;
+    // }
+    // console.log('Getting root', elapsed, now, _lastGetRootFromServer)
+
     const response = await jsonGet<FileNode>(makeUrl('/api/get-file-node', { path: '' }));
     if (response.result) {
+        // _lastGetRootFromServer = now;
         return new FileNode(response.result);
     }
     else {
