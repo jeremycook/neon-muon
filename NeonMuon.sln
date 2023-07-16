@@ -54,6 +54,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FileMod", "FileMod\FileMod.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LogMod", "LogMod\LogMod.csproj", "{545EA95A-9A9F-45A8-8B25-B78A9EA8C9CE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebHooks", "WebHooks\WebHooks.csproj", "{A0B5426E-8C01-42FC-A9C1-BDE80483A8CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -148,6 +150,10 @@ Global
 		{545EA95A-9A9F-45A8-8B25-B78A9EA8C9CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{545EA95A-9A9F-45A8-8B25-B78A9EA8C9CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{545EA95A-9A9F-45A8-8B25-B78A9EA8C9CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0B5426E-8C01-42FC-A9C1-BDE80483A8CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0B5426E-8C01-42FC-A9C1-BDE80483A8CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0B5426E-8C01-42FC-A9C1-BDE80483A8CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0B5426E-8C01-42FC-A9C1-BDE80483A8CB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
