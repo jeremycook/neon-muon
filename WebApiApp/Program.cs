@@ -56,16 +56,16 @@ internal class Program {
 
             // Configure services
             {
-                var builder = WebApplication.CreateBuilder(args);
-                var configuration = builder.Configuration;
-
-                // An appsettings file generally for production
-                var appsettingsPath = configuration.GetValue<string?>("appsettings");
-                if (appsettingsPath != null) {
-                    string fullPath = Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath);
-                    configuration.AddJsonFile(fullPath, optional: false, reloadOnChange: true);
-                    Console.WriteLine($"Reading appsettings from: {fullPath}");
+                WebApplicationOptions webApplicationOptions = new WebApplicationOptions() {
+                    Args = args,
+                    ContentRootPath = Environment.GetEnvironmentVariable("CONTENT_ROOT_PATH"),
+                };
+                if (webApplicationOptions.ContentRootPath != null) {
+                    Console.WriteLine($"Content root path changed to: " + webApplicationOptions.ContentRootPath);
                 }
+
+                var builder = WebApplication.CreateBuilder(webApplicationOptions);
+                var configuration = builder.Configuration;
 
                 // GitHub webhook
                 var githubSection = configuration.GetSection("GitHub");
@@ -81,6 +81,9 @@ internal class Program {
                         builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
                     }
                 }
+
+                // Data protection
+                builder.AddDataProtection();
 
                 // Auth
                 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
