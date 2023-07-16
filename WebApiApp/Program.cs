@@ -60,7 +60,7 @@ internal class Program {
                 if (appsettingsPath != null) {
                     string fullPath = Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath);
                     configuration.AddJsonFile(fullPath, optional: false, reloadOnChange: true);
-                    Console.WriteLine($"Reading from appsettings from: {fullPath}");
+                    Console.WriteLine($"Reading appsettings from: {fullPath}");
                 }
 
                 // Reverse proxy
@@ -191,6 +191,8 @@ internal class Program {
                     app.MapReverseProxy();
                 }
 
+                app.UseStaticFiles();
+
                 app.UseRouting();
 
                 app.UseAuthentication();
@@ -199,6 +201,7 @@ internal class Program {
                 //app.MapControllers();
 
                 MapEndpoints(app);
+                app.MapFallbackToFile("index.html");
             }
         }
 
