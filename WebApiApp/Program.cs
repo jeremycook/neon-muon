@@ -76,7 +76,7 @@ internal class Program {
                 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                     .AddCookie(options => options.Events = new ApiFriendlyCookieAuthenticationEvents());
                 builder.Services.AddAuthorization(options => {
-                    options.FallbackPolicy = options.DefaultPolicy;
+                    //options.FallbackPolicy = options.DefaultPolicy;
                     options.AddPolicy("Admin", auth => auth.RequireRole("Admin"));
                     options.AddPolicy("Elevated", auth => auth.RequireRole("Admin").RequireClaim("Elevated"));
                 });
