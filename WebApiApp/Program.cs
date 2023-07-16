@@ -14,9 +14,13 @@ using SqliteMod;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebApiApp;
+using static WebApiApp.HooksEndpoints;
 
 internal class Program {
     private static void MapEndpoints(WebApplication app) {
+        // Hooks
+        app.MapPost("/api/gh", HooksEndpoints.GitHub).AllowAnonymous();
+
         // Login
         app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
         app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
@@ -61,6 +65,12 @@ internal class Program {
                     string fullPath = Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath);
                     configuration.AddJsonFile(fullPath, optional: false, reloadOnChange: true);
                     Console.WriteLine($"Reading appsettings from: {fullPath}");
+                }
+
+                // GitHub webhook
+                var githubSection = configuration.GetSection("GitHub");
+                if (githubSection.Exists()) {
+                    builder.Services.AddSingleton(githubSection.Get<GitHubOptions>()!);
                 }
 
                 // Reverse proxy
