@@ -56,9 +56,11 @@ internal class Program {
                 var configuration = builder.Configuration;
 
                 // An appsettings file generally for production
-                var appsettingsPath = configuration.GetValue<string>("appsettings");
+                var appsettingsPath = configuration.GetValue<string?>("appsettings");
                 if (appsettingsPath != null) {
-                    configuration.AddJsonFile(Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath), optional: false, reloadOnChange: true);
+                    string fullPath = Path.GetFullPath(appsettingsPath, builder.Environment.ContentRootPath);
+                    configuration.AddJsonFile(fullPath, optional: false, reloadOnChange: true);
+                    Console.WriteLine($"Reading from appsettings from: {fullPath}");
                 }
 
                 // Reverse proxy
