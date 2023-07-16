@@ -51,7 +51,8 @@ public static class HooksEndpoints {
             return Results.StatusCode(500);
         }
         else if (output.Length > 0) {
-            return Results.Content(output.ToString());
+            // TODO? Log output.ToString()
+            return Results.Ok();
         }
         else {
             return Results.Ok();
