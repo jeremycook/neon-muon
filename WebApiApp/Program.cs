@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using SqliteMod;
 using System.Text.Json;
@@ -68,10 +69,11 @@ internal class Program {
                 var builder = WebApplication.CreateBuilder(webApplicationOptions);
                 var configuration = builder.Configuration;
 
-                Console.WriteLine("Final Configuration Sources: {ConfigurationSources}", builder.Configuration.Sources.Select(o => o switch {
+                Console.WriteLine("Initial Configuration Sources:\n\t" + string.Join("\n\t", builder.Configuration.Sources.Select(o => o switch {
                     JsonConfigurationSource json => o.GetType().Name + ": " + json.FileProvider?.GetFileInfo(json?.Path ?? string.Empty).PhysicalPath,
                     _ => o.GetType().Name,
-                }));
+                })));
+                Console.WriteLine("Initial Configuration:\n\t" + builder.Configuration.GetDebugView());
 
                 // GitHub webhook
                 var githubSection = configuration.GetSection("GitHub");
