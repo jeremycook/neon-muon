@@ -2,9 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using WebHooks;
 
-var builder = WebApplication.CreateBuilder(new WebApplicationOptions {
-    Args = args,
-});
+var builder = WebApplication.CreateBuilder(args);
 
 var altAppsettingsFile = Environment.GetEnvironmentVariable("ALT_APPSETTINGS_FILE");
 if (altAppsettingsFile != null) {
