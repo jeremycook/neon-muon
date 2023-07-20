@@ -28,7 +28,8 @@ public static class DataProtectionExtensions {
         // Configure database storage
         var connectionString = settings.ConnectionString;
         {
-            using var db = new DataProtectionDbContext(new DbContextOptionsBuilder<DataProtectionDbContext>().UseSqlite(connectionString).Options);
+            using var db = new DataProtectionDbContext(new DbContextOptionsBuilder<DataProtectionDbContext>()
+                .UseSqlite(connectionString).Options);
             db.Database.EnsureCreated();
         }
         builder.Services

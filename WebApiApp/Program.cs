@@ -114,13 +114,20 @@ internal class Program {
 
                 // Login
                 {
-                    var loginCSB = new SqliteConnectionStringBuilder(configuration.GetConnectionString("Main"));
-                    loginCSB.DataSource = Path.GetFullPath(loginCSB.DataSource, builder.Environment.ContentRootPath);
-                    string loginConnectionString = loginCSB.ConnectionString;
+                    string? connectionString = configuration.GetConnectionString("Main");
+                    try {
+                        var loginCSB = new SqliteConnectionStringBuilder(connectionString);
+                        loginCSB.DataSource = Path.GetFullPath(loginCSB.DataSource, builder.Environment.ContentRootPath);
+                        string loginConnectionString = loginCSB.ConnectionString;
 
-                    migratableDbContexts.Add(typeof(LoginDbContext), loginCSB);
-                    builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
-                    builder.Services.AddScoped<LoginServices>();
+                        migratableDbContexts.Add(typeof(LoginDbContext), loginCSB);
+                        builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
+                        builder.Services.AddScoped<LoginServices>();
+                    }
+                    catch (Exception) {
+                        Console.Error.WriteLine("Invalid Main connection string: " + connectionString);
+                        throw;
+                    }
                 }
 
                 //// Content
