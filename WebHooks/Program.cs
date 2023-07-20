@@ -1,8 +1,17 @@
+using Microsoft.Extensions.Configuration.Json;
+using Microsoft.Extensions.FileProviders;
 using System.Diagnostics;
 using System.Text;
 using WebHooks;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions {
+    Args = args,
+});
+
+var altAppsettingsFile = Environment.GetEnvironmentVariable("ALT_APPSETTINGS_FILE");
+if (altAppsettingsFile != null) {
+    builder.Configuration.AddJsonFile(altAppsettingsFile, false, reloadOnChange: true);
+}
 
 var app = builder.Build();
 
