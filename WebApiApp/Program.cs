@@ -58,22 +58,16 @@ internal class Program {
 
             // Configure services
             {
-                WebApplicationOptions webApplicationOptions = new WebApplicationOptions() {
-                    Args = args,
-                    ContentRootPath = Environment.GetEnvironmentVariable("CONTENT_ROOT_PATH"),
-                };
-                if (webApplicationOptions.ContentRootPath != null) {
-                    Console.WriteLine($"Content root path changed to: " + webApplicationOptions.ContentRootPath);
-                }
-
-                var builder = WebApplication.CreateBuilder(webApplicationOptions);
+                var builder = WebApplication.CreateBuilder(args);
                 var configuration = builder.Configuration;
 
-                Console.WriteLine("Initial Configuration Sources:\n\t" + string.Join("\n\t", builder.Configuration.Sources.Select(o => o switch {
-                    JsonConfigurationSource json => o.GetType().Name + ": " + json.FileProvider?.GetFileInfo(json?.Path ?? string.Empty).PhysicalPath,
-                    _ => o.GetType().Name,
-                })));
-                Console.WriteLine("Initial Configuration:\n\t" + builder.Configuration.GetDebugView());
+                if (Environment.GetEnvironmentVariable("VERBOSE") != null) {
+                    Console.WriteLine("Configuration Sources:\n" + string.Join("\n", builder.Configuration.Sources.Select(o => o switch {
+                        JsonConfigurationSource json => o.GetType().Name + ": " + json.FileProvider?.GetFileInfo(json?.Path ?? string.Empty).PhysicalPath,
+                        _ => o.GetType().Name,
+                    })));
+                    Console.WriteLine("Configuration:\n" + builder.Configuration.GetDebugView());
+                }
 
                 // GitHub webhook
                 var githubSection = configuration.GetSection("GitHub");

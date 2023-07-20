@@ -16,7 +16,8 @@
       "launchUrl": "",
       "applicationUrl": "https://localhost:7104",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "VERBOSE": "1"
       }
     },
     "http": {
