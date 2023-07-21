@@ -53,7 +53,6 @@ internal class Program {
         WebApplication app;
         {
             Dictionary<Type, string> migratableDbContexts = new();
-            bool enableReverseProxy;
 
             // Configure services
             {
@@ -71,15 +70,6 @@ internal class Program {
                 var githubSection = builder.Configuration.GetSection("GitHub");
                 if (githubSection.Exists()) {
                     builder.Services.AddSingleton(githubSection.Get<GitHubOptions>()!);
-                }
-
-                // Reverse proxy
-                {
-                    var reverseProxy = builder.Configuration.GetSection("ReverseProxy");
-                    enableReverseProxy = reverseProxy.Exists();
-                    if (enableReverseProxy) {
-                        builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
-                    }
                 }
 
                 // Data protection
@@ -175,10 +165,6 @@ internal class Program {
                 }
 
                 app.UseHttpsRedirection();
-
-                if (enableReverseProxy) {
-                    app.MapReverseProxy();
-                }
 
                 app.UseStaticFiles();
 
