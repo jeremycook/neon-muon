@@ -27,7 +27,12 @@ public static class FileModStartupExtensions {
 
         Console.WriteLine($"{sectionKey}: {dir}");
 
-        Directory.CreateDirectory(dir);
+        if (builder.Environment.IsDevelopment()) {
+            Directory.CreateDirectory(dir);
+        }
+        else if (!Directory.Exists(dir)) {
+            throw new DirectoryNotFoundException($"Could not find a part of the path '{dir}'.");
+        }
 
         TRelativeData relativeData = factory(dir);
         builder.Services.AddSingleton(relativeData);
