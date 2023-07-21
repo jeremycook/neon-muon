@@ -1,3 +1,4 @@
+using FileMod;
 using Microsoft.Extensions.Configuration.Json;
 using System.Diagnostics;
 using System.Text;
@@ -5,26 +6,9 @@ using WebHooks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// AppSettingsDir
-{
-    var dir = builder.Configuration.GetValue<string>("AppSettingsDir");
-
-    if (string.IsNullOrWhiteSpace(dir)) {
-        dir = Path.GetFullPath(".");
-    }
-    else {
-        dir = Path.GetFullPath(dir);
-        foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>()) {
-            builder.Configuration.AddJsonFile(dir, source.Optional, source.ReloadOnChange);
-        }
-    }
-
-    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
-        new("AppSettingsDir", dir),
-    });
-
-    Console.WriteLine("AppSettingsDir: " + builder.Configuration.GetValue<string>("AppSettingsDir"));
-    Directory.CreateDirectory(dir);
+var appSettings = builder.AddDataDirectory(basePath => new AppSettings(basePath));
+foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>()) {
+    builder.Configuration.AddJsonFile(appSettings.GetFullPath(), source.Optional, source.ReloadOnChange);
 }
 
 var app = builder.Build();

@@ -12,10 +12,10 @@ namespace WebApiApp;
 public class DatabaseEndpoints {
 
     public static Database GetDatabase(
-        AppData fileProvider,
+        UserData userData,
         string path
     ) {
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path));
+        using var connection = new SqliteConnection(userData.GetConnectionString(path));
         connection.Open();
 
         var database = connection.GetDatabase();
@@ -23,7 +23,7 @@ public class DatabaseEndpoints {
     }
 
     public static IResult AlterDatabase(
-        AppData fileProvider,
+        UserData userData,
         string path,
         DatabaseAlteration[] databaseAlterations
     ) {
@@ -46,7 +46,7 @@ public class DatabaseEndpoints {
 
         var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(databaseAlterations);
 
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path, SqliteOpenMode.ReadWrite));
+        using var connection = new SqliteConnection(userData.GetConnectionString(path, SqliteOpenMode.ReadWrite));
         connection.Open();
         using (var transaction = connection.BeginTransaction()) {
             try {
@@ -65,16 +65,16 @@ public class DatabaseEndpoints {
     }
 
     public record CreateTableBasedOnFileNodeInput(string SourcePath);
-    public static IResult CreateTableBasedOnFileNode(AppData fileProvider, string path, CreateTableBasedOnFileNodeInput input) {
+    public static IResult CreateTableBasedOnFileNode(UserData userData, string path, CreateTableBasedOnFileNodeInput input) {
         // Attempt to connect to the database before proceeding
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path, SqliteOpenMode.ReadWrite));
+        using var connection = new SqliteConnection(userData.GetConnectionString(path, SqliteOpenMode.ReadWrite));
         connection.Open();
         connection.Close();
 
         var data = new Dictionary<string, DataTable>();
         var databaseAlterations = new List<DatabaseAlteration>();
 
-        var fullPath = fileProvider.GetFullPath(input.SourcePath);
+        var fullPath = userData.GetFullPath(input.SourcePath);
         if (fullPath.EndsWith(".xlsx")) {
             // Create a table for each sheet
             using var workBook = new XLWorkbook(fullPath);
@@ -151,12 +151,12 @@ public class DatabaseEndpoints {
         return Results.Ok();
     }
 
-    public static FileNode GetDatabaseFileNode(AppData fileProvider, FileNode fileNode) {
+    public static FileNode GetDatabaseFileNode(UserData userData, FileNode fileNode) {
         string filename = fileNode.Name;
 
         var database = new Database();
         try {
-            using var connection = new SqliteConnection(fileProvider.GetConnectionString(fileNode.Path));
+            using var connection = new SqliteConnection(userData.GetConnectionString(fileNode.Path));
             connection.Open();
             database.ContributeSqlite(connection);
         }

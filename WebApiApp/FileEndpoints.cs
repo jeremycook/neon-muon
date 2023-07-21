@@ -9,16 +9,16 @@ namespace WebApiApp;
 public class FileEndpoints {
     public record CreateFileInput(string Path);
     public static IResult CreateFile(
-        AppData userFileProvider,
+        UserData userData,
         CreateFileInput input
     ) {
         if (input.Path.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) {
-            if (userFileProvider.Exists(input.Path)) {
+            if (userData.Exists(input.Path)) {
                 return Results.BadRequest($"A file already exists at {input.Path}.");
             }
 
             {
-                using var connection = new SqliteConnection(userFileProvider.GetConnectionString(input.Path, SqliteOpenMode.ReadWriteCreate));
+                using var connection = new SqliteConnection(userData.GetConnectionString(input.Path, SqliteOpenMode.ReadWriteCreate));
                 connection.Open();
                 connection.Execute(Sql.Raw("CREATE TABLE Temp (Id INTEGER PRIMARY KEY);"));
                 connection.Execute(Sql.Raw("DROP TABLE Temp;"));
@@ -26,24 +26,24 @@ public class FileEndpoints {
             return Results.Ok();
         }
         else {
-            userFileProvider.CreateTextFile(input.Path);
+            userData.CreateTextFile(input.Path);
             return Results.Ok();
         }
     }
 
     public record CreateFolderInput(string Path);
     public static void CreateFolder(
-        AppData userFileProvider,
+        UserData userData,
         CreateFolderInput input
     ) {
-        userFileProvider.CreateFolder(input.Path);
+        userData.CreateFolder(input.Path);
     }
 
-    public static FileNode GetFileNode(AppData fileProvider, string path) {
-        FileNode fileNode = fileProvider.GetFileNode(path);
+    public static FileNode GetFileNode(UserData userData, string path) {
+        FileNode fileNode = userData.GetFileNode(path);
         fileNode = WalkFileNode(fileNode, fileNode => {
             if (fileNode.Path.EndsWith(".db")) {
-                return DatabaseEndpoints.GetDatabaseFileNode(fileProvider, fileNode);
+                return DatabaseEndpoints.GetDatabaseFileNode(userData, fileNode);
             }
             else {
                 return fileNode;
@@ -64,42 +64,42 @@ public class FileEndpoints {
 
     public record DeleteFileInput(string Path);
     public static void DeleteFile(
-        AppData userFileProvider,
+        UserData userData,
         DeleteFileInput input
     ) {
-        userFileProvider.Delete(input.Path);
+        userData.Delete(input.Path);
     }
 
     public static IResult DownloadFile(
-        AppData userFileProvider,
+        UserData userData,
         string path
     ) {
-        var physicalPath = userFileProvider.GetFullPath(path);
+        var physicalPath = userData.GetFullPath(path);
         return Results.File(physicalPath, fileDownloadName: Path.GetFileName(path));
     }
 
     public record MoveFileInput(string Path, string NewPath);
     public static void MoveFile(
-        AppData userFileProvider,
+        UserData userData,
         MoveFileInput input
     ) {
-        userFileProvider.Move(input.Path, input.NewPath);
+        userData.Move(input.Path, input.NewPath);
     }
 
     /// <summary>
     /// Upload files into the folder identified by <paramref name="path"/>.
     /// </summary>
     /// <param name="httpContext"></param>
-    /// <param name="userFileProvider"></param>
+    /// <param name="userData"></param>
     /// <param name="path">The path to the folder the files should be uploaded into. Missing folders will be created.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     public static IResult UploadFiles(
         HttpContext httpContext,
-        AppData userFileProvider,
+        UserData userData,
         string path
     ) {
-        var fullPath = userFileProvider.GetFullPath(path);
+        var fullPath = userData.GetFullPath(path);
 
         if (!Directory.Exists(fullPath)) {
             Directory.CreateDirectory(fullPath);
@@ -110,7 +110,7 @@ public class FileEndpoints {
             .Select(file => (
                 file,
                 path: prefix + file.FileName,
-                destinationPath: userFileProvider.GetFullPath(prefix + file.FileName)
+                destinationPath: userData.GetFullPath(prefix + file.FileName)
             ))
             .ToArray();
 

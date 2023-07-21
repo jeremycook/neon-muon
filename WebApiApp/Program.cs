@@ -58,93 +58,24 @@ internal class Program {
             // Configure services
             {
                 var builder = WebApplication.CreateBuilder(args);
-                var configuration = builder.Configuration;
 
-                if (Environment.GetEnvironmentVariable("VERBOSE") != null) {
-                    Console.WriteLine("Configuration Sources:\n" + string.Join("\n", builder.Configuration.Sources.Select(o => o switch {
-                        JsonConfigurationSource json => o.GetType().Name + ": " + json.FileProvider?.GetFileInfo(json?.Path ?? string.Empty).PhysicalPath,
-                        _ => o.GetType().Name,
-                    })));
-                    Console.WriteLine("Configuration:\n" + builder.Configuration.GetDebugView());
+                var appSettings = builder.AddDataDirectory(basePath => new AppSettings(basePath));
+                foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>().ToArray()) {
+                    builder.Configuration.AddJsonFile(appSettings.GetFullPath(), source.Optional, source.ReloadOnChange);
                 }
 
-                // AppSettingsDir
-                {
-                    var dir = builder.Configuration.GetValue<string>("AppSettingsDir");
-
-                    if (string.IsNullOrWhiteSpace(dir)) {
-                        dir = Path.GetFullPath(".");
-                    }
-                    else {
-                        dir = Path.GetFullPath(dir);
-                        foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>()) {
-                            builder.Configuration.AddJsonFile(dir, source.Optional, source.ReloadOnChange);
-                        }
-                    }
-
-                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
-                        new("AppSettingsDir", dir),
-                    });
-
-                    Console.WriteLine("AppSettingsDir: " + builder.Configuration.GetValue<string>("AppSettingsDir"));
-                    Directory.CreateDirectory(dir);
-                }
-
-                // AppDataDir
-                {
-                    var dir = builder.Configuration.GetValue<string>("AppDataDir");
-
-                    if (string.IsNullOrWhiteSpace(dir)) {
-                        dir = "appdata";
-                    }
-
-                    dir = Path.GetFullPath(dir);
-
-                    if (dir == Path.GetFullPath(".")) {
-                        throw new Exception("The AppDataDir cannot be the same as the current working directory.");
-                    }
-
-                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
-                        new("AppDataDir", dir),
-                    });
-
-                    Console.WriteLine("AppDataDir: " + builder.Configuration.GetValue<string>("AppDataDir"));
-                    Directory.CreateDirectory(dir);
-                }
-
-                // UserDataDir
-                {
-                    var dir = builder.Configuration.GetValue<string>("UserDataDir");
-
-                    if (string.IsNullOrWhiteSpace(dir)) {
-                        dir = "userdata";
-                    }
-
-                    dir = Path.GetFullPath(dir);
-
-                    if (dir == Path.GetFullPath(".")) {
-                        throw new Exception("The UserDataDir cannot be the same as the current working directory.");
-                    }
-
-                    Directory.CreateDirectory(dir);
-
-                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
-                        new("UserDataDir", dir),
-                    });
-
-                    Console.WriteLine("UserDataDir: " + builder.Configuration.GetValue<string>("UserDataDir"));
-                    Directory.CreateDirectory(dir);
-                }
+                var appData = builder.AddDataDirectory(basePath => new AppData(basePath));
+                var userData = builder.AddDataDirectory(basePath => new UserData(basePath));
 
                 // GitHub webhook
-                var githubSection = configuration.GetSection("GitHub");
+                var githubSection = builder.Configuration.GetSection("GitHub");
                 if (githubSection.Exists()) {
                     builder.Services.AddSingleton(githubSection.Get<GitHubOptions>()!);
                 }
 
                 // Reverse proxy
                 {
-                    var reverseProxy = configuration.GetSection("ReverseProxy");
+                    var reverseProxy = builder.Configuration.GetSection("ReverseProxy");
                     enableReverseProxy = reverseProxy.Exists();
                     if (enableReverseProxy) {
                         builder.Services.AddReverseProxy().LoadFromConfig(reverseProxy);
@@ -152,7 +83,7 @@ internal class Program {
                 }
 
                 // Data protection
-                builder.AddDataProtection();
+                builder.AddDataProtection(appSettings, appData);
 
                 // Auth
                 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -171,15 +102,9 @@ internal class Program {
                     options.SerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
                 });
 
-                // User files
-                {
-                    string userDataDir = configuration.GetValue<string>("UserDataDir")!;
-                    builder.Services.AddSingleton(new AppData(userDataDir));
-                }
-
                 // Login
                 {
-                    string loginConnectionString = configuration.GetAppConnectionString(configuration.GetConnectionString("Main")!);
+                    string loginConnectionString = appData.GetConnectionString("app.db");
 
                     migratableDbContexts.Add(typeof(LoginDbContext), loginConnectionString);
 

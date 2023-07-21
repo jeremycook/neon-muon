@@ -23,10 +23,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult SelectRecords(
-        AppData fileProvider,
+        UserData userData,
         SelectRecordsInput input
     ) {
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database));
+        using var connection = new SqliteConnection(userData.GetConnectionString(input.Database));
         connection.Open();
 
         var database = connection.GetDatabase();
@@ -75,10 +75,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult InsertRecords(
-        AppData fileProvider,
+        UserData userData,
         InsertRecordsInput input
     ) {
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
+        using var connection = new SqliteConnection(userData.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
@@ -136,10 +136,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult UpdateRecords(
-        AppData fileProvider,
+        UserData userData,
         UpdateRecordsInput input
     ) {
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
+        using var connection = new SqliteConnection(userData.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
@@ -196,10 +196,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult DeleteRecords(
-        AppData fileProvider,
+        UserData userData,
         DeleteRecordsInput input
     ) {
-        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
+        using var connection = new SqliteConnection(userData.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
 
         var database = connection.GetDatabase();
