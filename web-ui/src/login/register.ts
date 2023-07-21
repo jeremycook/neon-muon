@@ -20,11 +20,11 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
         form({ onsubmit },
             div(
                 label({ for: 'username' }, 'Username'),
-                input({ id: 'username', required: true, autofocus: true, value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
+                input({ required: true, autocomplete: 'username', autofocus: true, value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
             ),
             div(
                 label({ for: 'password' }, 'Password'),
-                input({ type: 'password', id: 'password', required: true, oninput(ev: ValueEvent) { data.password = ev.target.value } }),
+                input({ type: 'password', required: true, minLength: 10, autocomplete: 'new-password', oninput(ev: ValueEvent) { data.password = ev.target.value } }),
             ),
             div({ class: 'flex flex-between' },
                 button({ type: 'submit' }, 'Register'),

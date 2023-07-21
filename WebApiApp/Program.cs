@@ -23,6 +23,7 @@ internal class Program {
         app.MapPost("/api/gh", HooksEndpoints.GitHub).AllowAnonymous();
 
         // Login
+        app.MapPost("/api/change-password", LoginEndpoints.ChangePassword).AllowAnonymous();
         app.MapPost("/api/login", LoginEndpoints.Login).AllowAnonymous();
         app.MapPost("/api/logout", LoginEndpoints.Logout).AllowAnonymous();
         app.MapPost("/api/register", LoginEndpoints.Register).AllowAnonymous();

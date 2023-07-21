@@ -7,6 +7,18 @@ using System.Security.Claims;
 namespace LoginApi;
 
 public class LoginEndpoints {
+    public record ChangePasswordInput(string Username, string Password, string NewPassword);
+
+    public static async Task<IResult> ChangePassword(ChangePasswordInput input, LoginServices service, CancellationToken cancel) {
+        var errors = await service.ChangePassword(input.Username, input.Password, input.NewPassword, cancel);
+
+        if (errors.Any()) {
+            return Results.BadRequest(string.Join(" ", errors));
+        }
+
+        return Results.Ok();
+    }
+
     public record LoginInput(string Username, string Password, bool RequestElevated = false);
 
     public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel) {

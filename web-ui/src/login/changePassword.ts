@@ -1,23 +1,23 @@
 import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
-import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
+import { ValueEvent, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
-import { makeUrl, redirectLocal } from '../utils/url';
+import { redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
-export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
+export function changePasswordPage({ redirectUrl }: { redirectUrl?: string }) {
 
     const data = {
         username: '',
         password: '',
-        requestElevated: requestElevated?.startsWith('t'),
+        newPassword: '',
     };
 
     const errorMessage = val('');
 
     const view = siteCard(
-        h1('Login'),
+        h1('Change Password'),
         ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.val)),
         form({ async onsubmit(ev: SubmitEvent) { await onsubmit(ev, errorMessage, data, redirectUrl); } },
             label(
@@ -25,12 +25,15 @@ export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: stri
                 input({ required: true, autofocus: true, autocomplete: 'username', value: data.username, oninput(ev: ValueEvent) { data.username = ev.target.value } }),
             ),
             label(
-                div('Password'),
+                div('Current Password'),
                 input({ type: 'password', required: true, autocomplete: 'current-password', oninput(ev: ValueEvent) { data.password = ev.target.value } }),
             ),
+            label(
+                div('New Password'),
+                input({ type: 'password', required: true, minLength: 10, autocomplete: 'new-password', oninput(ev: ValueEvent) { data.newPassword = ev.target.value } }),
+            ),
             div({ class: 'flex flex-between' },
-                button({ type: 'submit' }, 'Login'),
-                a({ href: makeUrl('/register', { redirectUrl }) }, 'Register'),
+                button({ type: 'submit' }, 'Change Password'),
             ),
         ),
     );
@@ -46,13 +49,13 @@ async function onsubmit(
 ) {
     ev.preventDefault();
 
-    var response = await jsonPost('/api/login', data);
+    var response = await jsonPost('/api/change-password', data);
     if (response.ok) {
         await refreshCurrentLogin();
-        redirectLocal(redirectUrl);
+        redirectLocal(redirectUrl, '/login');
         return;
     }
     else {
-        errorMessage.pub(response.errorMessage ?? 'An error occured');
+        errorMessage.pub(response.errorMessage || 'An error occured.');
     }
 }
