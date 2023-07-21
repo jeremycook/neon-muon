@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var appSettings = builder.AddDataDirectory(basePath => new AppSettings(basePath));
 foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>().ToArray()) {
-    builder.Configuration.AddJsonFile(appSettings.GetFullPath(), source.Optional, source.ReloadOnChange);
+    builder.Configuration.AddJsonFile(appSettings.GetFullPath(source.Path!), source.Optional, source.ReloadOnChange);
 }
 
 var app = builder.Build();
