@@ -1,32 +1,50 @@
+using Microsoft.Extensions.Configuration.Json;
 using System.Diagnostics;
 using System.Text;
 using WebHooks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var altAppsettingsFile = Environment.GetEnvironmentVariable("ALT_APPSETTINGS_FILE");
-if (altAppsettingsFile != null) {
-    altAppsettingsFile = Path.GetFullPath(altAppsettingsFile);
-    builder.Configuration.AddJsonFile(altAppsettingsFile, false, reloadOnChange: true);
+// AppSettingsDir
+{
+    var dir = builder.Configuration.GetValue<string>("AppSettingsDir");
+
+    if (string.IsNullOrWhiteSpace(dir)) {
+        dir = Path.GetFullPath(".");
+    }
+    else {
+        dir = Path.GetFullPath(dir);
+        foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>()) {
+            builder.Configuration.AddJsonFile(dir, source.Optional, source.ReloadOnChange);
+        }
+    }
+
+    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
+        new("AppSettingsDir", dir),
+    });
+
+    Console.WriteLine("AppSettingsDir: " + builder.Configuration.GetValue<string>("AppSettingsDir"));
+    Directory.CreateDirectory(dir);
 }
 
 var app = builder.Build();
 
-var sections = app.Configuration.GetSection("Hooks");
-if (!sections.Exists()) {
+var hooks = app.Configuration.GetSection("Hooks");
+if (!hooks.Exists()) {
     throw new Exception("Missing Hooks section.");
 }
 
-foreach (var hookSection in sections.GetChildren()) {
-    var hook = hookSection.Get<HookSettings>()!;
-    app.Map("/" + hookSection.Key, async (HttpContext context) => {
+foreach (var hook in hooks.GetChildren()) {
+    var hookPath = hook.Key;
+    var hookSettings = hook.Get<HookSettings>()!;
+    app.Map("/" + hookPath, async (HttpContext context) => {
 
-        IHookAuthenticator authenticator = hook.Authenticator switch {
+        IHookAuthenticator authenticator = hookSettings.Authenticator switch {
             HookAuthenticator.Unauthorized => new UnauthorizedAuthenticator(),
             HookAuthenticator.GitHub => new GitHubAuthenticator(),
-            _ => throw new NotSupportedException($"The {hook.Authenticator} hook authenticator is not supported."),
+            _ => throw new NotSupportedException($"The {hookSettings.Authenticator} hook authenticator is not supported."),
         };
-        var authenticateResult = await authenticator.Authenticate(context, hookSection);
+        var authenticateResult = await authenticator.Authenticate(context, hook);
         if (authenticateResult != System.Net.HttpStatusCode.OK) {
             return Results.StatusCode((int)authenticateResult);
         }
@@ -35,8 +53,8 @@ foreach (var hookSection in sections.GetChildren()) {
         var error = new StringBuilder();
 
         using var p = new Process();
-        p.StartInfo.WorkingDirectory = hook.WorkingDirectory;
-        p.StartInfo.FileName = hook.FileName;
+        p.StartInfo.WorkingDirectory = hookSettings.WorkingDirectory;
+        p.StartInfo.FileName = hookSettings.FileName;
         //p.StartInfo.Arguments = @"TODO";
         p.StartInfo.CreateNoWindow = true;
         p.StartInfo.RedirectStandardError = true;
@@ -50,11 +68,11 @@ foreach (var hookSection in sections.GetChildren()) {
         p.WaitForExit();
 
         if (output.Length > 0) {
-            app.Logger.LogInformation("{HookName} std out: {StdOut}", hookSection.Key, output.ToString());
+            app.Logger.LogInformation("{HookName} std out: {StdOut}", hookPath, output.ToString());
         }
 
         if (error.Length > 0) {
-            app.Logger.LogError("{HookName} std error: {StdError}", hookSection.Key, error.ToString());
+            app.Logger.LogError("{HookName} std error: {StdError}", hookPath, error.ToString());
             return Results.BadRequest();
         }
         else {

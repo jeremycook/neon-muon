@@ -1,5 +1,6 @@
 ﻿using DatabaseMod.Models;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 using SqlMod;
 using System.Data;
 using System.Data.Common;
@@ -7,6 +8,26 @@ using System.Data.Common;
 namespace SqliteMod;
 
 public static class SqliteConnectionHelpers {
+
+    public static string GetAppConnectionString(this IConfigurationRoot configuration, string connectionString) {
+        string appDataDir = configuration.GetRequiredSection("AppDataDir").Value!;
+
+        var csb = new SqliteConnectionStringBuilder(connectionString);
+        csb.DataSource = Path.GetFullPath(csb.DataSource, appDataDir);
+
+        return csb.ConnectionString;
+    }
+
+    public static string GetUserConnectionString(this IConfigurationRoot configuration, string connectionString, SqliteOpenMode mode = SqliteOpenMode.ReadOnly) {
+        string userDataDir = configuration.GetRequiredSection("UserDataDir").Value!;
+
+        var csb = new SqliteConnectionStringBuilder(connectionString) {
+            Mode = mode,
+        };
+        csb.DataSource = Path.GetFullPath(csb.DataSource, userDataDir);
+
+        return csb.ConnectionString;
+    }
 
     public static Database GetDatabase(this SqliteConnection connection) {
         // TODO: Cache results based on connection string,

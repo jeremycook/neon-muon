@@ -1,11 +1,12 @@
-﻿using System.Text;
+﻿using Microsoft.Data.Sqlite;
+using System.Text;
 
 namespace FileMod;
 
-public class UserFileProvider {
+public class AppData {
     private readonly string basePath;
 
-    public UserFileProvider(string basePath) {
+    public AppData(string basePath) {
         if (!Path.IsPathRooted(basePath)) {
             throw new ArgumentException("The basePath must be a rooted/absolute path.", nameof(basePath));
         }
@@ -102,6 +103,17 @@ public class UserFileProvider {
         }
 
         return fullPath;
+    }
+
+    public string GetConnectionString(string path, SqliteOpenMode mode = SqliteOpenMode.ReadOnly) {
+        string fullPath = GetFullPath(path);
+
+        var csb = new SqliteConnectionStringBuilder() {
+            DataSource = fullPath,
+            Mode = mode,
+        };
+
+        return csb.ConnectionString;
     }
 
     public IEnumerable<string> GetChildFileNames(string path) {

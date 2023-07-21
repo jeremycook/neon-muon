@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SqliteMod;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 
@@ -26,7 +27,7 @@ public static class DataProtectionExtensions {
         var certificate = new X509Certificate2(certBytes, string.Empty);
 
         // Configure database storage
-        var connectionString = settings.ConnectionString;
+        var connectionString = builder.Configuration.GetAppConnectionString(settings.ConnectionString);
         {
             using var db = new DataProtectionDbContext(new DbContextOptionsBuilder<DataProtectionDbContext>()
                 .UseSqlite(connectionString).Options);

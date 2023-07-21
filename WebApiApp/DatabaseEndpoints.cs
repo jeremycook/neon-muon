@@ -12,16 +12,10 @@ namespace WebApiApp;
 public class DatabaseEndpoints {
 
     public static Database GetDatabase(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         string path
     ) {
-        var fullPath = fileProvider.GetFullPath(path);
-
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-            Mode = SqliteOpenMode.ReadOnly,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path));
         connection.Open();
 
         var database = connection.GetDatabase();
@@ -29,12 +23,10 @@ public class DatabaseEndpoints {
     }
 
     public static IResult AlterDatabase(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         string path,
         DatabaseAlteration[] databaseAlterations
     ) {
-        var fullPath = fileProvider.GetFullPath(path);
-
         var validAlterations = new[] {
             typeof(CreateColumn),
             typeof(AlterColumn),
@@ -54,10 +46,7 @@ public class DatabaseEndpoints {
 
         var sqlStatements = SqliteDatabaseScripter.ScriptAlterations(databaseAlterations);
 
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path, SqliteOpenMode.ReadWrite));
         connection.Open();
         using (var transaction = connection.BeginTransaction()) {
             try {
@@ -76,14 +65,9 @@ public class DatabaseEndpoints {
     }
 
     public record CreateTableBasedOnFileNodeInput(string SourcePath);
-    public static IResult CreateTableBasedOnFileNode(UserFileProvider fileProvider, string path, CreateTableBasedOnFileNodeInput input) {
-        var databasePath = fileProvider.GetFullPath(path);
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = databasePath,
-            Mode = SqliteOpenMode.ReadWrite,
-        };
+    public static IResult CreateTableBasedOnFileNode(AppData fileProvider, string path, CreateTableBasedOnFileNodeInput input) {
         // Attempt to connect to the database before proceeding
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(path, SqliteOpenMode.ReadWrite));
         connection.Open();
         connection.Close();
 
@@ -167,17 +151,12 @@ public class DatabaseEndpoints {
         return Results.Ok();
     }
 
-    public static FileNode GetDatabaseFileNode(UserFileProvider fileProvider, FileNode fileNode) {
-        string fullPath = fileProvider.GetFullPath(fileNode.Path);
-        string filename = Path.GetFileName(fullPath);
+    public static FileNode GetDatabaseFileNode(AppData fileProvider, FileNode fileNode) {
+        string filename = fileNode.Name;
 
         var database = new Database();
         try {
-            var builder = new SqliteConnectionStringBuilder() {
-                DataSource = fullPath,
-                Mode = SqliteOpenMode.ReadOnly,
-            };
-            using var connection = new SqliteConnection(builder.ConnectionString);
+            using var connection = new SqliteConnection(fileProvider.GetConnectionString(fileNode.Path));
             connection.Open();
             database.ContributeSqlite(connection);
         }

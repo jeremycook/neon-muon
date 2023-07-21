@@ -1,5 +1,6 @@
 ﻿using FileMod;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.FileProviders;
 using SqliteMod;
 using SqlMod;
 
@@ -8,22 +9,16 @@ namespace WebApiApp;
 public class FileEndpoints {
     public record CreateFileInput(string Path);
     public static IResult CreateFile(
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         CreateFileInput input
     ) {
         if (input.Path.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) {
-            var fullPath = userFileProvider.GetFullPath(input.Path);
-
-            if (Path.Exists(fullPath)) {
+            if (userFileProvider.Exists(input.Path)) {
                 return Results.BadRequest($"A file already exists at {input.Path}.");
             }
 
             {
-                var builder = new SqliteConnectionStringBuilder() {
-                    DataSource = fullPath,
-                    Mode = SqliteOpenMode.ReadWriteCreate,
-                };
-                using var connection = new SqliteConnection(builder.ConnectionString);
+                using var connection = new SqliteConnection(userFileProvider.GetConnectionString(input.Path, SqliteOpenMode.ReadWriteCreate));
                 connection.Open();
                 connection.Execute(Sql.Raw("CREATE TABLE Temp (Id INTEGER PRIMARY KEY);"));
                 connection.Execute(Sql.Raw("DROP TABLE Temp;"));
@@ -38,13 +33,13 @@ public class FileEndpoints {
 
     public record CreateFolderInput(string Path);
     public static void CreateFolder(
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         CreateFolderInput input
     ) {
         userFileProvider.CreateFolder(input.Path);
     }
 
-    public static FileNode GetFileNode(UserFileProvider fileProvider, string path) {
+    public static FileNode GetFileNode(AppData fileProvider, string path) {
         FileNode fileNode = fileProvider.GetFileNode(path);
         fileNode = WalkFileNode(fileNode, fileNode => {
             if (fileNode.Path.EndsWith(".db")) {
@@ -69,14 +64,14 @@ public class FileEndpoints {
 
     public record DeleteFileInput(string Path);
     public static void DeleteFile(
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         DeleteFileInput input
     ) {
         userFileProvider.Delete(input.Path);
     }
 
     public static IResult DownloadFile(
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         string path
     ) {
         var physicalPath = userFileProvider.GetFullPath(path);
@@ -85,7 +80,7 @@ public class FileEndpoints {
 
     public record MoveFileInput(string Path, string NewPath);
     public static void MoveFile(
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         MoveFileInput input
     ) {
         userFileProvider.Move(input.Path, input.NewPath);
@@ -101,7 +96,7 @@ public class FileEndpoints {
     /// <exception cref="ArgumentException"></exception>
     public static IResult UploadFiles(
         HttpContext httpContext,
-        UserFileProvider userFileProvider,
+        AppData userFileProvider,
         string path
     ) {
         var fullPath = userFileProvider.GetFullPath(path);

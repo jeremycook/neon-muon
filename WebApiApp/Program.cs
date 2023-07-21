@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using SqliteMod;
 using System.Text.Json;
@@ -53,7 +52,7 @@ internal class Program {
     private static void Main(string[] args) {
         WebApplication app;
         {
-            Dictionary<Type, SqliteConnectionStringBuilder> migratableDbContexts = new();
+            Dictionary<Type, string> migratableDbContexts = new();
             bool enableReverseProxy;
 
             // Configure services
@@ -67,6 +66,74 @@ internal class Program {
                         _ => o.GetType().Name,
                     })));
                     Console.WriteLine("Configuration:\n" + builder.Configuration.GetDebugView());
+                }
+
+                // AppSettingsDir
+                {
+                    var dir = builder.Configuration.GetValue<string>("AppSettingsDir");
+
+                    if (string.IsNullOrWhiteSpace(dir)) {
+                        dir = Path.GetFullPath(".");
+                    }
+                    else {
+                        dir = Path.GetFullPath(dir);
+                        foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>()) {
+                            builder.Configuration.AddJsonFile(dir, source.Optional, source.ReloadOnChange);
+                        }
+                    }
+
+                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
+                        new("AppSettingsDir", dir),
+                    });
+
+                    Console.WriteLine("AppSettingsDir: " + builder.Configuration.GetValue<string>("AppSettingsDir"));
+                    Directory.CreateDirectory(dir);
+                }
+
+                // AppDataDir
+                {
+                    var dir = builder.Configuration.GetValue<string>("AppDataDir");
+
+                    if (string.IsNullOrWhiteSpace(dir)) {
+                        dir = "appdata";
+                    }
+
+                    dir = Path.GetFullPath(dir);
+
+                    if (dir == Path.GetFullPath(".")) {
+                        throw new Exception("The AppDataDir cannot be the same as the current working directory.");
+                    }
+
+                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
+                        new("AppDataDir", dir),
+                    });
+
+                    Console.WriteLine("AppDataDir: " + builder.Configuration.GetValue<string>("AppDataDir"));
+                    Directory.CreateDirectory(dir);
+                }
+
+                // UserDataDir
+                {
+                    var dir = builder.Configuration.GetValue<string>("UserDataDir");
+
+                    if (string.IsNullOrWhiteSpace(dir)) {
+                        dir = "userdata";
+                    }
+
+                    dir = Path.GetFullPath(dir);
+
+                    if (dir == Path.GetFullPath(".")) {
+                        throw new Exception("The UserDataDir cannot be the same as the current working directory.");
+                    }
+
+                    Directory.CreateDirectory(dir);
+
+                    builder.Configuration.AddInMemoryCollection(new KeyValuePair<string, string?>[] {
+                        new("UserDataDir", dir),
+                    });
+
+                    Console.WriteLine("UserDataDir: " + builder.Configuration.GetValue<string>("UserDataDir"));
+                    Directory.CreateDirectory(dir);
                 }
 
                 // GitHub webhook
@@ -106,30 +173,18 @@ internal class Program {
 
                 // User files
                 {
-                    string configuredPath =
-                        configuration.GetValue<string?>("App:UserFilesRoot")
-                        ?? throw new Exception("Missing \"App:UserFilesRoot\" configuration.");
-                    var userFilesRoot = Path.GetFullPath(configuredPath, builder.Environment.ContentRootPath);
-                    Directory.CreateDirectory(userFilesRoot);
-                    builder.Services.AddSingleton(new UserFileProvider(userFilesRoot));
+                    string userDataDir = configuration.GetValue<string>("UserDataDir")!;
+                    builder.Services.AddSingleton(new AppData(userDataDir));
                 }
 
                 // Login
                 {
-                    string? connectionString = configuration.GetConnectionString("Main");
-                    try {
-                        var loginCSB = new SqliteConnectionStringBuilder(connectionString);
-                        loginCSB.DataSource = Path.GetFullPath(loginCSB.DataSource, builder.Environment.ContentRootPath);
-                        string loginConnectionString = loginCSB.ConnectionString;
+                    string loginConnectionString = configuration.GetAppConnectionString(configuration.GetConnectionString("Main")!);
 
-                        migratableDbContexts.Add(typeof(LoginDbContext), loginCSB);
-                        builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
-                        builder.Services.AddScoped<LoginServices>();
-                    }
-                    catch (Exception) {
-                        Console.Error.WriteLine("Invalid Main connection string: " + connectionString);
-                        throw;
-                    }
+                    migratableDbContexts.Add(typeof(LoginDbContext), loginConnectionString);
+
+                    builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
+                    builder.Services.AddScoped<LoginServices>();
                 }
 
                 //// Content
@@ -144,23 +199,11 @@ internal class Program {
             Log.Factory = app.Services.GetRequiredService<ILoggerFactory>();
 
             { // Migrate databases
-                foreach (var group in migratableDbContexts.GroupBy(o => o.Value.ConnectionString)) {
-                    var connectionStringBuilder = group.First().Value;
+                foreach (var group in migratableDbContexts.GroupBy(o => o.Value)) {
+                    var connectionString = group.First().Value;
                     var dbContextTypes = group.Select(o => o.Key).ToList();
 
-                    // Try to create the Sqlite database's directory if it doesn't exist
-                    if (connectionStringBuilder.Mode != SqliteOpenMode.Memory &&
-                        !File.Exists(connectionStringBuilder.DataSource)) {
-
-                        var dir = Path.GetDirectoryName(connectionStringBuilder.DataSource);
-                        if (string.IsNullOrWhiteSpace(dir)) {
-                            throw new Exception("Invalid DataSource.");
-                        }
-
-                        try { Directory.CreateDirectory(dir); } catch (Exception) { }
-                    }
-
-                    using var connection = new SqliteConnection(connectionStringBuilder.ToString());
+                    using var connection = new SqliteConnection(connectionString);
                     connection.Open();
 
                     var currentDatabase = new Database();

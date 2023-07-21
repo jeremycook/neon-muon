@@ -23,16 +23,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult SelectRecords(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         SelectRecordsInput input
     ) {
-        var fullPath = fileProvider.GetFullPath(input.Database);
-
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-            Mode = SqliteOpenMode.ReadOnly,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database));
         connection.Open();
 
         var database = connection.GetDatabase();
@@ -81,15 +75,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult InsertRecords(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         InsertRecordsInput input
     ) {
-        var fullPath = fileProvider.GetFullPath(input.Database);
-
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
@@ -147,15 +136,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult UpdateRecords(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         UpdateRecordsInput input
     ) {
-        var fullPath = fileProvider.GetFullPath(input.Database);
-
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
@@ -212,15 +196,10 @@ public class RecordEndpoints {
     ) { }
 
     public static IResult DeleteRecords(
-        UserFileProvider fileProvider,
+        AppData fileProvider,
         DeleteRecordsInput input
     ) {
-        var fullPath = fileProvider.GetFullPath(input.Database);
-
-        var builder = new SqliteConnectionStringBuilder() {
-            DataSource = fullPath,
-        };
-        using var connection = new SqliteConnection(builder.ConnectionString);
+        using var connection = new SqliteConnection(fileProvider.GetConnectionString(input.Database, SqliteOpenMode.ReadWrite));
         connection.Open();
 
         var database = connection.GetDatabase();

@@ -4,3 +4,6 @@ obj/
 -*
 *.csproj.user
 *.pubxml.user
+app_data/
+appdata/
+userdata/
