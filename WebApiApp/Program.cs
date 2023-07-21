@@ -153,7 +153,7 @@ internal class Program {
             // Configure the HTTP request pipeline.
             {
                 app.UseForwardedHeaders(new ForwardedHeadersOptions {
-                    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                    ForwardedHeaders = ForwardedHeaders.All
                 });
 
                 if (app.Configuration.GetSection("ForceHttps").Get<bool>() == true) {
