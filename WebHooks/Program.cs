@@ -1,4 +1,5 @@
 using FileMod;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration.Json;
 using System.Diagnostics;
 using System.Text;
@@ -15,12 +16,16 @@ var jobQueue = new JobQueue();
 builder.Services.AddSingleton(jobQueue);
 builder.Services.AddHostedService<JobQueueHostedService>();
 
-var app = builder.Build();
-
-var hooks = app.Configuration.GetSection("Hooks");
+var hooks = builder.Configuration.GetSection("Hooks");
 if (!hooks.Exists()) {
     throw new Exception("Missing Hooks section.");
 }
+
+var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions {
+    ForwardedHeaders = ForwardedHeaders.All
+});
 
 foreach (var hook in hooks.GetChildren()) {
     var hookPath = hook.Key;
