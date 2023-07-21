@@ -104,10 +104,9 @@ internal class Program {
 
                 // Login
                 {
-                    string loginConnectionString = appData.GetConnectionString("app.db");
+                    migratableDbContexts.Add(typeof(LoginDbContext), appData.GetConnectionString("app.db", SqliteOpenMode.ReadWriteCreate));
 
-                    migratableDbContexts.Add(typeof(LoginDbContext), loginConnectionString);
-
+                    string loginConnectionString = appData.GetConnectionString("app.db", SqliteOpenMode.ReadWrite);
                     builder.Services.AddDbContext<LoginDbContext>(o => o.UseSqlite(loginConnectionString));
                     builder.Services.AddScoped<LoginServices>();
                 }
