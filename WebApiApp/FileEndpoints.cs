@@ -1,6 +1,5 @@
 ﻿using FileMod;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.FileProviders;
 using SqliteMod;
 using SqlMod;
 
@@ -86,7 +85,12 @@ public class FileEndpoints {
         userData.Move(input.Path, input.NewPath);
     }
 
-    // Upload new content
+    /// <summary>
+    /// Create or replace content via a multipart/form-data request. The filename of each file's Content-Disposition is interpreted as the relative path to upload that file to.
+    /// </summary>
+    /// <param name="uploads"></param>
+    /// <param name="userData"></param>
+    /// <returns></returns>
     public static IResult UploadContent(
         IFormFileCollection uploads,
         UserData userData
