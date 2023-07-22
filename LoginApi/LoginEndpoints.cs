@@ -81,7 +81,6 @@ public class LoginEndpoints {
         public string Username { get => username; set => username = value.Trim(); }
         public string Password { get => password; set => password = value.Trim(); }
     }
-
     public static async Task<IResult> Register(RegisterInput input, LoginServices service, CancellationToken cancel) {
         var errors = await service.Register(input.Username, input.Password, cancel);
 
@@ -92,8 +91,13 @@ public class LoginEndpoints {
         return Results.Ok();
     }
 
-    public record LoginInfoResult(bool Auth, string Sub, string Name, bool Elevated, string[] Roles) { }
-
+    public record LoginInfoResult(
+        bool Auth,
+        string Sub,
+        string Name,
+        bool Elevated,
+        string[] Roles
+    ) { }
     public static LoginInfoResult LoginInfo(HttpContext context) {
         var user = context?.User;
         return new LoginInfoResult(
