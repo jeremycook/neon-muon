@@ -86,6 +86,24 @@ public class FileEndpoints {
         userData.Move(input.Path, input.NewPath);
     }
 
+    // Upload new content
+    public static IResult UploadContent(
+        IFormFileCollection uploads,
+        UserData userData
+    ) {
+        foreach (var file in uploads) {
+            var fullPath = userData.GetFullPath(file.FileName);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+            using var source = file.OpenReadStream();
+            using var destination = File.Open(fullPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+            source.CopyTo(destination);
+        }
+
+        return Results.Ok();
+    }
+
     /// <summary>
     /// Upload files into the folder identified by <paramref name="path"/>.
     /// </summary>

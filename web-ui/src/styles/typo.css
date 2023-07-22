@@ -179,6 +179,10 @@ textarea,
     width: 100%;
 }
 
+.resize-0 {
+    resize: none;
+}
+
 input:focus,
 input:hover,
 select:focus,

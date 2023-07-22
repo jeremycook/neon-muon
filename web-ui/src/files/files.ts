@@ -1,8 +1,9 @@
 import { currentLogin } from '../login/loginInfo';
 import { icon } from '../ui/icons';
 import { modalConfirm, modalPrompt } from '../ui/modals';
+import { when } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';
-import { a, button, div, h1, input, li, ul } from '../utils/html';
+import { a, button, div, h1, input, li, textarea, ul } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { parseJson } from '../utils/json';
 import { SubT, computed, val } from '../utils/pubSub';
@@ -123,6 +124,69 @@ export function fileApp({ fileNode }: { fileNode: FileNode; }) {
     );
 }
 
+export async function textApp({ fileNode }: { fileNode: FileNode; }) {
+
+    let text = await downloadTextFile(fileNode.path) ?? '';
+    const changed = val(false);
+
+    return div({ class: 'flex flex-down h-fill' },
+        h1(fileNode.name),
+
+        div({ class: 'flex mb' },
+            a({ class: 'button', href: makeUrl('/api/download-file', { path: fileNode.path }) },
+                icon('arrow-download-regular'), ' Download'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const newFilePath = await promptMoveFile(fileNode);
+                    if (newFilePath) {
+                        redirect(makeUrl('/browse', { path: newFilePath }));
+                        return;
+                    }
+                }
+            },
+                icon('rename-regular'), ' Move'
+            ),
+            button({ class: 'button' }, {
+                async onclick() {
+                    const success = await promptDeleteFile(fileNode);
+                    if (success) {
+                        redirect(makeUrl('/browse', { path: getParentPath(fileNode.path) }));
+                        return;
+                    }
+                }
+            },
+                icon('delete-regular'), ' Delete'
+            ),
+            when(changed, () =>
+                button({ class: 'button' }, {
+                    async onclick() {
+                        const file = new File([text], fileNode.path, { type: "text/plain;charset=utf-8" });
+                        const response = await uploadContent(file);
+                        if (response.ok) {
+                            changed.pub(false);
+                        }
+                        else {
+                            alert(await response.text() || 'Unknown error.');
+                        }
+                    }
+                },
+                    icon('document-save-regular'), ' Save'
+                )
+            )
+        ),
+
+        textarea({ class: 'flex-grow resize-0' }, {
+            oninput(ev: EventT<HTMLTextAreaElement>) {
+                text = ev.currentTarget.value;
+                changed.pub(true);
+            }
+        },
+            text
+        ),
+    );
+}
+
 function _rootStorageKey() {
     return 'root:' + currentLogin.val.sub;
 };
@@ -174,6 +238,17 @@ export async function refreshRoot() {
     await _root.pub(fileNode);
     sessionStorage.setItem(_rootStorageKey(), JSON.stringify(fileNode));
 };
+
+export async function downloadTextFile(path: string) {
+    const response = await fetch(makeUrl('/api/download-file', { path }));
+
+    if (response.ok) {
+        return await response.text();
+    }
+    else {
+        return undefined;
+    }
+}
 
 export async function downloadJsonFile<T>(path: string) {
     const response = await jsonGet<T>(makeUrl('/api/download-file', { path }));
@@ -383,6 +458,17 @@ export function getFilesFromDataTransfer(dataTransfer: DataTransfer | null) {
         }
     }
     return files;
+}
+
+export async function uploadContent(...files: readonly File[]) {
+    const formData = new FormData();
+    for (const [i, file] of Array.from(files).entries()) {
+        formData.append(`files_${i}`, file);
+    }
+    return await fetch('/api/upload-content', {
+        method: 'POST',
+        body: formData
+    });
 }
 
 export async function uploadFiles(path: string, files: readonly File[]) {
