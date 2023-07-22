@@ -7,8 +7,15 @@ using System.Security.Claims;
 namespace LoginApi;
 
 public class LoginEndpoints {
-    public record ChangePasswordInput(string Username, string Password, string NewPassword);
+    public record ChangePasswordInput {
+        private string username = string.Empty;
+        private string password = string.Empty;
+        private string newPassword = string.Empty;
 
+        public string Username { get => username; set => username = value.Trim(); }
+        public string Password { get => password; set => password = value.Trim(); }
+        public string NewPassword { get => newPassword; set => newPassword = value.Trim(); }
+    }
     public static async Task<IResult> ChangePassword(ChangePasswordInput input, LoginServices service, CancellationToken cancel) {
         var errors = await service.ChangePassword(input.Username, input.Password, input.NewPassword, cancel);
 
@@ -19,8 +26,14 @@ public class LoginEndpoints {
         return Results.Ok();
     }
 
-    public record LoginInput(string Username, string Password, bool RequestElevated = false);
+    public record LoginInput {
+        private string username = string.Empty;
+        private string password = string.Empty;
 
+        public string Username { get => username; set => username = value.Trim(); }
+        public string Password { get => password; set => password = value.Trim(); }
+        public bool RequestElevated { get; set; } = false;
+    }
     public static async Task<IResult> Login(LoginInput input, LoginServices service, CancellationToken cancel) {
         var login = await service.Find(input.Username, input.Password, cancel);
 
@@ -61,7 +74,13 @@ public class LoginEndpoints {
         return Results.SignOut();
     }
 
-    public record RegisterInput(string Username, string Password);
+    public record RegisterInput {
+        private string username = string.Empty;
+        private string password = string.Empty;
+
+        public string Username { get => username; set => username = value.Trim(); }
+        public string Password { get => password; set => password = value.Trim(); }
+    }
 
     public static async Task<IResult> Register(RegisterInput input, LoginServices service, CancellationToken cancel) {
         var errors = await service.Register(input.Username, input.Password, cancel);
