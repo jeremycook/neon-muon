@@ -6,5 +6,5 @@ obj/
 *.pubxml.user
 app_data/
 appdata/
+appsettings/
 userdata/
-settingsdata/
