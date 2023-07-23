@@ -255,9 +255,9 @@ fieldset legend {
 /* Table */
 
 table {
-    border-collapse: separate;
+    border-collapse: collapse;
     border-spacing: 0;
-    text-align: right;
+    text-align: left;
 }
 
 th {
@@ -293,14 +293,11 @@ thead th {
     border-bottom-width: 1px;
 }
 
-tfoot {
-    text-align: right;
-}
+tfoot {}
 
 tfoot th {
     border-top-style: solid;
     border-top-width: 1px;
-    text-align: right;
 }
 
 table.bordered,

@@ -1,9 +1,0 @@
-@import 'vars.css';
-
-.mb {
-    margin-bottom: var(--100);
-}
-
-.text-error {
-    color: var(--fg-error);
-}

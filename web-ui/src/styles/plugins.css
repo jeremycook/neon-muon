@@ -106,6 +106,12 @@
     gap: var(--100);
 }
 
+/*  */
+
+.mb {
+    margin-bottom: var(--100);
+}
+
 /* .navbar > (.navbar-group*3 > (.navbar-item, ...)) */
 
 .navbar {}
@@ -138,6 +144,16 @@
     }
 }
 
+/* overflow */
+
+.overflow-auto {
+    overflow: auto;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
 /* .sr-only */
 
 .sr-only {
@@ -160,6 +176,16 @@ svg.icon {
     height: 1em;
     vertical-align: baseline;
     top: .1em;
+}
+
+/* .text-... */
+
+.text-error {
+    color: var(--fg-error);
+}
+
+.text-nowrap {
+    white-space: nowrap;
 }
 
 /* .toast-group > .toast-group-header */
@@ -204,17 +230,34 @@ svg.icon {
     color: var(--fg-error);
 }
 
-
 .toast-content {}
 
-/* .w-? */
+/* width and height */
+
+.fill {
+    width: 100%;
+    height: 100%;
+}
+
+.w-fill {
+    width: 100%;
+}
+
+.h-fill {
+    height: 100%;
+}
+
+.fit {
+    width: fit-content;
+    height: fit-content;
+}
 
 .w-fit {
     width: fit-content;
 }
 
-.w-fill {
-    width: 100%;
+.h-fit {
+    height: fit-content;
 }
 
 .w-200 {
@@ -231,16 +274,6 @@ svg.icon {
 
 .w-1200 {
     max-width: var(--1200px);
-}
-
-/* .h-? */
-
-.h-fit {
-    height: fit-content;
-}
-
-.h-fill {
-    height: 100%;
 }
 
 /* EXPERIMENTAL */
