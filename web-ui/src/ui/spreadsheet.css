@@ -1,0 +1,78 @@
+.spreadsheet {
+    --row-selector-width: 1.5rem;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+}
+
+.spreadsheet-head {
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    width: max-content;
+}
+
+.spreadsheet-corner {
+    background-color: #eee;
+    border-right: 1px solid #ddd;
+    min-width: var(--row-selector-width);
+    max-width: var(--row-selector-width);
+}
+
+.spreadsheet-column-selector {
+    background-color: #eee;
+    position: relative;
+    min-width: 6em;
+    max-width: 6em;
+    text-align: center;
+}
+
+.spreadsheet-column-resizer {
+    background-color: #ddd;
+    width: 1px;
+    cursor: col-resize;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.spreadsheet-row {
+    display: flex;
+    position: relative;
+    width: max-content;
+}
+
+.spreadsheet-row-selector {
+    background-color: #eee;
+    border-right: 1px solid #ddd;
+    min-width: var(--row-selector-width);
+    max-width: var(--row-selector-width);
+    position: sticky;
+    left: 0;
+}
+
+.spreadsheet-row-resizer {
+    background-color: #ddd;
+    min-height: 1px;
+    max-height: 1px;
+    cursor: row-resize;
+    position: absolute;
+    bottom: 1px;
+    left: 0;
+    right: 0;
+}
+
+.spreadsheet-cell {
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    min-width: 6em;
+    max-width: 6em;
+    overflow: hidden;
+    white-space: nowrap;
+}
