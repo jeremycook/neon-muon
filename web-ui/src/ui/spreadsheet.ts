@@ -1,6 +1,6 @@
 import { Primitive } from '../database/database';
 import { EventT } from '../utils/etc';
-import { div, select } from '../utils/html';
+import { div } from '../utils/html';
 import './spreadsheet.css';
 
 const vars = Object.freeze({
