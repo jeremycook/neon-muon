@@ -74,12 +74,12 @@
     background-color: #ddd;
     min-height: 1px;
     max-height: 1px;
-    cursor: row-resize;
+    /* TODO: Change the cursor when row resizing becomes supported. */
+    /* cursor: row-resize; */
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    border-top: 2px solid transparent;
 }
 
 .spreadsheet-cell {

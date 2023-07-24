@@ -16,7 +16,6 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
 
     const columns = tableInfo.columns.map(column => ({
         label: column.name,
-        width: null
     }));
 
     return div({ class: 'flex flex-down fill' },

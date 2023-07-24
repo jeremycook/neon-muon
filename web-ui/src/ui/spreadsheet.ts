@@ -11,7 +11,7 @@ const vars = Object.freeze({
 
 export interface ColumnProp {
     label: string | null;
-    width: number | null;
+    width?: number;
 }
 
 export async function spreadsheet(
@@ -24,75 +24,8 @@ export async function spreadsheet(
     }));
 
     return div({ class: 'spreadsheet' }, {
-        ondblclick(ev: EventT<HTMLDivElement>) {
-            if (!(ev.target instanceof HTMLDivElement)) {
-                return;
-            }
-
-            const spreadsheet = ev.currentTarget;
-            const target = ev.target;
-
-            if (target.matches('.spreadsheet-column-resizer')) {
-                const selector = target.closest<HTMLDivElement>('.spreadsheet-column-selector')!;
-
-                let index = 1;
-                {
-                    let prev = selector.previousElementSibling;
-                    while (prev) {
-                        index++;
-                        prev = prev.previousElementSibling;
-                    }
-                }
-
-                let newWidth = vars.minWidth;
-
-                const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${index})`);
-                for (const cell of cells) {
-                    const content = <HTMLElement>cell.firstElementChild;
-                    const width = content.scrollWidth;
-                    if (newWidth < width) {
-                        newWidth = width;
-                    }
-                }
-
-                const widthPx = newWidth + 'px';
-                for (const cell of [selector, ...cells]) {
-                    cell.style.minWidth = widthPx;
-                    cell.style.maxWidth = widthPx;
-                }
-
-                ev.preventDefault();
-            }
-        },
-
-        ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
-            const spreadsheet = ev.currentTarget;
-
-            switch (ev.dataTransfer?.getData('text/x-type')) {
-                case 'resize': {
-                    const column = parseInt(ev.dataTransfer!.getData('text/x-column'));
-                    const startX = parseInt(ev.dataTransfer!.getData('text/x-clientX'));
-                    const finalX = ev.clientX;
-                    const changeX = finalX - startX;
-
-                    const index = 2 + column;
-                    const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-of-type(${index})`)!;
-                    const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${index})`);
-
-                    const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
-
-                    const widthPx = newWidth + 'px';
-                    for (const cell of [selector, ...cells]) {
-                        cell.style.minWidth = widthPx;
-                        cell.style.maxWidth = widthPx;
-                    }
-
-                    ev.preventDefault();
-                }; break;
-
-                default: break;
-            }
-        }
+        ondblclick: spreadsheet_ondblclick,
+        ondrop: spreadsheet_ondrop,
     },
         div({ class: 'spreadsheet-head' }, {
             ondragover(ev: DragEvent) { ev.preventDefault(); },
@@ -103,11 +36,7 @@ export async function spreadsheet(
                     column.label,
                     div({ class: 'spreadsheet-column-resizer' }, {
                         draggable: true,
-                        ondragstart(ev: DragEvent) {
-                            ev.dataTransfer!.setData('text/x-type', 'resize');
-                            ev.dataTransfer!.setData('text/x-column', i.toString());
-                            ev.dataTransfer!.setData('text/x-clientX', ev.clientX.toString());
-                        },
+                        ondragstart: columnResizer_ondragstart(i),
                     }, '')
                 ),
             ])
@@ -128,4 +57,82 @@ export async function spreadsheet(
             ),
         ),
     );
+}
+
+function columnResizer_ondragstart(i: number) {
+    return (ev: DragEvent) => {
+        ev.dataTransfer!.setData('text/x-type', 'resize');
+        ev.dataTransfer!.setData('text/x-column', i.toString());
+        ev.dataTransfer!.setData('text/x-clientX', ev.clientX.toString());
+    };
+}
+
+function spreadsheet_ondblclick(ev: EventT<HTMLDivElement>) {
+    if (!(ev.target instanceof HTMLElement)) {
+        return;
+    }
+
+    const spreadsheet = ev.currentTarget;
+    const target = ev.target;
+
+    if (target.matches('.spreadsheet-column-resizer')) {
+        const selector = target.closest<HTMLDivElement>('.spreadsheet-column-selector')!;
+
+        let index = 1;
+        {
+            let prev = selector.previousElementSibling;
+            while (prev) {
+                index++;
+                prev = prev.previousElementSibling;
+            }
+        }
+
+        let newWidth = vars.minWidth;
+
+        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${index})`);
+        for (const cell of cells) {
+            const content = <HTMLElement>cell.firstElementChild;
+            const width = content.scrollWidth;
+            if (newWidth < width) {
+                newWidth = width;
+            }
+        }
+
+        const widthPx = newWidth + 'px';
+        for (const cell of [selector, ...cells]) {
+            cell.style.minWidth = widthPx;
+            cell.style.maxWidth = widthPx;
+        }
+
+        ev.preventDefault();
+    }
+}
+
+function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
+    const spreadsheet = ev.currentTarget;
+
+    switch (ev.dataTransfer?.getData('text/x-type')) {
+        case 'resize': {
+            const column = parseInt(ev.dataTransfer!.getData('text/x-column'));
+            const startX = parseInt(ev.dataTransfer!.getData('text/x-clientX'));
+            const finalX = ev.clientX;
+            const changeX = finalX - startX;
+
+            const index = 2 + column;
+            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-of-type(${index})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${index})`);
+
+            const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
+
+            const widthPx = newWidth + 'px';
+            for (const cell of [selector, ...cells]) {
+                cell.style.minWidth = widthPx;
+                cell.style.maxWidth = widthPx;
+            }
+
+            ev.preventDefault();
+        }; break;
+
+        default: break;
+    }
 }
