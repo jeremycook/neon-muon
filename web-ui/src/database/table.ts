@@ -14,13 +14,18 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     const response = await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name));
     const records = response.getResultOrThrow();
 
+    const columns = tableInfo.columns.map(column => ({
+        label: column.name,
+        width: null
+    }));
+
     return div({ class: 'flex flex-down fill' },
         div(
             h1(tableInfo.name),
         ),
         div({ class: 'flex flex-down flex-grow overflow-auto' },
             ...lazy(
-                spreadsheet(records),
+                spreadsheet(columns, records),
                 div('Loading…')
             )
         )

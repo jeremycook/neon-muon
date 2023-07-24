@@ -30,6 +30,9 @@
     min-width: 6em;
     max-width: 6em;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
 }
 
 .spreadsheet-column-resizer {
@@ -40,6 +43,16 @@
     right: 0;
     top: 0;
     bottom: 0;
+}
+
+.spreadsheet-column-resizer::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    right: 0;
 }
 
 .spreadsheet-row {
@@ -63,9 +76,10 @@
     max-height: 1px;
     cursor: row-resize;
     position: absolute;
-    bottom: 1px;
+    bottom: 0;
     left: 0;
     right: 0;
+    border-top: 2px solid transparent;
 }
 
 .spreadsheet-cell {
@@ -75,4 +89,10 @@
     max-width: 6em;
     overflow: hidden;
     white-space: nowrap;
+}
+
+.spreadsheet-content {
+    /* Using inline block so its size can be calculated for automatic resizing. */
+    display: inline-block;
+    padding: 0 2px;
 }
