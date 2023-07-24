@@ -33,6 +33,7 @@
     display: flex;
     flex-direction: column;
     justify-content: end;
+    cursor: pointer;
 }
 
 .spreadsheet-column-resizer {
@@ -95,4 +96,8 @@
     /* Using inline block so its size can be calculated for automatic resizing. */
     display: inline-block;
     padding: 0 2px;
+}
+
+.selected {
+    background-color: mintcream;
 }
