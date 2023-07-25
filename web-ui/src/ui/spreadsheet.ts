@@ -14,6 +14,11 @@ export interface ColumnProp {
     width?: number;
 }
 
+let activeSpreadsheet: HTMLDivElement | null = null;
+const editingCells: HTMLElement[] = [];
+
+document.addEventListener('keyup', document_onkeyup);
+
 export async function spreadsheet(
     columns: readonly ColumnProp[],
     records: (Primitive | null)[][]
@@ -26,8 +31,16 @@ export async function spreadsheet(
     let lastSelectedCell: HTMLElement | null = null;
 
     return div({ class: 'spreadsheet' }, {
-        ondragover(ev: DragEvent) { ev.preventDefault(); },
+        ondragover(ev: DragEvent) {
+            ev.preventDefault();
+        },
         ondrop: spreadsheet_ondrop,
+        onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
+            activeSpreadsheet = ev.currentTarget;
+        },
+        onkeydown(ev: KeyboardEvent & EventT<HTMLDivElement>) {
+            activeSpreadsheet = ev.currentTarget;
+        },
     },
         div({ class: 'spreadsheet-head' }, {
         },
@@ -168,6 +181,44 @@ export async function spreadsheet(
             ),
         ),
     );
+}
+
+function document_onkeyup(this: Document, ev: KeyboardEvent) {
+
+    if (activeSpreadsheet === null) {
+        return;
+    }
+
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) {
+        // Not typing
+        return;
+    }
+
+    if (editingCells.length === 0 && ev.key.length === 1) {
+        editingCells.push(...activeSpreadsheet.querySelectorAll<HTMLElement>('.selected > .spreadsheet-content'));
+        for (const cell of editingCells) {
+            cell.textContent = '';
+        }
+    }
+
+    switch (ev.key) {
+        case 'Backspace':
+            for (const cell of editingCells) {
+                cell.textContent = cell.textContent?.slice(0, -1) ?? '';
+            }
+            ev.preventDefault();
+            break;
+
+        default:
+            if (ev.key.length === 1) {
+                for (const cell of editingCells) {
+                    cell.textContent += ev.key;
+                }
+                ev.preventDefault();
+            }
+            break;
+    }
+
 }
 
 function columnResizer_ondragstart(i: number) {
