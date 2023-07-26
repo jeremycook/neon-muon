@@ -1,6 +1,7 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { div, input } from '../utils/html';
+import { log } from '../utils/log';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -11,9 +12,23 @@ const vars = Object.freeze({
     dataTransferTypes: ['resize'],
 });
 
+const spreadsheets: Record<string, Spreadsheet> = {};
+
 export interface ColumnProp {
     label: string | null;
     width?: number;
+    editor?: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
+}
+
+interface Column {
+    label: string;
+    width: number;
+    editor: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
+}
+
+interface Spreadsheet {
+    columns: Column[];
+    records: (Primitive | null)[][];
 }
 
 // The last touched cell of any spreadsheet in the DOM
@@ -24,19 +39,25 @@ export async function spreadsheet(
     columns: readonly ColumnProp[],
     records: (Primitive | null)[][]
 ) {
-    const cols = columns.map((column, i) => ({
-        label: column.label || String.fromCharCode(65 + i),
-        width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
-    }));
+    const key = Math.random().toString();
+    spreadsheets[key] = {
+        columns: columns.map((column, i) => ({
+            label: column.label || String.fromCharCode(65 + i),
+            width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
+            editor: column.editor ?? spreadsheetInputEditor,
+        })),
+        records: records,
+    };
 
-    return div({ class: 'spreadsheet' }, {
+    return div({
+        'spreadsheet-key': key,
+        class: 'spreadsheet',
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
     },
-        div({ class: 'spreadsheet-head' }, {
-        },
+        div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
-            ...cols.map(column => [
+            ...spreadsheets[key].columns.map(column => [
                 div({ class: 'spreadsheet-column-selector' }, {
                     onpointerdown: columnSelector_onpointerdown,
                 },
@@ -50,7 +71,7 @@ export async function spreadsheet(
             ])
         ),
 
-        records.map(record =>
+        spreadsheets[key].records.map(record =>
             div({ class: 'spreadsheet-row' },
                 div({ class: 'spreadsheet-row-selector' }, {
                     onpointerdown: rowSelector_onpointerdown,
@@ -71,7 +92,20 @@ export async function spreadsheet(
     );
 }
 
-let activeEditorEnterKeyCoolDown = Date.now();
+//#region Editors
+
+export function spreadsheetInputEditor(ev: KeyboardEvent, activeContent: HTMLElement) {
+    return input({
+        class: 'spreadsheet-editor-content',
+        value: ev.key === 'Enter' || ev.key === 'F2'
+            ? activeContent.textContent
+            : '',
+    });
+}
+
+//#endregion Editors
+
+let activeEditorEnterKeyCoolDown = Date.now() - 1;
 function document_onkeydown(this: Document, ev: KeyboardEvent) {
 
     if (activeCell == null || activeEditor != null) {
@@ -83,8 +117,9 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
 
+    const spreadsheet = activeCell.closest('.spreadsheet')!;
+
     if (ev.key === 'Tab') {
-        const spreadsheet = activeCell.closest('.spreadsheet')!;
         const row = activeCell.closest('.spreadsheet-row')!;
         const cellColumnIndex = getElementIndex(activeCell);
         const columnDelta = ev.shiftKey
@@ -98,7 +133,6 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
     else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
-        const spreadsheet = activeCell.closest('.spreadsheet')!;
         const row = activeCell.closest('.spreadsheet-row')!;
         const cellColumnIndex = getElementIndex(activeCell);
         const columnDelta = ev.key === 'ArrowLeft'
@@ -112,7 +146,6 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
     else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
-        const spreadsheet = activeCell.closest('.spreadsheet')!;
         const row = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
         const cellRowIndex = getElementIndex(row);
         const cellColumnIndex = getElementIndex(activeCell);
@@ -142,10 +175,12 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
 
-    const ogContent = activeCell.querySelector('.spreadsheet-content')!;
-    const cellContent = ogContent.textContent;
-
     const boundingRect = activeCell.getBoundingClientRect();
+
+    const column = getColumn(activeCell);
+    const activeContent = activeCell.querySelector<HTMLElement>('.spreadsheet-content')!;
+    const columnEditor = column.editor(ev, activeContent);
+
     const newEditor = div({
         class: 'spreadsheet-editor',
         style: {
@@ -154,8 +189,14 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             'width': `${boundingRect.width}px`,
             'height': `${boundingRect.height}px`,
         },
-        onkeydown(ev: KeyboardEvent & EventT<HTMLInputElement>) {
+        onkeydown: function editor_onkeydown(ev: KeyboardEvent & EventT<HTMLElement>) {
             if (activeCell == null) {
+                try {
+                    throw new Error('The spreadsheet editor is in an invalid state. The activeCell is null but should not be.');
+                }
+                catch (error) {
+                    log.error('Suppressed {error}', error);
+                }
                 return;
             }
 
@@ -176,7 +217,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
                 // Apply changes to cells
                 const selectedContents = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
                 for (const selectedContent of selectedContents) {
-                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-input')!.value;
+                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-content')!.value;
                 }
 
                 if (ev.key === 'Tab') {
@@ -199,12 +240,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             }
         }
     },
-        input({
-            class: 'spreadsheet-editor-input',
-            value: ev.key === 'Enter' || ev.key === 'F2'
-                ? cellContent
-                : '',
-        })
+        columnEditor
     );
 
     unmountActiveEditor();
@@ -460,6 +496,15 @@ function deselectAll(spreadsheet: Element) {
     for (const element of rows) {
         element.classList.remove('selected-row');
     }
+}
+
+function getColumn(columnSelectorOrCell: HTMLElement) {
+    const spreadsheet = columnSelectorOrCell.closest('.spreadsheet')!;
+    const key = spreadsheet.getAttribute('spreadsheet-key')!;
+    const info = spreadsheets[key];
+    const columnIndex = getColumnIndex(columnSelectorOrCell);
+    const column = info.columns[columnIndex];
+    return column;
 }
 
 /** 0-based index in a data record or the data columns. */
