@@ -266,14 +266,13 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
 
     switch (ev.dataTransfer?.getData('text/x-type')) {
         case 'resize': {
-            const column = parseInt(ev.dataTransfer!.getData('text/x-column'));
+            const columnPosition = parseInt(ev.dataTransfer!.getData('text/x-columnPosition'));
             const startX = parseInt(ev.dataTransfer!.getData('text/x-clientX'));
             const finalX = ev.clientX;
             const changeX = finalX - startX;
 
-            const domIndex = 2 + column;
-            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-child(${domIndex})`)!;
-            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
+            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-child(${columnPosition})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${columnPosition})`);
 
             const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
 
@@ -342,7 +341,7 @@ function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>)
 
 function columnResizer_ondragstart(ev: DragEvent & EventT<HTMLElement>) {
     ev.dataTransfer!.setData('text/x-type', 'resize');
-    ev.dataTransfer!.setData('text/x-column', getColumnIndex(ev.currentTarget.closest('.spreadsheet-cell')!).toString());
+    ev.dataTransfer!.setData('text/x-columnPosition', getElementPosition(ev.currentTarget.closest('.spreadsheet-column-selector')!).toString());
     ev.dataTransfer!.setData('text/x-clientX', ev.clientX.toString());
 }
 
