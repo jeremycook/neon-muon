@@ -55,93 +55,13 @@ export async function spreadsheet(
         records.map(record =>
             div({ class: 'spreadsheet-row' },
                 div({ class: 'spreadsheet-row-selector' }, {
-                    onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
-                        const selector = ev.currentTarget;
-                        const row = selector.closest<HTMLDivElement>('.spreadsheet-row')!;
-                        const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
-
-                        if (!ev.ctrlKey) {
-                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-                            for (const element of selected) {
-                                element.classList.remove('selected-cell');
-                            }
-                        }
-
-                        const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-cell');
-                        if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected-row')) {
-                            for (const element of cells) {
-                                element.classList.remove('selected-cell');
-                            }
-                            setActiveCell(cells.length > 0 ? cells.item(0) : null);
-                        }
-                        else {
-                            for (const element of cells) {
-                                element.classList.add('selected-cell');
-                            }
-                            setActiveCell(cells.length > 0 ? cells.item(0) : null);
-                        }
-
-                        ev.preventDefault();
-                    }
+                    onpointerdown: rowSelector_onpointerdown,
                 },
                     div({ class: 'spreadsheet-row-resizer' }, '')
                 ),
                 ...record.map(cell =>
                     div({ class: 'spreadsheet-cell' }, {
-                        onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
-                            const cell = ev.currentTarget;
-                            const spreadsheet = cell.closest<HTMLElement>('.spreadsheet')!;
-
-                            if (ev.shiftKey) {
-
-                                if (activeCell) {
-                                    // Select a rectangle between there and here
-                                    const activeCellRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const activeCellRowIndex = getElementIndex(activeCellRow);
-                                    const activeCellColumnIndex = getElementIndex(activeCell);
-
-                                    const cellRow = cell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const cellRowIndex = getElementIndex(cellRow);
-                                    const cellColumnIndex = getElementIndex(cell);
-
-                                    const rowDelta = activeCellRowIndex < cellRowIndex ? 1 : -1;
-                                    const columnDelta = activeCellColumnIndex < cellColumnIndex ? 1 : -1;
-
-                                    for (let rowIndex = activeCellRowIndex; rowIndex != (cellRowIndex + rowDelta); rowIndex += rowDelta) {
-                                        const currentRow = spreadsheet.children[rowIndex];
-                                        for (let colIndex = activeCellColumnIndex; colIndex != (cellColumnIndex + columnDelta); colIndex += columnDelta) {
-                                            const currentCell = <HTMLElement>currentRow.children[colIndex];
-                                            currentCell.classList.add('selected-cell');
-                                        }
-                                    }
-                                }
-                                else {
-                                    cell.classList.add('selected-cell');
-                                }
-
-                                setActiveCell(cell);
-                            }
-                            else if (ev.ctrlKey) {
-                                if (cell.matches('.selected-cell')) {
-                                    cell.classList.remove('selected-cell');
-                                }
-                                else {
-                                    cell.classList.add('selected-cell');
-                                    setActiveCell(cell);
-                                }
-                            }
-                            else {
-                                const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-                                for (const element of selected) {
-                                    element.classList.remove('selected-cell');
-                                }
-
-                                cell.classList.add('selected-cell');
-                                setActiveCell(cell);
-                            }
-
-                            ev.preventDefault();
-                        }
+                        onpointerdown: cell_onpointerdown,
                     },
                         div({ class: 'spreadsheet-content' },
                             cell?.toString()
@@ -425,6 +345,35 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
     ev.preventDefault();
 }
 
+function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
+    const selector = ev.currentTarget;
+    const row = selector.closest<HTMLDivElement>('.spreadsheet-row')!;
+    const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
+
+    if (!ev.ctrlKey) {
+        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
+        for (const element of selected) {
+            element.classList.remove('selected-cell');
+        }
+    }
+
+    const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-cell');
+    if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected-row')) {
+        for (const element of cells) {
+            element.classList.remove('selected-cell');
+        }
+        setActiveCell(cells.length > 0 ? cells.item(0) : null);
+    }
+    else {
+        for (const element of cells) {
+            element.classList.add('selected-cell');
+        }
+        setActiveCell(cells.length > 0 ? cells.item(0) : null);
+    }
+
+    ev.preventDefault();
+}
+
 function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
     const spreadsheet = ev.currentTarget;
 
@@ -452,6 +401,61 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
 
         default: break;
     }
+}
+
+function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
+    const cell = ev.currentTarget;
+    const spreadsheet = cell.closest<HTMLElement>('.spreadsheet')!;
+
+    if (ev.shiftKey) {
+
+        if (activeCell) {
+            // Select a rectangle between there and here
+            const activeCellRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
+            const activeCellRowIndex = getElementIndex(activeCellRow);
+            const activeCellColumnIndex = getElementIndex(activeCell);
+
+            const cellRow = cell.closest<HTMLElement>('.spreadsheet-row')!;
+            const cellRowIndex = getElementIndex(cellRow);
+            const cellColumnIndex = getElementIndex(cell);
+
+            const rowDelta = activeCellRowIndex < cellRowIndex ? 1 : -1;
+            const columnDelta = activeCellColumnIndex < cellColumnIndex ? 1 : -1;
+
+            for (let rowIndex = activeCellRowIndex; rowIndex != (cellRowIndex + rowDelta); rowIndex += rowDelta) {
+                const currentRow = spreadsheet.children[rowIndex];
+                for (let colIndex = activeCellColumnIndex; colIndex != (cellColumnIndex + columnDelta); colIndex += columnDelta) {
+                    const currentCell = <HTMLElement>currentRow.children[colIndex];
+                    currentCell.classList.add('selected-cell');
+                }
+            }
+        }
+        else {
+            cell.classList.add('selected-cell');
+        }
+
+        setActiveCell(cell);
+    }
+    else if (ev.ctrlKey) {
+        if (cell.matches('.selected-cell')) {
+            cell.classList.remove('selected-cell');
+        }
+        else {
+            cell.classList.add('selected-cell');
+            setActiveCell(cell);
+        }
+    }
+    else {
+        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
+        for (const element of selected) {
+            element.classList.remove('selected-cell');
+        }
+
+        cell.classList.add('selected-cell');
+        setActiveCell(cell);
+    }
+
+    ev.preventDefault();
 }
 
 /** 0-based index in a data record or the data columns. */
