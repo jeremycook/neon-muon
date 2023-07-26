@@ -1,5 +1,5 @@
 import { Primitive } from '../database/database';
-import { EventT } from '../utils/etc';
+import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { div, input } from '../utils/html';
 import './spreadsheet.css';
 
@@ -170,10 +170,10 @@ function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
     activeCell = cell;
 }
 
-let keyupCoolDown = Date.now();
+let activeEditorKeyCoolDown = Date.now();
 function document_onkeydown(this: Document, ev: KeyboardEvent) {
 
-    if (activeCell == null || activeEditor != null || Date.now() < keyupCoolDown) {
+    if (activeCell == null || activeEditor != null || Date.now() < activeEditorKeyCoolDown) {
         return;
     }
 
@@ -282,25 +282,24 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     }
 
     const ogContent = activeCell.querySelector('.spreadsheet-content')!;
+    const cellContent = ogContent.textContent;
 
     const boundingRect = activeCell.getBoundingClientRect();
-    const editorInput = input({ class: 'cell-editor' }, {
+    const newEditor = div({
+        class: 'spreadsheet-editor',
         style: {
             'left': `${boundingRect.left}px`,
             'top': `${boundingRect.top}px`,
             'width': `${boundingRect.width}px`,
+            'height': `${boundingRect.height}px`,
         },
-        value: ev.key === 'Enter' || ev.key === 'F2'
-            ? ogContent.textContent
-            : ev.key,
         onkeydown(ev: KeyboardEvent & EventT<HTMLInputElement>) {
             if (activeCell == null) {
                 return;
             }
 
             if (ev.key === 'Escape') {
-                activeEditor?.remove();
-                activeEditor = null;
+                unmountActiveEditor();
 
                 activeCell.focus();
 
@@ -313,29 +312,48 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
                 // Apply changes to cells
                 const selected = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
                 for (const selectedContent of selected) {
-                    selectedContent.textContent = ev.currentTarget.value;
+                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-input')!.value;
                 }
 
                 if (ev.key === 'Tab') {
                     // TODO: Move activeCell right or wrap if in last cell
                 }
 
-                activeEditor?.remove();
-                activeEditor = null;
-
+                unmountActiveEditor();
+                activeEditorKeyCoolDown = Date.now() + 10;
                 activeCell.focus();
-
-                keyupCoolDown = Date.now() + 100;
 
                 ev.preventDefault();
                 ev.stopImmediatePropagation();
             }
         }
-    });
-    activeEditor = editorInput;
+    },
+        input({
+            class: 'spreadsheet-editor-input',
+            value: ev.key === 'Enter' || ev.key === 'F2'
+                ? cellContent
+                : '',
+        })
+    );
+
+    unmountActiveEditor();
+
+    activeEditor = newEditor;
     document.body.append(activeEditor);
-    editorInput.focus();
-    editorInput.setSelectionRange(editorInput.value.length, editorInput.value.length);
+    const firstInput = newEditor.querySelector<HTMLInputElement>('input:not([hidden])');
+    if (firstInput != null) {
+        firstInput.focus();
+        firstInput.setSelectionRange(firstInput.value.length, firstInput.value.length);
+    }
+    dispatchMountEvent(newEditor);
+}
+
+function unmountActiveEditor() {
+    if (activeEditor != null) {
+        dispatchUnmountEvent(activeEditor as unknown as Node);
+        (activeEditor as unknown as ChildNode).remove();
+        activeEditor = null;
+    }
 }
 
 function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {

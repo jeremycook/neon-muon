@@ -111,10 +111,15 @@
     box-shadow: inset 0 0 0 1.25px var(--sky-300);
 }
 
-.cell-editor {
+.spreadsheet-editor {
+    margin-top: -1px;
     position: fixed;
+}
+
+.spreadsheet-editor-input {
     background-color: #fff;
     border: none;
     margin: 0;
-    padding: 0;
+    /* Match .spreadsheet-content */
+    padding: 0 2px;
 }
