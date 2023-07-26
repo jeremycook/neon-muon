@@ -191,7 +191,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementPosition(activeCell);
+        const cellColumnIndex = getElementIndex(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
 
         if (cellColumnIndex < row.childElementCount - 1) {
@@ -212,7 +212,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementPosition(activeCell);
+        const cellColumnIndex = getElementIndex(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
 
         if (cellColumnIndex > 1) {
@@ -234,8 +234,8 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementPosition(activeCell);
-        const cellRowIndex = getElementPosition(row);
+        const cellColumnIndex = getElementIndex(activeCell);
+        const cellRowIndex = getElementIndex(row);
 
         if (cellRowIndex > 1) {
             setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex - 1].childNodes[cellColumnIndex]);
@@ -256,8 +256,8 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementPosition(activeCell);
-        const cellRowIndex = getElementPosition(row);
+        const cellColumnIndex = getElementIndex(activeCell);
+        const cellRowIndex = getElementIndex(row);
 
         if (cellRowIndex < spreadsheet.childElementCount - 1) {
             setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex + 1].childNodes[cellColumnIndex]);
@@ -450,7 +450,7 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
 }
 
 function getColumnIndex(columnSelectorOrCell: HTMLElement) {
-    let index = getElementPosition(columnSelectorOrCell);
+    let index = getElementIndex(columnSelectorOrCell);
     return index - 1;
 }
 
