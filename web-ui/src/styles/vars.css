@@ -7,7 +7,7 @@
 
     --outline-color: hsla(200, 100%, 36%, 0.25);
 
-    --bg: hsl(0, 0%, 93%);
+    --bg: var(--slate-50);
     --bg-active: hsl(0, 0%, 96%);
     --bg-muted: hsl(0, 0%, 85%);
     --fg: hsl(0, 0%, 13%);
@@ -27,7 +27,7 @@
     --2nd-fg: var(--fg);
 
     --a-bg: transparent;
-    --a-fg: hsl(200, 100%, 36%);
+    --a-fg: var(--slate-500);
 
     --input-bg: var(--2nd-bg);
     --input-bg-active: var(--2nd-bg-active);

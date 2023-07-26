@@ -1,3 +1,5 @@
+@import url('./vars.css');
+
 .site {
     height: 100vh;
     display: flex;
@@ -23,8 +25,7 @@
 /* .site-desktop (.site-navbar + .site-body) */
 
 .site-navbar {
-    background-color: var(--bg-muted);
-    box-shadow: var(--shadow) inset;
+    background-color: var(--slate-300);
 }
 
 .site-body {

@@ -1,6 +1,6 @@
 import { Primitive } from '../database/database';
 import { EventT } from '../utils/etc';
-import { del, div, input } from '../utils/html';
+import { div, input } from '../utils/html';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -96,32 +96,29 @@ export async function spreadsheet(
 
                                 if (activeCell) {
                                     // Select a rectangle between there and here
-                                    const lastSelectedRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const lastSelectedRowIndex = getElementPosition(lastSelectedRow);
-                                    const lastSelectedColumnIndex = getElementPosition(activeCell);
+                                    const activeCellRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
+                                    const activeCellRowIndex = getElementIndex(activeCellRow);
+                                    const activeCellColumnIndex = getElementIndex(activeCell);
 
                                     const cellRow = cell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const cellRowIndex = getElementPosition(cellRow);
-                                    const cellColumnIndex = getElementPosition(cell);
+                                    const cellRowIndex = getElementIndex(cellRow);
+                                    const cellColumnIndex = getElementIndex(cell);
 
-                                    let currentRow = lastSelectedRowIndex < cellRowIndex ? lastSelectedRow : cellRow;
-                                    const endRow = lastSelectedRowIndex > cellRowIndex ? lastSelectedRow : cellRow;
+                                    const rowDelta = activeCellRowIndex < cellRowIndex ? 1 : -1;
+                                    const columnDelta = activeCellColumnIndex < cellColumnIndex ? 1 : -1;
 
-                                    const startIndex = lastSelectedColumnIndex < cellColumnIndex ? lastSelectedColumnIndex : cellColumnIndex;
-                                    const endIndex = lastSelectedColumnIndex > cellColumnIndex ? lastSelectedColumnIndex : cellColumnIndex;
-
-                                    while (true) {
-                                        for (let index = startIndex; index <= endIndex; index++) {
-                                            const child = <HTMLElement>currentRow.children[index];
-                                            child.classList.add('selected-cell');
+                                    for (let rowIndex = activeCellRowIndex; rowIndex != (cellRowIndex + rowDelta); rowIndex += rowDelta) {
+                                        const currentRow = spreadsheet.children[rowIndex];
+                                        for (let colIndex = activeCellColumnIndex; colIndex != (cellColumnIndex + columnDelta); colIndex += columnDelta) {
+                                            const currentCell = <HTMLElement>currentRow.children[colIndex];
+                                            currentCell.classList.add('selected-cell');
                                         }
-                                        if (currentRow === endRow) break;
-                                        currentRow = <HTMLElement>currentRow.nextElementSibling;
                                     }
                                 }
                                 else {
                                     cell.classList.add('selected-cell');
                                 }
+
                                 setActiveCell(cell);
                             }
                             else if (ev.ctrlKey) {
@@ -162,7 +159,12 @@ function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
     if (cell != null) {
         cell.classList.add('active-cell');
         cell.classList.add('selected-cell');
-        cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        if ((cell as any).scrollIntoViewIfNeeded) {
+            (cell as any).scrollIntoViewIfNeeded();
+        }
+        else {
+            cell.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
     }
 
     activeCell = cell;
@@ -454,6 +456,17 @@ function getColumnIndex(columnSelectorOrCell: HTMLElement) {
 
 function getElementPosition(columnSelectorOrCell: HTMLElement) {
     let index = 1;
+    let prev = columnSelectorOrCell.previousElementSibling;
+    while (prev) {
+        index++;
+        prev = prev.previousElementSibling;
+    }
+    return index;
+}
+
+
+function getElementIndex(columnSelectorOrCell: HTMLElement) {
+    let index = 0;
     let prev = columnSelectorOrCell.previousElementSibling;
     while (prev) {
         index++;
