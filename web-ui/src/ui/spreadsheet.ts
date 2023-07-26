@@ -1,7 +1,9 @@
 import { Primitive } from '../database/database';
 import { EventT } from '../utils/etc';
-import { div } from '../utils/html';
+import { div, input } from '../utils/html';
 import './spreadsheet.css';
+
+document.addEventListener('keydown', document_onkeydown);
 
 const vars = Object.freeze({
     defaultWidth: 96 as number,
@@ -14,10 +16,9 @@ export interface ColumnProp {
     width?: number;
 }
 
-let activeSpreadsheet: HTMLDivElement | null = null;
-const editingCells: HTMLElement[] = [];
-
-document.addEventListener('keyup', document_onkeyup);
+// The last touched cell of any spreadsheet in the DOM
+let activeCell: HTMLElement | null = null;
+let activeEditor: HTMLElement | null = null;
 
 export async function spreadsheet(
     columns: readonly ColumnProp[],
@@ -28,19 +29,11 @@ export async function spreadsheet(
         width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
     }));
 
-    let lastSelectedCell: HTMLElement | null = null;
-
     return div({ class: 'spreadsheet' }, {
         ondragover(ev: DragEvent) {
             ev.preventDefault();
         },
         ondrop: spreadsheet_ondrop,
-        onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
-            activeSpreadsheet = ev.currentTarget;
-        },
-        onkeydown(ev: KeyboardEvent & EventT<HTMLDivElement>) {
-            activeSpreadsheet = ev.currentTarget;
-        },
     },
         div({ class: 'spreadsheet-head' }, {
         },
@@ -57,15 +50,15 @@ export async function spreadsheet(
                         const domIndex = 2 + i;
 
                         if (!ev.shiftKey && !ev.ctrlKey) {
-                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected');
+                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
                             for (const element of selected) {
-                                element.classList.remove('selected');
+                                element.classList.remove('selected-cell');
                             }
                         }
 
                         const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${domIndex})`);
                         for (const element of [selector, ...cells]) {
-                            element.classList.add('selected');
+                            element.classList.add('selected-cell');
                         }
 
                         ev.preventDefault();
@@ -90,21 +83,21 @@ export async function spreadsheet(
                         const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
 
                         if (!ev.ctrlKey) {
-                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected');
+                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
                             for (const element of selected) {
-                                element.classList.remove('selected');
+                                element.classList.remove('selected-cell');
                             }
                         }
 
                         const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-row-selector, .spreadsheet-cell');
                         if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected')) {
                             for (const element of cells) {
-                                element.classList.remove('selected');
+                                element.classList.remove('selected-cell');
                             }
                         }
                         else {
                             for (const element of cells) {
-                                element.classList.add('selected');
+                                element.classList.add('selected-cell');
                             }
                         }
 
@@ -121,11 +114,11 @@ export async function spreadsheet(
 
                             if (ev.shiftKey) {
 
-                                if (lastSelectedCell) {
+                                if (activeCell) {
                                     // Select a rectangle between there and here
-                                    const lastSelectedRow = lastSelectedCell.closest<HTMLElement>('.spreadsheet-row')!;
+                                    const lastSelectedRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
                                     const lastSelectedRowIndex = getElementIndex(lastSelectedRow);
-                                    const lastSelectedColumnIndex = getElementIndex(lastSelectedCell);
+                                    const lastSelectedColumnIndex = getElementIndex(activeCell);
 
                                     const cellRow = cell.closest<HTMLElement>('.spreadsheet-row')!;
                                     const cellRowIndex = getElementIndex(cellRow);
@@ -140,34 +133,34 @@ export async function spreadsheet(
                                     while (true) {
                                         for (let index = startIndex; index <= endIndex; index++) {
                                             const child = <HTMLElement>currentRow.children[index];
-                                            child.classList.add('selected');
+                                            child.classList.add('selected-cell');
                                         }
                                         if (currentRow === endRow) break;
                                         currentRow = <HTMLElement>currentRow.nextElementSibling;
                                     }
                                 }
                                 else {
-                                    cell.classList.add('selected');
+                                    cell.classList.add('selected-cell');
                                 }
-                                lastSelectedCell = cell;
+                                setActiveCell(cell);
                             }
                             else if (ev.ctrlKey) {
-                                if (cell.matches('.selected')) {
-                                    cell.classList.remove('selected');
+                                if (cell.matches('.selected-cell')) {
+                                    cell.classList.remove('selected-cell');
                                 }
                                 else {
-                                    cell.classList.add('selected');
-                                    lastSelectedCell = cell;
+                                    cell.classList.add('selected-cell');
+                                    setActiveCell(cell);
                                 }
                             }
                             else {
-                                const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected');
+                                const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
                                 for (const element of selected) {
-                                    element.classList.remove('selected');
+                                    element.classList.remove('selected-cell');
                                 }
 
-                                cell.classList.add('selected');
-                                lastSelectedCell = cell;
+                                cell.classList.add('selected-cell');
+                                setActiveCell(cell);
                             }
 
                             ev.preventDefault();
@@ -183,42 +176,182 @@ export async function spreadsheet(
     );
 }
 
-function document_onkeyup(this: Document, ev: KeyboardEvent) {
+function setActiveCell(cell: EventTarget & HTMLElement) {
+    activeCell?.classList.remove('active-cell');
 
-    if (activeSpreadsheet === null) {
+    cell.classList.add('active-cell');
+    cell.classList.add('selected-cell');
+    cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+    activeCell = cell;
+}
+
+let keyupCoolDown = Date.now();
+function document_onkeydown(this: Document, ev: KeyboardEvent) {
+
+    if (activeCell == null || activeEditor != null || Date.now() < keyupCoolDown) {
         return;
     }
 
     if (ev.altKey || ev.ctrlKey || ev.metaKey) {
-        // Not typing
+        // TODO: Handle copy, paste, arrow keys, etc.
+        console.debug('Ignored')
         return;
     }
 
-    if (editingCells.length === 0 && ev.key.length === 1) {
-        editingCells.push(...activeSpreadsheet.querySelectorAll<HTMLElement>('.selected > .spreadsheet-content'));
-        for (const cell of editingCells) {
-            cell.textContent = '';
+    if (ev.key === 'ArrowRight' || ev.key === 'Tab') {
+        const spreadsheet = activeCell.closest('.spreadsheet')!;
+
+        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
+        for (const cell of selectedCells) {
+            cell.classList.remove('selected-cell');
         }
+
+        const cellColumnIndex = getElementIndex(activeCell);
+        const row = activeCell.closest('.spreadsheet-row')!;
+
+        if (cellColumnIndex < row.childElementCount - 1) {
+            setActiveCell(<HTMLElement>row.childNodes[cellColumnIndex + 1]);
+        }
+        else {
+            activeCell.classList.add('selected-cell');
+        }
+
+        ev.preventDefault();
+        return;
+    }
+    else if (ev.key === 'ArrowLeft') {
+        const spreadsheet = activeCell.closest('.spreadsheet')!;
+
+        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
+        for (const cell of selectedCells) {
+            cell.classList.remove('selected-cell');
+        }
+
+        const cellColumnIndex = getElementIndex(activeCell);
+        const row = activeCell.closest('.spreadsheet-row')!;
+
+        if (cellColumnIndex > 1) {
+            setActiveCell(<HTMLElement>row.childNodes[cellColumnIndex - 1]);
+        }
+        else {
+            activeCell.classList.add('selected-cell');
+        }
+
+        ev.preventDefault();
+        return;
+    }
+    else if (ev.key === 'ArrowUp') {
+        const spreadsheet = activeCell.closest('.spreadsheet')!;
+        const row = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
+
+        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
+        for (const cell of selectedCells) {
+            cell.classList.remove('selected-cell');
+        }
+
+        const cellColumnIndex = getElementIndex(activeCell);
+        const cellRowIndex = getElementIndex(row);
+
+        if (cellRowIndex > 1) {
+            setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex - 1].childNodes[cellColumnIndex]);
+        }
+        else {
+            activeCell.classList.add('selected-cell');
+        }
+
+        ev.preventDefault();
+        return;
+    }
+    else if (ev.key === 'ArrowDown') {
+        const spreadsheet = activeCell.closest('.spreadsheet')!;
+        const row = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
+
+        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
+        for (const cell of selectedCells) {
+            cell.classList.remove('selected-cell');
+        }
+
+        const cellColumnIndex = getElementIndex(activeCell);
+        const cellRowIndex = getElementIndex(row);
+
+        if (cellRowIndex < spreadsheet.childElementCount - 1) {
+            setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex + 1].childNodes[cellColumnIndex]);
+        }
+        else {
+            activeCell.classList.add('selected-cell');
+        }
+
+        ev.preventDefault();
+        return;
     }
 
-    switch (ev.key) {
-        case 'Backspace':
-            for (const cell of editingCells) {
-                cell.textContent = cell.textContent?.slice(0, -1) ?? '';
-            }
-            ev.preventDefault();
-            break;
+    if (ev.key.length === 1) {
+        // OK
+    }
+    else if (ev.key === 'Enter' || ev.key === 'F2') {
+        // OK
+    }
+    else {
+        console.debug('Ignored')
+        return;
+    }
 
-        default:
-            if (ev.key.length === 1) {
-                for (const cell of editingCells) {
-                    cell.textContent += ev.key;
-                }
+    const ogContent = activeCell.querySelector('.spreadsheet-content')!;
+
+    const boundingRect = activeCell.getBoundingClientRect();
+    const editorInput = input({ class: 'cell-editor' }, {
+        style: {
+            'left': `${boundingRect.left}px`,
+            'top': `${boundingRect.top}px`,
+            'width': `${boundingRect.width}px`,
+        },
+        value: ev.key === 'Enter' || ev.key === 'F2'
+            ? ogContent.textContent
+            : ev.key,
+        onkeydown(ev: KeyboardEvent & EventT<HTMLInputElement>) {
+            if (activeCell == null) {
+                return;
+            }
+
+            if (ev.key === 'Escape') {
+                activeEditor?.remove();
+                activeEditor = null;
+
+                activeCell.focus();
+
                 ev.preventDefault();
+                ev.stopImmediatePropagation();
             }
-            break;
-    }
+            else if (ev.key === 'Enter' || ev.key === 'Tab') {
+                const spreadsheet = activeCell.closest('.spreadsheet')!;
 
+                // Apply changes to cells
+                const selected = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
+                for (const selectedContent of selected) {
+                    selectedContent.textContent = ev.currentTarget.value;
+                }
+
+                if (ev.key === 'Tab') {
+                    // TODO: Move activeCell right or wrap if in last cell
+                }
+
+                activeEditor?.remove();
+                activeEditor = null;
+
+                activeCell.focus();
+
+                keyupCoolDown = Date.now() + 100;
+
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+            }
+        }
+    });
+    activeEditor = editorInput;
+    document.body.append(activeEditor);
+    editorInput.focus();
+    editorInput.setSelectionRange(editorInput.value.length, editorInput.value.length);
 }
 
 function columnResizer_ondragstart(i: number) {

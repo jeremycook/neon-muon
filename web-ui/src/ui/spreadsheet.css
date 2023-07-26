@@ -100,7 +100,19 @@
     padding: 0 2px;
 }
 
-.selected {
+.selected-cell {
     background-color: var(--sky-50);
     border-color: var(--sky-300);
+}
+
+.active-cell {
+    box-shadow: inset 0 0 0 1.25px var(--sky-300);
+}
+
+.cell-editor {
+    position: fixed;
+    background-color: #fff;
+    border: none;
+    margin: 0;
+    padding: 0;
 }
