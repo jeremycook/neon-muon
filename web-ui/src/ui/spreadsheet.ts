@@ -1,6 +1,6 @@
 import { Primitive } from '../database/database';
 import { EventT } from '../utils/etc';
-import { div, input } from '../utils/html';
+import { del, div, input } from '../utils/html';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -38,7 +38,7 @@ export async function spreadsheet(
         div({ class: 'spreadsheet-head' }, {
         },
             div({ class: 'spreadsheet-corner' }),
-            ...cols.map((column, i) => [
+            ...cols.map(column => [
                 div({ class: 'spreadsheet-column-selector' }, {
                     onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
                         if (ev.target.matches('.spreadsheet-column-resizer')) {
@@ -47,7 +47,8 @@ export async function spreadsheet(
 
                         const selector = ev.currentTarget;
                         const spreadsheet = selector.closest<HTMLDivElement>('.spreadsheet')!;
-                        const domIndex = 2 + i;
+                        const columnPosition = getElementPosition(selector);
+                        console.log('index', columnPosition)
 
                         if (!ev.shiftKey && !ev.ctrlKey) {
                             const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
@@ -56,9 +57,36 @@ export async function spreadsheet(
                             }
                         }
 
-                        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${domIndex})`);
-                        for (const element of [selector, ...cells]) {
-                            element.classList.add('selected-cell');
+                        if (ev.ctrlKey && selector.matches('.selected-column')) {
+                            selector.classList.remove('selected-column');
+                            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+                            for (const cell of cells) {
+                                cell.classList.remove('selected-cell');
+                            }
+                            setActiveCell(spreadsheet.querySelector('.selected-cell'));
+                        }
+                        else if (ev.shiftKey && activeCell) {
+                            const lastActivePosition = getElementPosition(activeCell);
+                            const delta = lastActivePosition < columnPosition ? 1 : -1;
+
+                            for (let position = lastActivePosition; position != (columnPosition + delta); position += delta) {
+                                const column = spreadsheet.querySelector<HTMLElement>(`.spreadsheet-head > :nth-child(${position})`)!;
+                                const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${position})`);
+
+                                column.classList.add('selected-column');
+                                for (const cell of cells) {
+                                    cell.classList.add('selected-cell');
+                                }
+                                setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
+                            }
+                        }
+                        else {
+                            selector.classList.add('selected-column');
+                            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+                            for (const cell of cells) {
+                                cell.classList.add('selected-cell');
+                            }
+                            setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
                         }
 
                         ev.preventDefault();
@@ -67,7 +95,7 @@ export async function spreadsheet(
                     column.label,
                     div({ class: 'spreadsheet-column-resizer' }, {
                         draggable: true,
-                        ondragstart: columnResizer_ondragstart(i),
+                        ondragstart: columnResizer_ondragstart,
                         ondblclick: columnResizer_ondblclick,
                     }, '')
                 ),
@@ -89,16 +117,18 @@ export async function spreadsheet(
                             }
                         }
 
-                        const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-row-selector, .spreadsheet-cell');
-                        if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected')) {
+                        const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-cell');
+                        if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected-row')) {
                             for (const element of cells) {
                                 element.classList.remove('selected-cell');
                             }
+                            setActiveCell(cells.length > 0 ? cells.item(0) : null);
                         }
                         else {
                             for (const element of cells) {
                                 element.classList.add('selected-cell');
                             }
+                            setActiveCell(cells.length > 0 ? cells.item(0) : null);
                         }
 
                         ev.preventDefault();
@@ -117,12 +147,12 @@ export async function spreadsheet(
                                 if (activeCell) {
                                     // Select a rectangle between there and here
                                     const lastSelectedRow = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const lastSelectedRowIndex = getElementIndex(lastSelectedRow);
-                                    const lastSelectedColumnIndex = getElementIndex(activeCell);
+                                    const lastSelectedRowIndex = getElementPosition(lastSelectedRow);
+                                    const lastSelectedColumnIndex = getElementPosition(activeCell);
 
                                     const cellRow = cell.closest<HTMLElement>('.spreadsheet-row')!;
-                                    const cellRowIndex = getElementIndex(cellRow);
-                                    const cellColumnIndex = getElementIndex(cell);
+                                    const cellRowIndex = getElementPosition(cellRow);
+                                    const cellColumnIndex = getElementPosition(cell);
 
                                     let currentRow = lastSelectedRowIndex < cellRowIndex ? lastSelectedRow : cellRow;
                                     const endRow = lastSelectedRowIndex > cellRowIndex ? lastSelectedRow : cellRow;
@@ -176,12 +206,14 @@ export async function spreadsheet(
     );
 }
 
-function setActiveCell(cell: EventTarget & HTMLElement) {
+function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
     activeCell?.classList.remove('active-cell');
 
-    cell.classList.add('active-cell');
-    cell.classList.add('selected-cell');
-    cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    if (cell != null) {
+        cell.classList.add('active-cell');
+        cell.classList.add('selected-cell');
+        cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
 
     activeCell = cell;
 }
@@ -207,7 +239,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementIndex(activeCell);
+        const cellColumnIndex = getElementPosition(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
 
         if (cellColumnIndex < row.childElementCount - 1) {
@@ -228,7 +260,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementIndex(activeCell);
+        const cellColumnIndex = getElementPosition(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
 
         if (cellColumnIndex > 1) {
@@ -250,8 +282,8 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementIndex(activeCell);
-        const cellRowIndex = getElementIndex(row);
+        const cellColumnIndex = getElementPosition(activeCell);
+        const cellRowIndex = getElementPosition(row);
 
         if (cellRowIndex > 1) {
             setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex - 1].childNodes[cellColumnIndex]);
@@ -272,8 +304,8 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             cell.classList.remove('selected-cell');
         }
 
-        const cellColumnIndex = getElementIndex(activeCell);
-        const cellRowIndex = getElementIndex(row);
+        const cellColumnIndex = getElementPosition(activeCell);
+        const cellRowIndex = getElementPosition(row);
 
         if (cellRowIndex < spreadsheet.childElementCount - 1) {
             setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex + 1].childNodes[cellColumnIndex]);
@@ -354,12 +386,10 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     editorInput.setSelectionRange(editorInput.value.length, editorInput.value.length);
 }
 
-function columnResizer_ondragstart(i: number) {
-    return (ev: DragEvent) => {
-        ev.dataTransfer!.setData('text/x-type', 'resize');
-        ev.dataTransfer!.setData('text/x-column', i.toString());
-        ev.dataTransfer!.setData('text/x-clientX', ev.clientX.toString());
-    };
+function columnResizer_ondragstart(ev: DragEvent & EventT<HTMLElement>) {
+    ev.dataTransfer!.setData('text/x-type', 'resize');
+    ev.dataTransfer!.setData('text/x-column', getColumnIndex(ev.currentTarget.closest('.spreadsheet-cell')!).toString());
+    ev.dataTransfer!.setData('text/x-clientX', ev.clientX.toString());
 }
 
 function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
@@ -367,8 +397,8 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
     const spreadsheet = resizer.closest<HTMLDivElement>('.spreadsheet')!;
 
     const selector = resizer.closest<HTMLDivElement>('.spreadsheet-column-selector')!;
-    const domIndex = getDomColumnIndex(selector);
-    const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${domIndex})`);
+    const domIndex = getElementPosition(selector);
+    const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
 
     let newWidth = vars.minWidth;
     for (const cell of cells) {
@@ -399,8 +429,8 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
             const changeX = finalX - startX;
 
             const domIndex = 2 + column;
-            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-of-type(${domIndex})`)!;
-            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-of-type(${domIndex})`);
+            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-child(${domIndex})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
 
             const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
 
@@ -417,13 +447,13 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
     }
 }
 
-function getDomColumnIndex(columnSelectorOrCell: HTMLElement) {
-    let index = getElementIndex(columnSelectorOrCell);
-    return index + 1;
+function getColumnIndex(columnSelectorOrCell: HTMLElement) {
+    let index = getElementPosition(columnSelectorOrCell);
+    return index - 1;
 }
 
-function getElementIndex(columnSelectorOrCell: HTMLElement) {
-    let index = 0;
+function getElementPosition(columnSelectorOrCell: HTMLElement) {
+    let index = 1;
     let prev = columnSelectorOrCell.previousElementSibling;
     while (prev) {
         index++;

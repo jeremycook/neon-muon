@@ -100,6 +100,8 @@
     padding: 0 2px;
 }
 
+.selected-columns,
+.selected-row,
 .selected-cell {
     background-color: var(--sky-50);
     border-color: var(--sky-300);
