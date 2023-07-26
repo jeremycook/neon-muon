@@ -153,131 +153,74 @@ export async function spreadsheet(
     );
 }
 
-function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
-    activeCell?.classList.remove('active-cell');
-
-    if (cell != null) {
-        cell.classList.add('active-cell');
-        cell.classList.add('selected-cell');
-        if ((cell as any).scrollIntoViewIfNeeded) {
-            (cell as any).scrollIntoViewIfNeeded();
-        }
-        else {
-            cell.scrollIntoView({ block: 'center', inline: 'nearest' });
-        }
-    }
-
-    activeCell = cell;
-}
-
-let activeEditorKeyCoolDown = Date.now();
+let activeEditorEnterKeyCoolDown = Date.now();
 function document_onkeydown(this: Document, ev: KeyboardEvent) {
 
-    if (activeCell == null || activeEditor != null || Date.now() < activeEditorKeyCoolDown) {
+    if (activeCell == null || activeEditor != null) {
         return;
     }
 
     if (ev.altKey || ev.ctrlKey || ev.metaKey) {
         // TODO: Handle copy, paste, arrow keys, etc.
-        console.debug('Ignored')
         return;
     }
 
-    if (ev.key === 'ArrowRight' || ev.key === 'Tab') {
+    if (ev.key === 'Tab') {
         const spreadsheet = activeCell.closest('.spreadsheet')!;
-
-        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
-        for (const cell of selectedCells) {
-            cell.classList.remove('selected-cell');
-        }
-
-        const cellColumnIndex = getElementIndex(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
+        const cellColumnIndex = getElementIndex(activeCell);
+        const columnDelta = ev.shiftKey
+            ? Math.max(1, cellColumnIndex - 1)
+            : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
-        if (cellColumnIndex < row.childElementCount - 1) {
-            setActiveCell(<HTMLElement>row.childNodes[cellColumnIndex + 1]);
-        }
-        else {
-            activeCell.classList.add('selected-cell');
-        }
+        deselectAll(spreadsheet);
+        setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
 
         ev.preventDefault();
         return;
     }
-    else if (ev.key === 'ArrowLeft') {
+    else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
         const spreadsheet = activeCell.closest('.spreadsheet')!;
-
-        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
-        for (const cell of selectedCells) {
-            cell.classList.remove('selected-cell');
-        }
-
-        const cellColumnIndex = getElementIndex(activeCell);
         const row = activeCell.closest('.spreadsheet-row')!;
+        const cellColumnIndex = getElementIndex(activeCell);
+        const columnDelta = ev.key === 'ArrowLeft'
+            ? Math.max(1, cellColumnIndex - 1)
+            : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
-        if (cellColumnIndex > 1) {
-            setActiveCell(<HTMLElement>row.childNodes[cellColumnIndex - 1]);
-        }
-        else {
-            activeCell.classList.add('selected-cell');
-        }
+        deselectAll(spreadsheet);
+        setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
 
         ev.preventDefault();
         return;
     }
-    else if (ev.key === 'ArrowUp') {
+    else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
         const spreadsheet = activeCell.closest('.spreadsheet')!;
         const row = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
-
-        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
-        for (const cell of selectedCells) {
-            cell.classList.remove('selected-cell');
-        }
-
-        const cellColumnIndex = getElementIndex(activeCell);
         const cellRowIndex = getElementIndex(row);
-
-        if (cellRowIndex > 1) {
-            setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex - 1].childNodes[cellColumnIndex]);
-        }
-        else {
-            activeCell.classList.add('selected-cell');
-        }
-
-        ev.preventDefault();
-        return;
-    }
-    else if (ev.key === 'ArrowDown') {
-        const spreadsheet = activeCell.closest('.spreadsheet')!;
-        const row = activeCell.closest<HTMLElement>('.spreadsheet-row')!;
-
-        const selectedCells = spreadsheet.querySelectorAll('.selected-cell');
-        for (const cell of selectedCells) {
-            cell.classList.remove('selected-cell');
-        }
-
         const cellColumnIndex = getElementIndex(activeCell);
-        const cellRowIndex = getElementIndex(row);
+        const rowDelta = ev.key === 'ArrowUp'
+            ? Math.max(1, cellRowIndex - 1)
+            : Math.min(spreadsheet.childElementCount - 1, cellRowIndex + 1);
 
-        if (cellRowIndex < spreadsheet.childElementCount - 1) {
-            setActiveCell(<HTMLElement>spreadsheet.childNodes[cellRowIndex + 1].childNodes[cellColumnIndex]);
-        }
-        else {
-            activeCell.classList.add('selected-cell');
-        }
+        deselectAll(spreadsheet);
+        setActiveCell(<HTMLElement>spreadsheet.childNodes[rowDelta].childNodes[cellColumnIndex]);
 
         ev.preventDefault();
         return;
     }
 
-    if (ev.key.length === 1) {
+    if (ev.key.length === 1 || ev.key === 'F2') {
         // OK
     }
-    else if (ev.key === 'Enter' || ev.key === 'F2') {
-        // OK
+    else if (ev.key === 'Enter') {
+        if (Date.now() < activeEditorEnterKeyCoolDown) {
+            return;
+        }
+        else {
+            // OK
+        }
     }
     else {
-        console.debug('Ignored')
         return;
     }
 
@@ -299,28 +242,38 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             }
 
             if (ev.key === 'Escape') {
-                unmountActiveEditor();
+                // Discard edit
 
+                unmountActiveEditor();
                 activeCell.focus();
 
                 ev.preventDefault();
                 ev.stopImmediatePropagation();
             }
             else if (ev.key === 'Enter' || ev.key === 'Tab') {
+                // Commit edit
+
                 const spreadsheet = activeCell.closest('.spreadsheet')!;
 
                 // Apply changes to cells
-                const selected = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
-                for (const selectedContent of selected) {
+                const selectedContents = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
+                for (const selectedContent of selectedContents) {
                     selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-input')!.value;
                 }
 
                 if (ev.key === 'Tab') {
-                    // TODO: Move activeCell right or wrap if in last cell
+                    const cellColumnIndex = getElementIndex(activeCell);
+                    const row = activeCell.closest('.spreadsheet-row')!;
+                    const columnDelta = ev.shiftKey
+                        ? Math.max(1, cellColumnIndex - 1)
+                        : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
+
+                    deselectAll(spreadsheet);
+                    setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
                 }
 
                 unmountActiveEditor();
-                activeEditorKeyCoolDown = Date.now() + 10;
+                activeEditorEnterKeyCoolDown = Date.now() + 10;
                 activeCell.focus();
 
                 ev.preventDefault();
@@ -346,6 +299,40 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         firstInput.setSelectionRange(firstInput.value.length, firstInput.value.length);
     }
     dispatchMountEvent(newEditor);
+}
+
+function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
+    activeCell?.classList.remove('active-cell');
+
+    if (cell != null) {
+        cell.classList.add('active-cell');
+        cell.classList.add('selected-cell');
+        if ((cell as any).scrollIntoViewIfNeeded) {
+            (cell as any).scrollIntoViewIfNeeded();
+        }
+        else {
+            cell.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
+    }
+
+    activeCell = cell;
+}
+
+function deselectAll(spreadsheet: Element) {
+    const cells = spreadsheet.querySelectorAll('.selected-cell');
+    for (const element of cells) {
+        element.classList.remove('selected-cell');
+    }
+
+    const columns = spreadsheet.querySelectorAll('.selected-column');
+    for (const element of columns) {
+        element.classList.remove('selected-column');
+    }
+
+    const rows = spreadsheet.querySelectorAll('.selected-row');
+    for (const element of rows) {
+        element.classList.remove('selected-row');
+    }
 }
 
 function unmountActiveEditor() {
@@ -467,11 +454,13 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
     }
 }
 
+/** 0-based index in a data record or the data columns. */
 function getColumnIndex(columnSelectorOrCell: HTMLElement) {
     let index = getElementIndex(columnSelectorOrCell);
     return index - 1;
 }
 
+/** 1-based position in DOM. */
 function getElementPosition(columnSelectorOrCell: HTMLElement) {
     let index = 1;
     let prev = columnSelectorOrCell.previousElementSibling;
@@ -482,7 +471,7 @@ function getElementPosition(columnSelectorOrCell: HTMLElement) {
     return index;
 }
 
-
+/** 0-based index in DOM. */
 function getElementIndex(columnSelectorOrCell: HTMLElement) {
     let index = 0;
     let prev = columnSelectorOrCell.previousElementSibling;
