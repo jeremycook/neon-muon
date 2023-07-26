@@ -1,5 +1,5 @@
 import { Primitive } from '../database/database';
-import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
+import { EventT, TagParams, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { div, input } from '../utils/html';
 import { log } from '../utils/log';
 import './spreadsheet.css';
@@ -20,14 +20,14 @@ export interface ColumnProp {
     editor?: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
 }
 
-interface Column {
+interface SpreadsheetColumn {
     label: string;
     width: number;
     editor: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
 }
 
 interface Spreadsheet {
-    columns: Column[];
+    columns: SpreadsheetColumn[];
     records: (Primitive | null)[][];
 }
 
@@ -94,13 +94,15 @@ export async function spreadsheet(
 
 //#region Editors
 
-export function spreadsheetInputEditor(ev: KeyboardEvent, activeContent: HTMLElement) {
+export function spreadsheetInputEditor(ev: Event, activeContent: HTMLElement, ...data: TagParams<HTMLInputElement>[]) {
     return input({
         class: 'spreadsheet-editor-content',
-        value: ev.key === 'Enter' || ev.key === 'F2'
+        value: ev instanceof KeyboardEvent && (ev.key === 'Enter' || ev.key === 'F2')
             ? activeContent.textContent
             : '',
-    });
+    },
+        ...data
+    );
 }
 
 //#endregion Editors
