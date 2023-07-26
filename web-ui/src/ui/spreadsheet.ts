@@ -30,9 +30,7 @@ export async function spreadsheet(
     }));
 
     return div({ class: 'spreadsheet' }, {
-        ondragover(ev: DragEvent) {
-            ev.preventDefault();
-        },
+        ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
     },
         div({ class: 'spreadsheet-head' }, {
@@ -221,45 +219,36 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     dispatchMountEvent(newEditor);
 }
 
-function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
-    activeCell?.classList.remove('active-cell');
-
-    if (cell != null) {
-        cell.classList.add('active-cell');
-        cell.classList.add('selected-cell');
-        if ((cell as any).scrollIntoViewIfNeeded) {
-            (cell as any).scrollIntoViewIfNeeded();
-        }
-        else {
-            cell.scrollIntoView({ block: 'center', inline: 'nearest' });
-        }
-    }
-
-    activeCell = cell;
+function spreadsheet_ondragover(ev: DragEvent) {
+    ev.preventDefault();
 }
 
-function deselectAll(spreadsheet: Element) {
-    const cells = spreadsheet.querySelectorAll('.selected-cell');
-    for (const element of cells) {
-        element.classList.remove('selected-cell');
-    }
+function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
+    const spreadsheet = ev.currentTarget;
 
-    const columns = spreadsheet.querySelectorAll('.selected-column');
-    for (const element of columns) {
-        element.classList.remove('selected-column');
-    }
+    switch (ev.dataTransfer?.getData('text/x-type')) {
+        case 'resize': {
+            const column = parseInt(ev.dataTransfer!.getData('text/x-column'));
+            const startX = parseInt(ev.dataTransfer!.getData('text/x-clientX'));
+            const finalX = ev.clientX;
+            const changeX = finalX - startX;
 
-    const rows = spreadsheet.querySelectorAll('.selected-row');
-    for (const element of rows) {
-        element.classList.remove('selected-row');
-    }
-}
+            const domIndex = 2 + column;
+            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-child(${domIndex})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
 
-function unmountActiveEditor() {
-    if (activeEditor != null) {
-        dispatchUnmountEvent(activeEditor as unknown as Node);
-        (activeEditor as unknown as ChildNode).remove();
-        activeEditor = null;
+            const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
+
+            const widthPx = newWidth + 'px';
+            for (const cell of [selector, ...cells]) {
+                cell.style.minWidth = widthPx;
+                cell.style.maxWidth = widthPx;
+            }
+
+            ev.preventDefault();
+        }; break;
+
+        default: break;
     }
 }
 
@@ -374,35 +363,6 @@ function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
     ev.preventDefault();
 }
 
-function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
-    const spreadsheet = ev.currentTarget;
-
-    switch (ev.dataTransfer?.getData('text/x-type')) {
-        case 'resize': {
-            const column = parseInt(ev.dataTransfer!.getData('text/x-column'));
-            const startX = parseInt(ev.dataTransfer!.getData('text/x-clientX'));
-            const finalX = ev.clientX;
-            const changeX = finalX - startX;
-
-            const domIndex = 2 + column;
-            const selector = spreadsheet.querySelector<HTMLDivElement>(`.spreadsheet-column-selector:nth-child(${domIndex})`)!;
-            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
-
-            const newWidth = Math.max(vars.minWidth, selector.clientWidth + changeX);
-
-            const widthPx = newWidth + 'px';
-            for (const cell of [selector, ...cells]) {
-                cell.style.minWidth = widthPx;
-                cell.style.maxWidth = widthPx;
-            }
-
-            ev.preventDefault();
-        }; break;
-
-        default: break;
-    }
-}
-
 function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
     const cell = ev.currentTarget;
     const spreadsheet = cell.closest<HTMLElement>('.spreadsheet')!;
@@ -458,6 +418,50 @@ function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
     ev.preventDefault();
 }
 
+//#region Helpers
+
+function unmountActiveEditor() {
+    if (activeEditor != null) {
+        dispatchUnmountEvent(activeEditor as unknown as Node);
+        (activeEditor as unknown as ChildNode).remove();
+        activeEditor = null;
+    }
+}
+
+function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
+    activeCell?.classList.remove('active-cell');
+
+    if (cell != null) {
+        cell.classList.add('active-cell');
+        cell.classList.add('selected-cell');
+        if ((cell as any).scrollIntoViewIfNeeded) {
+            (cell as any).scrollIntoViewIfNeeded();
+        }
+        else {
+            cell.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
+    }
+
+    activeCell = cell;
+}
+
+function deselectAll(spreadsheet: Element) {
+    const cells = spreadsheet.querySelectorAll('.selected-cell');
+    for (const element of cells) {
+        element.classList.remove('selected-cell');
+    }
+
+    const columns = spreadsheet.querySelectorAll('.selected-column');
+    for (const element of columns) {
+        element.classList.remove('selected-column');
+    }
+
+    const rows = spreadsheet.querySelectorAll('.selected-row');
+    for (const element of rows) {
+        element.classList.remove('selected-row');
+    }
+}
+
 /** 0-based index in a data record or the data columns. */
 function getColumnIndex(columnSelectorOrCell: HTMLElement) {
     let index = getElementIndex(columnSelectorOrCell);
@@ -485,3 +489,5 @@ function getElementIndex(columnSelectorOrCell: HTMLElement) {
     }
     return index;
 }
+
+//#endregion Helpers
