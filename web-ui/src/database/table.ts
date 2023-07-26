@@ -2,7 +2,7 @@ import { FileNode, getParentPath } from '../files/files';
 import { spreadsheet } from '../ui/spreadsheet';
 import { lazy } from '../utils/dynamicHtml';
 import { div, h1 } from '../utils/html';
-import { getDatabase } from './database';
+import { Schema, Table, getDatabase } from './database';
 import { selectRecords } from './records';
 
 export async function tableApp({ fileNode }: { fileNode: FileNode }) {
@@ -10,9 +10,6 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     const database = (await getDatabase(databasePath))!;
     const schema = database.schemas[0];
     const tableInfo = schema.tables.find(t => t.name === fileNode.name)!;
-
-    const response = await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name));
-    const records = response.getResultOrThrow();
 
     const columns = tableInfo.columns.map(column => ({
         label: column.name,
@@ -24,9 +21,15 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
         ),
         div({ class: 'flex flex-down flex-grow overflow-auto' },
             ...lazy(
-                spreadsheet(columns, records),
+                async () => spreadsheet(columns, await getRecords(databasePath, schema, tableInfo)),
                 div('Loading…')
             )
         )
     )
+}
+
+async function getRecords(databasePath: string, schema: Schema, tableInfo: Table) {
+    const response = await selectRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(col => col.name));
+    const records = response.getResultOrThrow();
+    return records;
 }
