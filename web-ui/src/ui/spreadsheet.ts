@@ -40,57 +40,7 @@ export async function spreadsheet(
             div({ class: 'spreadsheet-corner' }),
             ...cols.map(column => [
                 div({ class: 'spreadsheet-column-selector' }, {
-                    onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
-                        if (ev.target.matches('.spreadsheet-column-resizer')) {
-                            return; // Ignore clicks and double clicks on the resizer
-                        }
-
-                        const selector = ev.currentTarget;
-                        const spreadsheet = selector.closest<HTMLDivElement>('.spreadsheet')!;
-                        const columnPosition = getElementPosition(selector);
-                        console.log('index', columnPosition)
-
-                        if (!ev.shiftKey && !ev.ctrlKey) {
-                            const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-                            for (const element of selected) {
-                                element.classList.remove('selected-cell');
-                            }
-                        }
-
-                        if (ev.ctrlKey && selector.matches('.selected-column')) {
-                            selector.classList.remove('selected-column');
-                            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
-                            for (const cell of cells) {
-                                cell.classList.remove('selected-cell');
-                            }
-                            setActiveCell(spreadsheet.querySelector('.selected-cell'));
-                        }
-                        else if (ev.shiftKey && activeCell) {
-                            const lastActivePosition = getElementPosition(activeCell);
-                            const delta = lastActivePosition < columnPosition ? 1 : -1;
-
-                            for (let position = lastActivePosition; position != (columnPosition + delta); position += delta) {
-                                const column = spreadsheet.querySelector<HTMLElement>(`.spreadsheet-head > :nth-child(${position})`)!;
-                                const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${position})`);
-
-                                column.classList.add('selected-column');
-                                for (const cell of cells) {
-                                    cell.classList.add('selected-cell');
-                                }
-                                setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
-                            }
-                        }
-                        else {
-                            selector.classList.add('selected-column');
-                            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
-                            for (const cell of cells) {
-                                cell.classList.add('selected-cell');
-                            }
-                            setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
-                        }
-
-                        ev.preventDefault();
-                    }
+                    onpointerdown: columnSelector_onpointerdown,
                 },
                     column.label,
                     div({ class: 'spreadsheet-column-resizer' }, {
@@ -384,6 +334,56 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     document.body.append(activeEditor);
     editorInput.focus();
     editorInput.setSelectionRange(editorInput.value.length, editorInput.value.length);
+}
+
+function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
+    if (ev.target.matches('.spreadsheet-column-resizer')) {
+        return; // Ignore clicks and double clicks on the resizer
+    }
+
+    const selector = ev.currentTarget;
+    const spreadsheet = selector.closest<HTMLDivElement>('.spreadsheet')!;
+    const columnPosition = getElementPosition(selector);
+
+    if (!ev.shiftKey && !ev.ctrlKey) {
+        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
+        for (const element of selected) {
+            element.classList.remove('selected-cell');
+        }
+    }
+
+    if (ev.ctrlKey && selector.matches('.selected-column')) {
+        selector.classList.remove('selected-column');
+        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+        for (const cell of cells) {
+            cell.classList.remove('selected-cell');
+        }
+        setActiveCell(spreadsheet.querySelector('.selected-cell'));
+    }
+    else if (ev.shiftKey && activeCell) {
+        const lastActivePosition = getElementPosition(activeCell);
+        const delta = lastActivePosition < columnPosition ? 1 : -1;
+        for (let position = lastActivePosition; position != (columnPosition + delta); position += delta) {
+            const column = spreadsheet.querySelector<HTMLElement>(`.spreadsheet-head > :nth-child(${position})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${position})`);
+
+            column.classList.add('selected-column');
+            for (const cell of cells) {
+                cell.classList.add('selected-cell');
+            }
+            setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
+        }
+    }
+    else {
+        selector.classList.add('selected-column');
+        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+        for (const cell of cells) {
+            cell.classList.add('selected-cell');
+        }
+        setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
+    }
+
+    ev.preventDefault();
 }
 
 function columnResizer_ondragstart(ev: DragEvent & EventT<HTMLElement>) {
