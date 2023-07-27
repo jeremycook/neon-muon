@@ -130,7 +130,7 @@ export async function spreadsheet(props: {
                         draggable: true,
                         ondragstart: columnResizer_ondragstart,
                         ondblclick: columnResizer_ondblclick,
-                    }, '')
+                    })
                 ),
             ])
         ),
@@ -140,7 +140,7 @@ export async function spreadsheet(props: {
                 div({ class: 'spreadsheet-row-selector' }, {
                     onpointerdown: rowSelector_onpointerdown,
                 },
-                    div({ class: 'spreadsheet-row-resizer' }, '')
+                    div({ class: 'spreadsheet-row-resizer' })
                 ),
                 ...record.map((value, i) =>
                     div({ class: 'spreadsheet-cell' }, {
