@@ -6,6 +6,7 @@ import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
 
+let prevKey = 1;
 const vars = Object.freeze({
     defaultWidth: 96 as number,
     minWidth: 6 as number,
@@ -17,13 +18,15 @@ const spreadsheets: Record<string, Spreadsheet> = {};
 export interface ColumnProp {
     label: string | null;
     width?: number;
-    editor?: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
+    renderer?: (value: Primitive | null) => string;
+    editor?: (ev: Event, activeContent: HTMLElement) => HTMLElement;
 }
 
 interface SpreadsheetColumn {
     label: string;
     width: number;
-    editor: (ev: KeyboardEvent, activeContent: HTMLElement) => HTMLElement;
+    renderer: (value: Primitive | null) => string;
+    editor: (ev: Event, activeContent: HTMLElement) => HTMLElement;
 }
 
 interface Spreadsheet {
@@ -39,25 +42,28 @@ export async function spreadsheet(
     columns: readonly ColumnProp[],
     records: (Primitive | null)[][]
 ) {
-    const key = Math.random().toString();
-    spreadsheets[key] = {
+    const key = (prevKey++).toString();
+    const spreadsheet = {
         columns: columns.map((column, i) => ({
             label: column.label || String.fromCharCode(65 + i),
             width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
+            renderer: column.renderer ?? spreadsheetValueRenderer,
             editor: column.editor ?? spreadsheetInputEditor,
         })),
         records: records,
     };
+    spreadsheets[key] = spreadsheet;
 
     return div({
         'spreadsheet-key': key,
         class: 'spreadsheet',
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
+        onunmount: () => delete spreadsheets[key],
     },
         div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
-            ...spreadsheets[key].columns.map(column => [
+            ...spreadsheet.columns.map(column => [
                 div({ class: 'spreadsheet-column-selector' }, {
                     onpointerdown: columnSelector_onpointerdown,
                 },
@@ -71,19 +77,20 @@ export async function spreadsheet(
             ])
         ),
 
-        spreadsheets[key].records.map(record =>
+        spreadsheet.records.map(record =>
             div({ class: 'spreadsheet-row' },
                 div({ class: 'spreadsheet-row-selector' }, {
                     onpointerdown: rowSelector_onpointerdown,
                 },
                     div({ class: 'spreadsheet-row-resizer' }, '')
                 ),
-                ...record.map(cell =>
+                ...record.map((value, i) =>
                     div({ class: 'spreadsheet-cell' }, {
+                        ondblclick: cell_ondblclick,
                         onpointerdown: cell_onpointerdown,
                     },
                         div({ class: 'spreadsheet-content' },
-                            cell?.toString()
+                            spreadsheet.columns[i].renderer(value)
                         )
                     ),
                 )
@@ -93,6 +100,10 @@ export async function spreadsheet(
 }
 
 //#region Editors
+
+export function spreadsheetValueRenderer(value: Primitive | null): string {
+    return value?.toString() ?? '';
+}
 
 export function spreadsheetInputEditor(ev: Event, activeContent: HTMLElement, ...data: TagParams<HTMLInputElement>[]) {
     return input({
@@ -177,6 +188,14 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
 
+    activateEditor(ev);
+}
+
+function activateEditor(ev: Event) {
+    if (activeCell == null) {
+        return;
+    }
+
     const boundingRect = activeCell.getBoundingClientRect();
 
     const column = getColumn(activeCell);
@@ -204,7 +223,6 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
 
             if (ev.key === 'Escape') {
                 // Discard edit
-
                 unmountActiveEditor();
                 activeCell.focus();
 
@@ -213,7 +231,6 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             }
             else if (ev.key === 'Enter' || ev.key === 'Tab') {
                 // Commit edit
-
                 const spreadsheet = activeCell.closest('.spreadsheet')!;
 
                 // Apply changes to cells
@@ -299,15 +316,12 @@ function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>)
     const columnPosition = getElementPosition(selector);
 
     if (!ev.shiftKey && !ev.ctrlKey) {
-        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-        for (const element of selected) {
-            element.classList.remove('selected-cell');
-        }
+        deselectAll(spreadsheet);
     }
 
     if (ev.ctrlKey && selector.matches('.selected-column')) {
         selector.classList.remove('selected-column');
-        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${columnPosition})`);
         for (const cell of cells) {
             cell.classList.remove('selected-cell');
         }
@@ -317,8 +331,8 @@ function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>)
         const lastActivePosition = getElementPosition(activeCell);
         const delta = lastActivePosition < columnPosition ? 1 : -1;
         for (let position = lastActivePosition; position != (columnPosition + delta); position += delta) {
-            const column = spreadsheet.querySelector<HTMLElement>(`.spreadsheet-head > :nth-child(${position})`)!;
-            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${position})`);
+            const column = spreadsheet.querySelector<HTMLElement>(`.spreadsheet-column-selector:nth-child(${position})`)!;
+            const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${position})`);
 
             column.classList.add('selected-column');
             for (const cell of cells) {
@@ -329,7 +343,7 @@ function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>)
     }
     else {
         selector.classList.add('selected-column');
-        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-row > :nth-child(${columnPosition})`);
+        const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${columnPosition})`);
         for (const cell of cells) {
             cell.classList.add('selected-cell');
         }
@@ -350,8 +364,8 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
     const spreadsheet = resizer.closest<HTMLDivElement>('.spreadsheet')!;
 
     const selector = resizer.closest<HTMLDivElement>('.spreadsheet-column-selector')!;
-    const domIndex = getElementPosition(selector);
-    const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${domIndex})`);
+    const cellPosition = getElementPosition(selector);
+    const cells = spreadsheet.querySelectorAll<HTMLElement>(`.spreadsheet-cell:nth-child(${cellPosition})`);
 
     let newWidth = vars.minWidth;
     for (const cell of cells) {
@@ -377,27 +391,30 @@ function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
     const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
 
     if (!ev.ctrlKey) {
-        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-        for (const element of selected) {
-            element.classList.remove('selected-cell');
-        }
+        deselectAll(spreadsheet);
     }
 
     const cells = row.querySelectorAll<HTMLElement>('.spreadsheet-cell');
-    if (ev.ctrlKey && row.querySelector(' .spreadsheet-row-selector.selected-row')) {
+    if (ev.ctrlKey && row.querySelector('.selected-row') != null) {
+        selector.classList.remove('selected-row');
         for (const element of cells) {
             element.classList.remove('selected-cell');
         }
-        setActiveCell(cells.length > 0 ? cells.item(0) : null);
+        setActiveCell(spreadsheet.querySelector('.selected-cell'));
     }
     else {
+        selector.classList.add('selected-row');
         for (const element of cells) {
             element.classList.add('selected-cell');
         }
-        setActiveCell(cells.length > 0 ? cells.item(0) : null);
+        setActiveCell(cells.length > 0 ? cells.item(0) : spreadsheet.querySelector('.selected-cell'));
     }
 
     ev.preventDefault();
+}
+
+function cell_ondblclick(ev: MouseEvent & EventT<HTMLElement>) {
+    activateEditor(ev);
 }
 
 function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
@@ -443,10 +460,7 @@ function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
         }
     }
     else {
-        const selected = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
-        for (const element of selected) {
-            element.classList.remove('selected-cell');
-        }
+        deselectAll(spreadsheet);
 
         cell.classList.add('selected-cell');
         setActiveCell(cell);
