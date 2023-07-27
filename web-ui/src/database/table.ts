@@ -1,7 +1,8 @@
 import { FileNode, getParentPath } from '../files/files';
-import { spreadsheet } from '../ui/spreadsheet';
-import { lazy } from '../utils/dynamicHtml';
-import { div, h1 } from '../utils/html';
+import { SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
+import { lazy, when } from '../utils/dynamicHtml';
+import { button, div, h1 } from '../utils/html';
+import { val } from '../utils/pubSub';
 import { Schema, Table, getDatabase } from './database';
 import { selectRecords } from './records';
 
@@ -15,13 +16,29 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
         label: column.name,
     }));
 
+    const hasChanges = val(false);
+    const changeTracker = new SpreadsheetChangeTracker();
+    changeTracker.addEventListener(() => hasChanges.pub(true));
+
     return div({ class: 'flex flex-down fill' },
         div(
             h1(tableInfo.name),
         ),
+        div({ class: 'flex gap mb' },
+            when(hasChanges,
+                () => button({ class: 'button' }, 'Save Changes'),
+                () => button({ class: 'button', disabled: true }, 'Save Changes')
+            )
+        ),
         div({ class: 'flex flex-down flex-grow overflow-auto' },
             ...lazy(
-                async () => spreadsheet(columns, await getRecords(databasePath, schema, tableInfo)),
+                async () => spreadsheet({
+                    columns,
+                    records: await getRecords(databasePath, schema, tableInfo),
+                    onChange(change) {
+                        changeTracker.push(change);
+                    },
+                }),
                 div('Loading…')
             )
         )

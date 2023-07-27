@@ -1,7 +1,7 @@
 import { Primitive } from '../database/database';
-import { EventT, TagParams, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
+import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { div, input } from '../utils/html';
-import { log } from '../utils/log';
+import { UnexpectedError } from '../utils/unreachable';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -13,57 +13,115 @@ const vars = Object.freeze({
     dataTransferTypes: ['resize'],
 });
 
-const spreadsheets: Record<string, Spreadsheet> = {};
+const datasheets: Record<string, DataSheet> = {};
 
-export interface ColumnProp {
+export class ChangeValue {
+    type = 'ChangeValue';
+    constructor(
+        public record: number,
+        public column: number,
+        public newValue: Primitive | null,
+    ) { }
+};
+
+export type SpreadsheetChange =
+    | ChangeValue;
+
+export class SpreadsheetChangeTracker {
+    #changes: SpreadsheetChange[] = [];
+
+    #listeners: {
+        Any: ((change: SpreadsheetChange) => void)[];
+        ChangeValue: ((change: ChangeValue) => void)[];
+    } = { Any: [], ChangeValue: [] };
+
+    get length() {
+        return this.#changes.length;
+    }
+
+    push(...items: SpreadsheetChange[]) {
+        this.#changes.push(...items);
+        for (const change of items) {
+            for (const listener of (<any>this.#listeners)[change.type]) {
+                listener(change);
+            }
+            for (const listener of this.#listeners.Any) {
+                listener(change);
+            }
+        }
+    }
+
+    addEventListener(listener: (change: SpreadsheetChange) => void): void;
+    addEventListener(type: 'ChangeValue', listener: (change: ChangeValue) => void): void;
+    addEventListener(arg0: 'ChangeValue' | ((change: SpreadsheetChange) => void), arg1?: (change: ChangeValue) => void): void {
+        if (typeof arg0 === 'string' && typeof arg1 === 'function') {
+            this.#listeners[arg0].push(arg1);
+        }
+        else if (typeof arg0 === 'function') {
+            this.#listeners['Any'].push(arg0);
+        }
+        else {
+            throw new UnexpectedError(arg0, arg1);
+        }
+    }
+}
+
+export interface Column {
     label: string | null;
     width?: number;
-    renderer?: (value: Primitive | null) => string;
+    renderer?: (value: Primitive | null) => Node;
     editor?: (ev: Event, activeContent: HTMLElement) => HTMLElement;
 }
 
-interface SpreadsheetColumn {
+interface DataColumn {
     label: string;
     width: number;
-    renderer: (value: Primitive | null) => string;
+    renderer: (value: Primitive | null) => Node;
     editor: (ev: Event, activeContent: HTMLElement) => HTMLElement;
 }
 
-interface Spreadsheet {
-    columns: SpreadsheetColumn[];
+interface DataSheet {
+    columns: DataColumn[];
     records: (Primitive | null)[][];
+    changes: SpreadsheetChangeTracker;
 }
 
 // The last touched cell of any spreadsheet in the DOM
 let activeCell: HTMLElement | null = null;
 let activeEditor: HTMLElement | null = null;
 
-export async function spreadsheet(
-    columns: readonly ColumnProp[],
-    records: (Primitive | null)[][]
-) {
+export async function spreadsheet(props: {
+    columns: readonly Column[];
+    records: (Primitive | null)[][];
+    onChange?: (change: SpreadsheetChange) => void,
+}) {
     const key = (prevKey++).toString();
-    const spreadsheet = {
-        columns: columns.map((column, i) => ({
+    const datasheet: DataSheet = {
+        columns: props.columns.map((column, i) => ({
             label: column.label || String.fromCharCode(65 + i),
             width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
-            renderer: column.renderer ?? spreadsheetValueRenderer,
+            renderer: column.renderer ?? spreadsheetBasicContentRenderer,
             editor: column.editor ?? spreadsheetInputEditor,
         })),
-        records: records,
+        records: props.records,
+        changes: new SpreadsheetChangeTracker(),
     };
-    spreadsheets[key] = spreadsheet;
+    if (props.onChange) {
+        datasheet.changes.addEventListener('ChangeValue', props.onChange);
+    }
+    datasheets[key] = datasheet;
 
     return div({
         'spreadsheet-key': key,
         class: 'spreadsheet',
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
-        onunmount: () => delete spreadsheets[key],
+        onmount: spreadsheet_onmount,
+        onunmount: () => delete datasheets[key],
     },
         div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
-            ...spreadsheet.columns.map(column => [
+            ...datasheet.columns.map(column => [
                 div({ class: 'spreadsheet-column-selector' }, {
                     onpointerdown: columnSelector_onpointerdown,
                 },
@@ -77,7 +135,7 @@ export async function spreadsheet(
             ])
         ),
 
-        spreadsheet.records.map(record =>
+        datasheet.records.map(record =>
             div({ class: 'spreadsheet-row' },
                 div({ class: 'spreadsheet-row-selector' }, {
                     onpointerdown: rowSelector_onpointerdown,
@@ -89,9 +147,7 @@ export async function spreadsheet(
                         ondblclick: cell_ondblclick,
                         onpointerdown: cell_onpointerdown,
                     },
-                        div({ class: 'spreadsheet-content' },
-                            spreadsheet.columns[i].renderer(value)
-                        )
+                        datasheet.columns[i].renderer(value)
                     ),
                 )
             ),
@@ -101,19 +157,37 @@ export async function spreadsheet(
 
 //#region Editors
 
-export function spreadsheetValueRenderer(value: Primitive | null): string {
-    return value?.toString() ?? '';
+export function spreadsheetBasicContentRenderer(value: Primitive | null) {
+    return div({ class: 'spreadsheet-content' },
+        value?.toString()
+    );
 }
 
-export function spreadsheetInputEditor(ev: Event, activeContent: HTMLElement, ...data: TagParams<HTMLInputElement>[]) {
+export function spreadsheetInputEditor(ev: Event, activeContent: HTMLElement) {
     return input({
         class: 'spreadsheet-editor-content',
-        value: ev instanceof KeyboardEvent && (ev.key === 'Enter' || ev.key === 'F2')
-            ? activeContent.textContent
-            : '',
-    },
-        ...data
-    );
+        value: ev instanceof KeyboardEvent && ev.key !== 'Enter' && ev.key !== 'F2'
+            ? ''
+            : activeContent.textContent,
+        onkeydown: inputEditor_onkeydown
+    });
+
+    function inputEditor_onkeydown(ev: KeyboardEvent & EventT<HTMLInputElement>) {
+        if (ev.key === 'Escape') {
+            ev.currentTarget.parentNode!.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: false }));
+        }
+        else if (ev.key === 'Enter' || ev.key === 'Tab') {
+            const accept = new CustomEvent<AcceptEventDetails>('accept', {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    original: ev,
+                    value: ev.currentTarget.value,
+                },
+            });
+            ev.currentTarget.parentNode!.dispatchEvent(accept);
+        }
+    }
 }
 
 //#endregion Editors
@@ -221,6 +295,22 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
 
         default: break;
     }
+}
+
+function spreadsheet_onmount(ev: EventT<HTMLDivElement>) {
+    const spreadsheet = ev.currentTarget;
+    const datasheet = getDataSheet(spreadsheet);
+
+    datasheet.changes.addEventListener('ChangeValue', changeValue => {
+        const row = spreadsheet.querySelector(`.spreadsheet-row:nth-child(${changeValue.record + 2})`);
+        const cell = row?.querySelector(`.spreadsheet-cell:nth-child(${changeValue.column + 2})`);
+        if (cell != null) {
+            const column = datasheet.columns[changeValue.column];
+            const content = column.renderer(changeValue.newValue);
+            cell.replaceChildren(content);
+            cell.classList.add('spreadsheet-cell-changed');
+        }
+    });
 }
 
 function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
@@ -388,16 +478,23 @@ function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
 
 //#region Helpers
 
+interface AcceptEventDetails<TValue = any> {
+    original: Event;
+    value: TValue;
+}
+
 function activateEditor(ev: Event) {
     if (activeCell == null) {
         return;
     }
 
-    const boundingRect = activeCell.getBoundingClientRect();
+    const liveCell = activeCell;
+    const spreadsheet = liveCell.closest('.spreadsheet')!;
+    const selectedCells = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
 
-    const column = getColumn(activeCell);
-    const activeContent = activeCell.querySelector<HTMLElement>('.spreadsheet-content')!;
-    const columnEditor = column.editor(ev, activeContent);
+    const boundingRect = liveCell.getBoundingClientRect();
+    const column = getDataColumn(liveCell);
+    const contentEditor = column.editor(ev, liveCell);
 
     const newEditor = div({
         class: 'spreadsheet-editor',
@@ -407,56 +504,48 @@ function activateEditor(ev: Event) {
             'width': `${boundingRect.width}px`,
             'height': `${boundingRect.height}px`,
         },
-        onkeydown: function editor_onkeydown(ev: KeyboardEvent & EventT<HTMLElement>) {
-            if (activeCell == null) {
-                try {
-                    throw new Error('The spreadsheet editor is in an invalid state. The activeCell is null but should not be.');
-                }
-                catch (error) {
-                    log.error('Suppressed {error}', error);
-                }
-                return;
+        oncancel: function editor_oncancel(ev: Event) {
+            ev.stopImmediatePropagation();
+
+            // Discard
+            unmountActiveEditor();
+            liveCell.focus();
+        },
+        onaccept: function editor_onaccept(ev: CustomEvent<AcceptEventDetails> & EventT<Element>) {
+            ev.stopImmediatePropagation();
+
+            const sheet = getDataSheet(spreadsheet);
+
+            // Apply changes to cells
+            const newValue = ev.detail.value;
+            for (const selectedContent of selectedCells) {
+                const [record, column] = getDataCoordinates(selectedContent);
+                sheet.changes.push({
+                    type: "ChangeValue",
+                    record,
+                    column,
+                    newValue,
+                });
             }
 
-            if (ev.key === 'Escape') {
-                // Discard edit
-                unmountActiveEditor();
-                activeCell.focus();
+            const original = ev.detail.original;
+            if (original instanceof KeyboardEvent && original.key === 'Tab') {
+                const cellColumnIndex = getElementIndex(liveCell);
+                const row = liveCell.closest('.spreadsheet-row')!;
+                const columnDelta = original.shiftKey
+                    ? Math.max(1, cellColumnIndex - 1)
+                    : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
-                ev.preventDefault();
-                ev.stopImmediatePropagation();
+                deselectAll(spreadsheet);
+                setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
             }
-            else if (ev.key === 'Enter' || ev.key === 'Tab') {
-                // Commit edit
-                const spreadsheet = activeCell.closest('.spreadsheet')!;
 
-                // Apply changes to cells
-                const selectedContents = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
-                for (const selectedContent of selectedContents) {
-                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-content')!.value;
-                }
-
-                if (ev.key === 'Tab') {
-                    const cellColumnIndex = getElementIndex(activeCell);
-                    const row = activeCell.closest('.spreadsheet-row')!;
-                    const columnDelta = ev.shiftKey
-                        ? Math.max(1, cellColumnIndex - 1)
-                        : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
-
-                    deselectAll(spreadsheet);
-                    setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
-                }
-
-                unmountActiveEditor();
-                activeEditorEnterKeyCoolDown = Date.now() + 10;
-                activeCell.focus();
-
-                ev.preventDefault();
-                ev.stopImmediatePropagation();
-            }
-        }
+            unmountActiveEditor();
+            activeEditorEnterKeyCoolDown = Date.now() + 10;
+            liveCell.focus();
+        },
     },
-        columnEditor
+        contentEditor
     );
 
     unmountActiveEditor();
@@ -513,25 +602,45 @@ function deselectAll(spreadsheet: Element) {
     }
 }
 
-function getColumn(columnSelectorOrCell: HTMLElement) {
-    const spreadsheet = columnSelectorOrCell.closest('.spreadsheet')!;
+function getSpreadsheet(element: Element) {
+    return element.closest('.spreadsheet')!;
+}
+
+function getDataSheet(element: Element) {
+    const spreadsheet = getSpreadsheet(element);
     const key = spreadsheet.getAttribute('spreadsheet-key')!;
-    const info = spreadsheets[key];
-    const columnIndex = getColumnIndex(columnSelectorOrCell);
-    const column = info.columns[columnIndex];
-    return column;
+    const context = datasheets[key];
+    return context;
 }
 
 /** 0-based index in a data record or the data columns. */
-function getColumnIndex(columnSelectorOrCell: HTMLElement) {
+function getDataColumnIndex(columnSelectorOrCell: HTMLElement) {
     let index = getElementIndex(columnSelectorOrCell);
     return index - 1;
 }
 
+function getDataColumn(columnSelectorOrCell: HTMLElement) {
+    const sheet = getDataSheet(columnSelectorOrCell);
+    const index = getDataColumnIndex(columnSelectorOrCell);
+    const field = sheet.columns[index];
+    return field;
+}
+
+function getRow(cell: HTMLElement) {
+    return cell.closest('.spreadsheet-row')!;
+}
+
+function getDataCoordinates(cell: HTMLElement) {
+    const row = getRow(cell);
+    const recordIndex = getElementIndex(row) - 1;
+    const columnIndex = getElementIndex(cell) - 1;
+    return [recordIndex, columnIndex];
+}
+
 /** 1-based position in DOM. */
-function getElementPosition(columnSelectorOrCell: HTMLElement) {
+function getElementPosition(element: Element) {
     let index = 1;
-    let prev = columnSelectorOrCell.previousElementSibling;
+    let prev = element.previousElementSibling;
     while (prev) {
         index++;
         prev = prev.previousElementSibling;
@@ -540,9 +649,9 @@ function getElementPosition(columnSelectorOrCell: HTMLElement) {
 }
 
 /** 0-based index in DOM. */
-function getElementIndex(columnSelectorOrCell: HTMLElement) {
+function getElementIndex(element: Element) {
     let index = 0;
-    let prev = columnSelectorOrCell.previousElementSibling;
+    let prev = element.previousElementSibling;
     while (prev) {
         index++;
         prev = prev.previousElementSibling;

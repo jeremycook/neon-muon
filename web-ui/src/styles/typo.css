@@ -96,33 +96,40 @@ a,
 button {
     background: var(--a-bg);
     color: var(--a-fg);
+    cursor: pointer;
+    display: inline;
+    margin: 0;
     opacity: .9;
+    padding: 0;
     text-decoration: none;
 }
 
-button {
-    display: inline;
-    margin: 0;
-    padding: 0;
-}
-
-a:disabled,
-button:disabled {
-    opacity: .6;
-}
-
+a:focus,
+a:active,
 a:hover,
+button:active,
+button:focus,
 button:hover {
     opacity: 1;
 }
 
+a:disabled,
+button:disabled {
+    cursor: default;
+    opacity: .8;
+}
+
 /* Clickables */
 
-a,
-button,
 label,
 [role=button] {
     cursor: pointer;
+}
+
+label:disabled,
+[role=button]:disabled {
+    cursor: default;
+    opacity: .8;
 }
 
 label {
@@ -137,15 +144,20 @@ form>button,
 .button {
     background: var(--input-bg);
     border-style: var(--b-style);
+    border-radius: 2px;
     box-shadow: var(--shadow-sm);
     cursor: pointer;
     padding: var(--25) var(--100);
 }
 
-.button:active,
-.button:focus,
-.button:hover {
+.button:active:enabled,
+.button:focus:enabled,
+.button:hover:enabled {
     background: var(--input-bg-active);
+}
+
+.button:active:enabled {
+    box-shadow: inset var(--shadow-sm);
 }
 
 button.button[type=submit],

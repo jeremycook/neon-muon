@@ -1,5 +1,12 @@
 import { log } from './log';
 
+export class UnexpectedError extends Error {
+    constructor(...values: any) {
+        log.error('Reached unexpected code with {values}.', values);
+        super('Reached unexpected code with values: ' + JSON.stringify(values))
+    }
+}
+
 export class UnreachableError extends Error {
     constructor(value: never) {
         log.error('Reached unreachable code with unexpected {value}.', value);
@@ -8,6 +15,5 @@ export class UnreachableError extends Error {
 }
 
 export function unreachable(value: never) {
-    log.error('Reached unreachable code with unexpected {value}.', value);
-    throw new Error('Reached unreachable code with unexpected value: ' + value);
+    throw new UnreachableError(value);
 }
