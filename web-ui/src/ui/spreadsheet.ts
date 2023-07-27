@@ -191,89 +191,6 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     activateEditor(ev);
 }
 
-function activateEditor(ev: Event) {
-    if (activeCell == null) {
-        return;
-    }
-
-    const boundingRect = activeCell.getBoundingClientRect();
-
-    const column = getColumn(activeCell);
-    const activeContent = activeCell.querySelector<HTMLElement>('.spreadsheet-content')!;
-    const columnEditor = column.editor(ev, activeContent);
-
-    const newEditor = div({
-        class: 'spreadsheet-editor',
-        style: {
-            'left': `${boundingRect.left}px`,
-            'top': `${boundingRect.top}px`,
-            'width': `${boundingRect.width}px`,
-            'height': `${boundingRect.height}px`,
-        },
-        onkeydown: function editor_onkeydown(ev: KeyboardEvent & EventT<HTMLElement>) {
-            if (activeCell == null) {
-                try {
-                    throw new Error('The spreadsheet editor is in an invalid state. The activeCell is null but should not be.');
-                }
-                catch (error) {
-                    log.error('Suppressed {error}', error);
-                }
-                return;
-            }
-
-            if (ev.key === 'Escape') {
-                // Discard edit
-                unmountActiveEditor();
-                activeCell.focus();
-
-                ev.preventDefault();
-                ev.stopImmediatePropagation();
-            }
-            else if (ev.key === 'Enter' || ev.key === 'Tab') {
-                // Commit edit
-                const spreadsheet = activeCell.closest('.spreadsheet')!;
-
-                // Apply changes to cells
-                const selectedContents = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
-                for (const selectedContent of selectedContents) {
-                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-content')!.value;
-                }
-
-                if (ev.key === 'Tab') {
-                    const cellColumnIndex = getElementIndex(activeCell);
-                    const row = activeCell.closest('.spreadsheet-row')!;
-                    const columnDelta = ev.shiftKey
-                        ? Math.max(1, cellColumnIndex - 1)
-                        : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
-
-                    deselectAll(spreadsheet);
-                    setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
-                }
-
-                unmountActiveEditor();
-                activeEditorEnterKeyCoolDown = Date.now() + 10;
-                activeCell.focus();
-
-                ev.preventDefault();
-                ev.stopImmediatePropagation();
-            }
-        }
-    },
-        columnEditor
-    );
-
-    unmountActiveEditor();
-
-    activeEditor = newEditor;
-    document.body.append(activeEditor);
-    const firstInput = newEditor.querySelector<HTMLInputElement>('input:not([hidden])');
-    if (firstInput != null) {
-        firstInput.focus();
-        firstInput.setSelectionRange(firstInput.value.length, firstInput.value.length);
-    }
-    dispatchMountEvent(newEditor);
-}
-
 function spreadsheet_ondragover(ev: DragEvent) {
     ev.preventDefault();
 }
@@ -470,6 +387,89 @@ function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
 }
 
 //#region Helpers
+
+function activateEditor(ev: Event) {
+    if (activeCell == null) {
+        return;
+    }
+
+    const boundingRect = activeCell.getBoundingClientRect();
+
+    const column = getColumn(activeCell);
+    const activeContent = activeCell.querySelector<HTMLElement>('.spreadsheet-content')!;
+    const columnEditor = column.editor(ev, activeContent);
+
+    const newEditor = div({
+        class: 'spreadsheet-editor',
+        style: {
+            'left': `${boundingRect.left}px`,
+            'top': `${boundingRect.top}px`,
+            'width': `${boundingRect.width}px`,
+            'height': `${boundingRect.height}px`,
+        },
+        onkeydown: function editor_onkeydown(ev: KeyboardEvent & EventT<HTMLElement>) {
+            if (activeCell == null) {
+                try {
+                    throw new Error('The spreadsheet editor is in an invalid state. The activeCell is null but should not be.');
+                }
+                catch (error) {
+                    log.error('Suppressed {error}', error);
+                }
+                return;
+            }
+
+            if (ev.key === 'Escape') {
+                // Discard edit
+                unmountActiveEditor();
+                activeCell.focus();
+
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+            }
+            else if (ev.key === 'Enter' || ev.key === 'Tab') {
+                // Commit edit
+                const spreadsheet = activeCell.closest('.spreadsheet')!;
+
+                // Apply changes to cells
+                const selectedContents = spreadsheet.querySelectorAll('.selected-cell .spreadsheet-content');
+                for (const selectedContent of selectedContents) {
+                    selectedContent.textContent = ev.currentTarget.querySelector<HTMLInputElement>('.spreadsheet-editor-content')!.value;
+                }
+
+                if (ev.key === 'Tab') {
+                    const cellColumnIndex = getElementIndex(activeCell);
+                    const row = activeCell.closest('.spreadsheet-row')!;
+                    const columnDelta = ev.shiftKey
+                        ? Math.max(1, cellColumnIndex - 1)
+                        : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
+
+                    deselectAll(spreadsheet);
+                    setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
+                }
+
+                unmountActiveEditor();
+                activeEditorEnterKeyCoolDown = Date.now() + 10;
+                activeCell.focus();
+
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+            }
+        }
+    },
+        columnEditor
+    );
+
+    unmountActiveEditor();
+
+    activeEditor = newEditor;
+    document.body.append(activeEditor);
+    const firstInput = newEditor.querySelector<HTMLInputElement>('input:not([hidden])');
+    if (firstInput != null) {
+        firstInput.focus();
+        firstInput.setSelectionRange(firstInput.value.length, firstInput.value.length);
+    }
+    dispatchMountEvent(newEditor);
+}
 
 function unmountActiveEditor() {
     if (activeEditor != null) {
