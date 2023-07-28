@@ -46,7 +46,7 @@ export async function spreadsheet(props: {
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
         onmount: spreadsheet_onmount,
-        onunmount: () => delete datasheets[key],
+        onunmount: spreadsheet_onunmount,
     },
         div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
@@ -307,6 +307,12 @@ function spreadsheet_onmount(ev: EventT<HTMLDivElement>) {
             cell.classList.add('spreadsheet-cell-changed');
         }
     });
+}
+
+function spreadsheet_onunmount(ev: EventT<HTMLDivElement>) {
+    const spreadsheet = ev.currentTarget;
+    const key = getKey(spreadsheet);
+    delete datasheets[key];
 }
 
 function columnSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
@@ -602,9 +608,13 @@ function getSpreadsheet(element: Element) {
 
 function getDataSheet(element: Element) {
     const spreadsheet = getSpreadsheet(element);
-    const key = spreadsheet.getAttribute('spreadsheet-key')!;
+    const key = getKey(spreadsheet);
     const context = datasheets[key];
     return context;
+}
+
+function getKey(spreadsheet: Element) {
+    return spreadsheet.getAttribute('spreadsheet-key')!;
 }
 
 /** 0-based index in a data record or the data columns. */
