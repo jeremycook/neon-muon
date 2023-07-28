@@ -1,5 +1,5 @@
 import { FileNode, getParentPath } from '../files/files';
-import { SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
+import { ColumnProp, SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
 import { val } from '../utils/pubSub';
@@ -12,7 +12,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     const schema = database.schemas[0];
     const tableInfo = schema.tables.find(t => t.name === fileNode.name)!;
 
-    const columns = tableInfo.columns.map(column => ({
+    const columns: ColumnProp[] = tableInfo.columns.map(column => ({
         label: column.name,
     }));
 

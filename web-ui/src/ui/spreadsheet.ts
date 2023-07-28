@@ -1,6 +1,6 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
-import { div, input } from '../utils/html';
+import { col, div, input } from '../utils/html';
 import { UnexpectedError } from '../utils/unreachable';
 import './spreadsheet.css';
 
@@ -20,7 +20,7 @@ let activeCell: HTMLElement | null = null;
 let activeEditor: HTMLElement | null = null;
 
 export async function spreadsheet(props: {
-    columns: readonly Column[];
+    columns: readonly ColumnProp[];
     records: (Primitive | null)[][];
     onChange?: (change: SpreadsheetChange) => void,
 }) {
@@ -135,7 +135,7 @@ export class SpreadsheetChangeTracker {
     }
 }
 
-export interface Column {
+export interface ColumnProp {
     label: string | null;
     width?: number;
     renderer?: (value: Primitive | null) => Node;
@@ -195,14 +195,30 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
         return;
     }
 
-    if (ev.altKey || ev.ctrlKey || ev.metaKey) {
+    const spreadsheet = activeCell.closest('.spreadsheet')!;
+
+    if (ev.ctrlKey) {
+        if (ev.key === 'a') {
+            selectAllCells(spreadsheet);
+            ev.preventDefault();
+        }
+        else if (ev.key === 'c') {
+            copySelectedCells(spreadsheet);
+            ev.preventDefault();
+        }
+        return;
+    }
+    else if (ev.altKey || ev.ctrlKey || ev.metaKey) {
         // TODO: Handle copy, paste, arrow keys, etc.
         return;
     }
-
-    const spreadsheet = activeCell.closest('.spreadsheet')!;
-
-    if (ev.key === 'Tab') {
+    else if (ev.key === 'Escape') {
+        deselectAll(spreadsheet);
+        activeCell.classList.remove('active-cell');
+        activeCell = null;
+        return;
+    }
+    else if (ev.key === 'Tab') {
         const row = activeCell.closest('.spreadsheet-row')!;
         const cellColumnIndex = getElementIndex(activeCell);
         const columnDelta = ev.shiftKey
@@ -583,6 +599,57 @@ function setActiveCell(cell: (EventTarget & HTMLElement) | null) {
     }
 
     activeCell = cell;
+}
+
+function copySelectedCells(spreadsheet: Element) {
+    const datasheet = getDataSheet(spreadsheet);
+    const cells = spreadsheet.querySelectorAll<HTMLElement>('.selected-cell');
+    if (cells.length === 0) {
+        return;
+    }
+
+    const [initialRecord, initialColumn] = getDataCoordinates(cells[0]);
+
+    if (cells.length === 1) {
+        const value = datasheet.records[initialRecord][initialColumn];
+        navigator.clipboard.writeText(value?.toString() ?? '');
+    }
+
+    let minRecord: number | null = initialRecord;
+    let maxRecord: number | null = initialRecord;
+    let minColumn: number | null = initialColumn;
+    let maxColumn: number | null = initialColumn;
+
+    const coords: [number, number][] = [];
+    for (const cell of cells) {
+        const [record, column] = getDataCoordinates(cell);
+        coords.push([record, column]);
+        if (record < minRecord) minRecord = record;
+        if (record > maxRecord) maxRecord = record;
+        if (column < minColumn) minColumn = column;
+        if (column > maxColumn) maxColumn = column;
+    }
+
+    const values: ((Primitive | null | undefined)[] | undefined)[] = [];
+    for (const [record, column] of coords) {
+        if (typeof values[record - minRecord] === 'undefined') {
+            values[record - minRecord] = [];
+        }
+        values[record - minRecord]![column - minColumn] = datasheet.records[record][column];
+    }
+
+    const text = values.map(row => typeof row !== 'undefined'
+        ? row.map(value => (value?.toString().replace('\t', '\\t') ?? '')).join('\t')
+        : ''
+    ).join('\n');
+    navigator.clipboard.writeText(text);
+}
+
+function selectAllCells(spreadsheet: Element) {
+    const cells = spreadsheet.querySelectorAll('.spreadsheet-cell');
+    for (const element of cells) {
+        element.classList.add('selected-cell');
+    }
 }
 
 function deselectAll(spreadsheet: Element) {
