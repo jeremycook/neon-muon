@@ -150,13 +150,13 @@ form>button,
     padding: var(--25) var(--100);
 }
 
-.button:active:enabled,
-.button:focus:enabled,
-.button:hover:enabled {
+.button:active:not(:disabled),
+.button:focus:not(:disabled),
+.button:hover:not(:disabled) {
     background: var(--input-bg-active);
 }
 
-.button:active:enabled {
+.button:active:not(:disabled) {
     box-shadow: inset var(--shadow-sm);
 }
 
