@@ -3,7 +3,8 @@
 namespace DatabaseMod.Models;
 
 public enum StoreType {
-    Text = 0,
+    General = 0,
+    Text,
     Blob,
     Boolean,
     Numeric,
@@ -18,6 +19,7 @@ public enum StoreType {
 public static class StoreTypeHelpers {
 
     public static IImmutableDictionary<StoreType, Type> StoreToClrMap { get; } = new Dictionary<StoreType, Type>() {
+        { StoreType.General, typeof(object) },
         { StoreType.Text, typeof(string) },
         { StoreType.Blob, typeof(byte[]) },
         { StoreType.Boolean, typeof(bool) },

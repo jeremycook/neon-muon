@@ -336,6 +336,7 @@ export class Table {
 export type Primitive = string | number | boolean | Date;
 
 export enum StoreType {
+    General = 'General',
     Text = 'Text',
     Blob = 'Blob',
     Boolean = 'Boolean',
@@ -355,7 +356,7 @@ export class Column {
 
     constructor(data?: Column) {
         this.name = data?.name ?? '';
-        this.storeType = data?.storeType ?? StoreType.Text;
+        this.storeType = data?.storeType ?? StoreType.General;
         this.isNullable = data?.isNullable ?? true;
     }
 }

@@ -11,6 +11,7 @@ public static class SqliteDatabaseHelpers {
     // See: https://www.sqlite.org/datatype3.html#determination_of_column_affinity
     public static Sql StoreTypeToSqliteType(StoreType storeType) {
         return storeType switch {
+            StoreType.General => Raw("GENERAL"),
             StoreType.Text => Raw("TEXT"),
             StoreType.Blob => Raw("BLOB"),
             StoreType.Numeric => Raw("NUMERIC"),
@@ -37,6 +38,7 @@ public static class SqliteDatabaseHelpers {
         }
 
         return storeType switch {
+            StoreType.General => databaseValue,
             StoreType.Text => (string)databaseValue,
             StoreType.Blob => (byte[])databaseValue,
             StoreType.Numeric => (decimal)databaseValue,
@@ -53,6 +55,7 @@ public static class SqliteDatabaseHelpers {
 
     public static object? ConvertJsonElementToStoreValue(JsonElement? jsonElement, StoreType storeType) {
         object? convertedValue = storeType switch {
+            StoreType.General => jsonElement?.GetString(),
             StoreType.Text => jsonElement?.GetString(),
             StoreType.Uuid => jsonElement?.GetGuid(),
             StoreType.Timestamp => jsonElement?.GetDateTime(),

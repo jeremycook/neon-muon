@@ -186,6 +186,7 @@ export function storeTypeToString(value: Primitive | null, storeType: StoreType)
         case StoreType.Blob:
             throw new Error('Not implemented: ' + storeType);
 
+        case StoreType.General:
         case StoreType.Text:
         case StoreType.Uuid:
             return value?.toString() ?? '';
@@ -222,6 +223,7 @@ function stringToStoreType(value: string, storeType: StoreType, isNullable: bool
         case StoreType.Blob:
             throw new Error('Not implemented: ' + storeType);
 
+        case StoreType.General:
         case StoreType.Text:
         case StoreType.Uuid:
             return value;
@@ -271,6 +273,7 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
         case StoreType.Blob:
             throw new Error('Not implemented: ' + column.storeType);
 
+        case StoreType.General:
         case StoreType.Text:
             return textarea({ class: 'value-editor-' + column.storeType }, {
                 onchange(ev: EventT<HTMLTextAreaElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
