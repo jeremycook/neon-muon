@@ -6,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using SqliteMod;
 using SqlMod;
 using System.Data;
+using System.Text.RegularExpressions;
 
 namespace WebApiApp;
 
@@ -87,29 +88,28 @@ public class DatabaseEndpoints {
                 var dataTable = ExcelHelpers.ConvertWorksheetToDatabase(worksheet);
 
                 var dataColumns = dataTable.Columns.OfType<DataColumn>();
-                var pkDataColumn = dataColumns.FirstOrDefault(column => column.ColumnName.Equals("id", StringComparison.OrdinalIgnoreCase))
-                        ?? dataColumns.FirstOrDefault(column => column.ColumnName.Equals(tableName + "id", StringComparison.OrdinalIgnoreCase))
-                        ?? dataColumns.FirstOrDefault(column => column.ColumnName.Equals(tableName + " id", StringComparison.OrdinalIgnoreCase));
+                var pkDataColumn = dataColumns.FirstOrDefault(column => Regex.IsMatch(column.ColumnName, $"^({Regex.Escape(tableName)})? ?ID$", RegexOptions.IgnoreCase));
 
-                Column[] sourceColumns = dataColumns
-                    .Select(column => new Column(column.ColumnName, StoreType.Text, isNullable: column != pkDataColumn, defaultValueSql: null, computedColumnSql: null))
-                    .ToArray();
+                var columns = dataColumns
+                    .OrderBy(column => column == pkDataColumn ? 0 : 1)
+                    .Select(column => new Column(column.ColumnName, StoreType.General, isNullable: column != pkDataColumn, defaultValueSql: null, computedColumnSql: null))
+                    .ToList();
 
                 string[] primaryKey;
-                Column[] columns;
                 if (pkDataColumn != null) {
                     primaryKey = new[] { pkDataColumn.ColumnName };
-                    columns = sourceColumns;
+                    if (dataTable.Rows.Cast<DataRow>().All(row => int.TryParse(row[pkDataColumn] as string, out int _))) {
+                        var pkColumn = columns.Single(column => column.Name == pkDataColumn.ColumnName);
+                        pkColumn.StoreType = StoreType.Integer;
+                    }
                 }
                 else {
                     var pkColumn = new Column(tableName + "Id", StoreType.Integer, isNullable: false, defaultValueSql: null, computedColumnSql: null);
                     primaryKey = new[] { pkColumn.Name };
-                    columns = sourceColumns
-                        .Prepend(pkColumn)
-                        .ToArray();
+                    columns.Insert(0, pkColumn);
                 }
 
-                var createTable = new CreateTable("", tableName, null, columns, primaryKey);
+                var createTable = new CreateTable("", tableName, null, columns.ToArray(), primaryKey);
 
                 data.Add(tableName, dataTable);
                 databaseAlterations.Add(createTable);
