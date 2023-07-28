@@ -15,6 +15,75 @@ const vars = Object.freeze({
 
 const datasheets: Record<string, DataSheet> = {};
 
+// The last touched cell of any spreadsheet in the DOM
+let activeCell: HTMLElement | null = null;
+let activeEditor: HTMLElement | null = null;
+
+export async function spreadsheet(props: {
+    columns: readonly Column[];
+    records: (Primitive | null)[][];
+    onChange?: (change: SpreadsheetChange) => void,
+}) {
+    const key = (prevKey++).toString();
+    const datasheet: DataSheet = {
+        columns: props.columns.map((column, i) => ({
+            label: column.label || String.fromCharCode(65 + i),
+            width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
+            renderer: column.renderer ?? spreadsheetBasicContentRenderer,
+            editor: column.editor ?? spreadsheetInputEditor,
+        })),
+        records: props.records,
+        changes: new SpreadsheetChangeTracker(),
+    };
+    if (props.onChange) {
+        datasheet.changes.addEventListener('ChangeValue', props.onChange);
+    }
+    datasheets[key] = datasheet;
+
+    return div({
+        'spreadsheet-key': key,
+        class: 'spreadsheet',
+        ondragover: spreadsheet_ondragover,
+        ondrop: spreadsheet_ondrop,
+        onmount: spreadsheet_onmount,
+        onunmount: () => delete datasheets[key],
+    },
+        div({ class: 'spreadsheet-head' },
+            div({ class: 'spreadsheet-corner' }),
+            ...datasheet.columns.map(column => [
+                div({ class: 'spreadsheet-column-selector' }, {
+                    onpointerdown: columnSelector_onpointerdown,
+                },
+                    column.label,
+                    div({ class: 'spreadsheet-column-resizer' }, {
+                        draggable: true,
+                        ondragstart: columnResizer_ondragstart,
+                        ondblclick: columnResizer_ondblclick,
+                    })
+                ),
+            ])
+        ),
+
+        datasheet.records.map(record =>
+            div({ class: 'spreadsheet-row' },
+                div({ class: 'spreadsheet-row-selector' }, {
+                    onpointerdown: rowSelector_onpointerdown,
+                },
+                    div({ class: 'spreadsheet-row-resizer' })
+                ),
+                ...record.map((value, i) =>
+                    div({ class: 'spreadsheet-cell' }, {
+                        ondblclick: cell_ondblclick,
+                        onpointerdown: cell_onpointerdown,
+                    },
+                        datasheet.columns[i].renderer(value)
+                    ),
+                )
+            ),
+        ),
+    );
+}
+
 export class ChangeValue {
     type = 'ChangeValue';
     constructor(
@@ -86,77 +155,6 @@ interface DataSheet {
     changes: SpreadsheetChangeTracker;
 }
 
-// The last touched cell of any spreadsheet in the DOM
-let activeCell: HTMLElement | null = null;
-let activeEditor: HTMLElement | null = null;
-
-export async function spreadsheet(props: {
-    columns: readonly Column[];
-    records: (Primitive | null)[][];
-    onChange?: (change: SpreadsheetChange) => void,
-}) {
-    const key = (prevKey++).toString();
-    const datasheet: DataSheet = {
-        columns: props.columns.map((column, i) => ({
-            label: column.label || String.fromCharCode(65 + i),
-            width: Math.max(vars.minWidth, column.width ?? vars.defaultWidth),
-            renderer: column.renderer ?? spreadsheetBasicContentRenderer,
-            editor: column.editor ?? spreadsheetInputEditor,
-        })),
-        records: props.records,
-        changes: new SpreadsheetChangeTracker(),
-    };
-    if (props.onChange) {
-        datasheet.changes.addEventListener('ChangeValue', props.onChange);
-    }
-    datasheets[key] = datasheet;
-
-    return div({
-        'spreadsheet-key': key,
-        class: 'spreadsheet',
-        ondragover: spreadsheet_ondragover,
-        ondrop: spreadsheet_ondrop,
-        onmount: spreadsheet_onmount,
-        onunmount: () => delete datasheets[key],
-    },
-        div({ class: 'spreadsheet-head' },
-            div({ class: 'spreadsheet-corner' }),
-            ...datasheet.columns.map(column => [
-                div({ class: 'spreadsheet-column-selector' }, {
-                    onpointerdown: columnSelector_onpointerdown,
-                },
-                    column.label,
-                    div({ class: 'spreadsheet-column-resizer' }, {
-                        draggable: true,
-                        ondragstart: columnResizer_ondragstart,
-                        ondblclick: columnResizer_ondblclick,
-                    })
-                ),
-            ])
-        ),
-
-        datasheet.records.map(record =>
-            div({ class: 'spreadsheet-row' },
-                div({ class: 'spreadsheet-row-selector' }, {
-                    onpointerdown: rowSelector_onpointerdown,
-                },
-                    div({ class: 'spreadsheet-row-resizer' })
-                ),
-                ...record.map((value, i) =>
-                    div({ class: 'spreadsheet-cell' }, {
-                        ondblclick: cell_ondblclick,
-                        onpointerdown: cell_onpointerdown,
-                    },
-                        datasheet.columns[i].renderer(value)
-                    ),
-                )
-            ),
-        ),
-    );
-}
-
-//#region Editors
-
 export function spreadsheetBasicContentRenderer(value: Primitive | null) {
     return div({ class: 'spreadsheet-content' },
         value?.toString()
@@ -189,8 +187,6 @@ export function spreadsheetInputEditor(ev: Event, activeContent: HTMLElement) {
         }
     }
 }
-
-//#endregion Editors
 
 let activeEditorEnterKeyCoolDown = Date.now() - 1;
 function document_onkeydown(this: Document, ev: KeyboardEvent) {
@@ -476,8 +472,6 @@ function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
     ev.preventDefault();
 }
 
-//#region Helpers
-
 interface AcceptEventDetails<TValue = any> {
     original: Event;
     value: TValue;
@@ -658,5 +652,3 @@ function getElementIndex(element: Element) {
     }
     return index;
 }
-
-//#endregion Helpers
