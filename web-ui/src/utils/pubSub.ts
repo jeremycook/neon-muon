@@ -8,6 +8,15 @@ export function computed<TInput, TValue>(value: PubSubT<TInput>, computation: ()
     return comp;
 }
 
+export function observe(...subs: Sub[]): PubSub {
+    const observer = val(null);
+    const subscription = () => observer.pub();
+    for (const sub of subs) {
+        sub.sub(observer, subscription);
+    }
+    return observer;
+}
+
 export interface Pub {
     pub(): Promise<void>;
 }
