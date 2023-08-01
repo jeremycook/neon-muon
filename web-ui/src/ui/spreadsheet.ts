@@ -1,6 +1,6 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
-import { col, div, input } from '../utils/html';
+import { div, input } from '../utils/html';
 import { UnexpectedError } from '../utils/unreachable';
 import './spreadsheet.css';
 
