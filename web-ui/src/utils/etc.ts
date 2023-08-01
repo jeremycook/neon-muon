@@ -17,37 +17,6 @@ export type TagParams<TElement> = (
 
 /**
  * Create an HTML element.
- * @param tagSelector The name of the tag or a simple css-selector like:
- * 'div#some-id.some-class-name', '.some-class'.
- * @param data An array of strings, Nodes, and attribute objects.
- */
-export function h(tagSelector: string, ...data: TagParams<HTMLElement>[]) {
-    const tagNameMatch = /^[a-z][a-z-]*/i.exec(tagSelector);
-
-    const tagName = tagNameMatch !== null
-        ? tagNameMatch[0]
-        : "div";
-
-    const idMatch = /#([a-z][a-z0-9-_]*)/i.exec(tagSelector);
-    if (idMatch) {
-        data = [{ id: idMatch[1] }, ...data];
-    }
-
-    const classPattern = /\.([a-z][a-z0-9-_]*)/gi;
-    const classes = [];
-    let classesMatch: RegExpExecArray;
-    while ((classesMatch = classPattern.exec(tagSelector)!) && classesMatch !== null) {
-        classes.push(classesMatch[1]);
-    }
-    if (classes.length > 0) {
-        data = [{ class: classes.join(' ') }, ...data];
-    }
-
-    return createElement<HTMLElement>(tagName, TagNamespace.html, ...data);
-}
-
-/**
- * Create an HTML element.
  * @param tag The name of the tag.
  * @param data An array of strings, Nodes, and attribute objects.
  */
