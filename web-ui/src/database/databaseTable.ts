@@ -4,7 +4,7 @@ import { dynamic } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';
 import { button, div, h2, input, label, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { PubT, val } from '../utils/pubSub';
-import { UnreachableError } from '../utils/unreachable';
+import { Unreachable } from '../utils/exceptions';
 import { Column, Primitive, Schema, StoreType, Table, TableIndexType } from './database';
 import { deleteRecords, insertRecords, selectRecords, updateRecords } from './records';
 
@@ -209,7 +209,7 @@ export function storeTypeToString(value: Primitive | null, storeType: StoreType)
             return value instanceof Date ? value.toISOString() : value?.toString() ?? '';
 
         default:
-            throw new UnreachableError(storeType);
+            throw new Unreachable(storeType);
     }
 }
 
@@ -244,7 +244,7 @@ function stringToStoreType(value: string, storeType: StoreType, isNullable: bool
             return value ? new Date(value) : null;
 
         default:
-            throw new UnreachableError(storeType);
+            throw new Unreachable(storeType);
     }
 }
 
@@ -324,6 +324,6 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
             });
 
         default:
-            throw new UnreachableError(column.storeType);
+            throw new Unreachable(column.storeType);
     }
 }

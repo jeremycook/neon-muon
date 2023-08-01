@@ -1,7 +1,7 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { div, input } from '../utils/html';
-import { UnexpectedError } from '../utils/unreachable';
+import { Panic } from '../utils/exceptions';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -130,7 +130,7 @@ export class SpreadsheetChangeTracker {
             this.#listeners['Any'].push(arg0);
         }
         else {
-            throw new UnexpectedError(arg0, arg1);
+            throw new Panic(arg0, arg1);
         }
     }
 }
