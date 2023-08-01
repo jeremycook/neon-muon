@@ -1,6 +1,4 @@
-﻿import { template } from './html';
-
-export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
+﻿export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
 
 export type TagParams<TElement> = (
     | undefined
@@ -86,8 +84,8 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                 if (name === "class" && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => val[prop]
-                            ? element.classList.add(prop)
-                            : element.classList.remove(prop));
+                            ? element.classList.add(...prop.split(' '))
+                            : element.classList.remove(...prop.split(' ')));
                 }
                 else if (name === "style" && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
@@ -177,7 +175,7 @@ export type Segment = [HTMLTemplateElement, ...Node[], HTMLTemplateElement];
  * @param nodes
  */
 export function createSegment(...newNodes: Node[]): Segment {
-    return [template(), ...newNodes, template()];
+    return [document.createElement('template'), ...newNodes, document.createElement('template')];
 }
 
 /**
