@@ -32,8 +32,8 @@ export function createSvgElement<K extends keyof SVGElementTagNameMap, TElement 
 }
 
 export enum TagNamespace {
-    html = "html",
-    svg = "http://www.w3.org/2000/svg",
+    html = 'html',
+    svg = 'http://www.w3.org/2000/svg',
 }
 
 /**
@@ -62,7 +62,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         }
         else if (content instanceof Array) {
             for (const node of content.flat(32)) {
-                if (typeof node === "string") {
+                if (typeof node === 'string') {
                     if (node.length > 0) {
                         const child = createText(node);
                         element.appendChild(child);
@@ -80,20 +80,20 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
             for (const name in content) {
                 const val = (<any>content)[name];
                 const typeofVal = typeof val;
-                if (name === "class" && typeofVal === 'object') {
+                if (name === 'class' && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => val[prop]
                             ? element.classList.add(...prop.split(' '))
                             : element.classList.remove(...prop.split(' ')));
                 }
-                else if (name === "style" && typeofVal === 'object') {
+                else if (name === 'style' && typeofVal === 'object') {
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => element.style.setProperty(prop, val[prop]));
                 }
-                else if (typeofVal === "string") {
+                else if (typeofVal === 'string') {
                     element.setAttribute(name, val);
                 }
-                else if (typeofVal === "number") {
+                else if (typeofVal === 'number') {
                     element.setAttribute(name, val.toString());
                 }
                 else if (val === true) {
@@ -117,7 +117,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                 else if (val === false || val === null) {
                     element.removeAttribute(name);
                 }
-                else if (typeofVal === "function" && name.startsWith('on')) {
+                else if (typeofVal === 'function' && name.startsWith('on')) {
                     switch (name) {
                         case 'onmount':
                             addMountEventListener(element, val);
