@@ -48,29 +48,28 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
         ? document.createElement(tag)
         : document.createElementNS(namespace, tag);
 
-    const newNodes: Node[] = [];
     for (let i = 0; i < data.length; i++) {
         const content = data[i];
 
         if (typeof content === 'string') {
-            const child = createText(content);
-            element.appendChild(child);
-            newNodes.push(child);
+            if (content.length > 0) {
+                const child = createText(content);
+                element.appendChild(child);
+            }
         }
         else if (content instanceof Node) {
             element.appendChild(content);
-            newNodes.push(content);
         }
         else if (content instanceof Array) {
             for (const node of content.flat(32)) {
                 if (typeof node === "string") {
-                    const child = createText(node);
-                    element.appendChild(child);
-                    newNodes.push(child);
+                    if (node.length > 0) {
+                        const child = createText(node);
+                        element.appendChild(child);
+                    }
                 }
                 else {
                     element.appendChild(node);
-                    newNodes.push(node);
                 }
             }
         }
@@ -91,45 +90,48 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                     Object.getOwnPropertyNames(val)
                         .forEach(prop => element.style.setProperty(prop, val[prop]));
                 }
+                else if (typeofVal === "string") {
+                    element.setAttribute(name, val);
+                }
+                else if (typeofVal === "number") {
+                    element.setAttribute(name, val.toString());
+                }
+                else if (val === true) {
+                    element.setAttribute(name, val.toString());
+                    if (name === 'autofocus') {
+                        addMountEventListener(element, ev => {
+                            if (_isInViewport(ev.currentTarget)) {
+                                ev.currentTarget.focus();
+                            }
+                        });
+                    }
+                    else if (name === 'autoselect') {
+                        addMountEventListener(element, ev => {
+                            if (_isInViewport(ev.currentTarget)) {
+                                ev.currentTarget.focus();
+                                (ev.currentTarget as any).select();
+                            }
+                        });
+                    }
+                }
+                else if (val === false || val === null) {
+                    element.removeAttribute(name);
+                }
+                else if (typeofVal === "function" && name.startsWith('on')) {
+                    switch (name) {
+                        case 'onmount':
+                            addMountEventListener(element, val);
+                            break;
+                        case 'onunmount':
+                            addUnmountEventListener(element, val);
+                            break;
+                        default:
+                            element.addEventListener(name.substring(2), val);
+                            break;
+                    }
+                }
                 else {
-                    if (typeofVal === "string" || val === true || typeofVal === 'number') {
-                        element.setAttribute(name, val);
-
-                        if (name === 'autofocus' && val === true) {
-                            addMountEventListener(element, ev => {
-                                if (_isInViewport(ev.currentTarget)) {
-                                    ev.currentTarget.focus();
-                                }
-                            });
-                        }
-                        else if (name === 'autoselect' && val === true) {
-                            addMountEventListener(element, ev => {
-                                if (_isInViewport(ev.currentTarget)) {
-                                    ev.currentTarget.focus();
-                                    (ev.currentTarget as any).select();
-                                }
-                            });
-                        }
-                    }
-                    else if (val === false || val === null) {
-                        element.removeAttribute(name);
-                    }
-                    else if (typeofVal === "function" && name.startsWith('on')) {
-                        switch (name) {
-                            case 'onmount':
-                                addMountEventListener(element, val);
-                                break;
-                            case 'onunmount':
-                                addUnmountEventListener(element, val);
-                                break;
-                            default:
-                                element.addEventListener(name.substring(2), val);
-                                break;
-                        }
-                    }
-                    else {
-                        throw new Error(`The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`);
-                    }
+                    throw new Error(`The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`);
                 }
             }
         }
