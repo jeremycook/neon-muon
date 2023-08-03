@@ -278,6 +278,66 @@ svg.icon {
 
 /* EXPERIMENTAL */
 
+/* .context-menu */
+
+.context-menu {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 5px 10px #00000033;
+    position: fixed;
+    margin: 0;
+    padding: 0;
+    transition: opacity 2s;
+    outline: none;
+}
+
+.context-menu:not([open]) {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.context-menu[open] {
+    opacity: 1;
+    visibility: visible;
+}
+
+.context-menu-list {
+    font-size: .9em;
+    padding: 5px 0;
+    min-width: 240px;
+    white-space: nowrap;
+}
+
+.context-menu-item {
+    display: flex;
+    padding: 0 10px 1px;
+    text-align: left;
+    width: 100%;
+}
+
+.context-menu-item> :nth-child(1) {
+    width: 26px;
+}
+
+.context-menu-item> :nth-child(2) {
+    flex-grow: 1;
+}
+
+button.context-menu-item {
+    color: #000;
+    cursor: default;
+    outline: none;
+}
+
+button.context-menu-item:hover {
+    background-color: #e8e8e9;
+}
+
+
+.context-menu::backdrop {
+    background: none;
+}
+
 /* .grow-wrap > textarea
 
     A technique for automatically growing textareas with this CSS and the following JS.

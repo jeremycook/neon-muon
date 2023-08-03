@@ -1,7 +1,8 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
-import { div, input } from '../utils/html';
 import { Panic } from '../utils/exceptions';
+import { button, dialog, div, input } from '../utils/html';
+import { icon } from './icons';
 import './spreadsheet.css';
 
 document.addEventListener('keydown', document_onkeydown);
@@ -67,6 +68,7 @@ export async function spreadsheet(props: {
         datasheet.records.map(record =>
             div({ class: 'spreadsheet-row' },
                 div({ class: 'spreadsheet-row-selector' }, {
+                    oncontextmenu: rowSelector_oncontextmenu,
                     onpointerdown: rowSelector_onpointerdown,
                 },
                     div({ class: 'spreadsheet-row-resizer' })
@@ -408,6 +410,44 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
     }
 
     ev.preventDefault();
+}
+
+let rowSelectorContextMenu: HTMLDialogElement | null = null;
+function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
+    ev.preventDefault();
+
+    rowSelectorContextMenu?.dispatchEvent(new Event('cancel'));
+
+    rowSelectorContextMenu = dialog({
+        // open: true,
+        class: 'spreadsheet-row-context-menu context-menu',
+        style: {
+            left: `${ev.pageX}px`,
+            top: `${ev.pageY}px`
+        },
+        oncancel(ev: EventT<HTMLDialogElement>) {
+            ev.currentTarget.remove();
+        },
+        onclose(ev: EventT<HTMLDialogElement>) {
+            ev.currentTarget.remove();
+        },
+        onpointerdown(ev: PointerEvent) {
+            if (ev.currentTarget === ev.target) {
+                ev.currentTarget?.dispatchEvent(new Event('cancel'));
+            }
+        },
+    },
+        div({ class: 'context-menu-list' },
+            button({ class: 'context-menu-item' },
+                div(icon('table-insert-row-regular')),
+                div('Insert Row Above'),
+                div(),
+                div()
+            )
+        )
+    );
+    document.body.append(rowSelectorContextMenu);
+    rowSelectorContextMenu.showModal();
 }
 
 function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
