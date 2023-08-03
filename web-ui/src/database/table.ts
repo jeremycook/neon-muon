@@ -1,8 +1,8 @@
 import { FileNode, getParentPath } from '../files/files';
-import { ColumnProp, InsertRecord, SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
+import { ChangeValues, ColumnProp, InsertRecord, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
-import { val } from '../utils/pubSub';
+import { PubT, val } from '../utils/pubSub';
 import { Schema, Table, getDatabase } from './database';
 import { selectRecords } from './records';
 
@@ -17,8 +17,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     }));
 
     const hasChanges = val(false);
-    const changeTracker = new SpreadsheetChangeTracker();
-    changeTracker.addEventListener(() => hasChanges.pub(true));
+    const changes: (InsertRecord | ChangeValues)[] = [];
 
     return div({ class: 'flex flex-down fill' },
         div(
@@ -32,20 +31,28 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
         ),
         div({ class: 'flex flex-down flex-grow overflow-auto' },
             ...lazy(
-                async () => spreadsheet({
-                    columns,
-                    records: await getRecords(databasePath, schema, tableInfo),
-                    onChange(change) {
-                        changeTracker.push(change);
-                    },
-                    onInsertRecord(ev: CustomEvent<InsertRecord>) {
-                        console.log(ev.detail);
-                    }
-                }),
+                renderSpreadsheet(changes, columns, databasePath, schema, tableInfo, hasChanges),
                 div('Loading…')
             )
         )
     )
+}
+
+async function renderSpreadsheet(changes: (InsertRecord | ChangeValues)[], columns: ColumnProp[], databasePath: string, schema: Schema, tableInfo: Table, hasChanges: PubT<boolean>) {
+
+    return spreadsheet({
+        columns,
+        records: await getRecords(databasePath, schema, tableInfo),
+        onInsertRecord(ev) {
+            changes.push(ev.detail);
+            hasChanges.pub(true);
+
+        },
+        onChangeValues(ev) {
+            changes.push(ev.detail);
+            hasChanges.pub(true);
+        },
+    });
 }
 
 async function getRecords(databasePath: string, schema: Schema, tableInfo: Table) {

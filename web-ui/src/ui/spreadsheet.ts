@@ -1,6 +1,5 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
-import { Panic } from '../utils/exceptions';
 import { button, dialog, div, input } from '../utils/html';
 import { icon } from './icons';
 import './spreadsheet.css';
@@ -23,7 +22,7 @@ let activeEditor: HTMLElement | null = null;
 export async function spreadsheet(props: {
     columns: readonly ColumnProp[];
     records: (Primitive | null)[][];
-    onChange?: (change: SpreadsheetChange) => void,
+    onChangeValues?: (ev: CustomEvent<ChangeValues> & EventT<HTMLElement>) => any,
     onInsertRecord?: (ev: CustomEvent<InsertRecord> & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
@@ -35,11 +34,7 @@ export async function spreadsheet(props: {
             editor: column.editor ?? spreadsheetInputEditor,
         })),
         records: props.records,
-        changes: new SpreadsheetChangeTracker(),
     };
-    if (props.onChange) {
-        datasheet.changes.addEventListener('ChangeValue', props.onChange);
-    }
     datasheets[key] = datasheet;
 
     return div({
@@ -47,8 +42,8 @@ export async function spreadsheet(props: {
         class: 'spreadsheet',
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
-        onmount: spreadsheet_onmount,
         onunmount: spreadsheet_onunmount,
+        onChangeValues: props.onChangeValues,
         onInsertRecord: props.onInsertRecord,
     },
         div({ class: 'spreadsheet-head' },
@@ -93,64 +88,19 @@ function renderRow(record: (Primitive | null)[], datasheet: DataSheet): HTMLDivE
     );
 }
 
-export class ChangeValue {
-    type = 'ChangeValue';
+export class ChangeValues {
     constructor(
-        public record: number,
-        public column: number,
+        public coordinates: [number, number][],
         public newValue: Primitive | null,
     ) { }
 };
 
 export class InsertRecord {
-    type = 'InsertRecord';
     constructor(
         public record: number,
         public newRecord: (Primitive | null)[],
     ) { }
 };
-
-export type SpreadsheetChange =
-    | ChangeValue;
-
-export class SpreadsheetChangeTracker {
-    #changes: SpreadsheetChange[] = [];
-
-    #listeners: {
-        Any: ((change: SpreadsheetChange) => void)[];
-        ChangeValue: ((change: ChangeValue) => void)[];
-    } = { Any: [], ChangeValue: [] };
-
-    get length() {
-        return this.#changes.length;
-    }
-
-    push(...items: SpreadsheetChange[]) {
-        this.#changes.push(...items);
-        for (const change of items) {
-            for (const listener of (<any>this.#listeners)[change.type]) {
-                listener(change);
-            }
-            for (const listener of this.#listeners.Any) {
-                listener(change);
-            }
-        }
-    }
-
-    addEventListener(listener: (change: SpreadsheetChange) => void): void;
-    addEventListener(type: 'ChangeValue', listener: (change: ChangeValue) => void): void;
-    addEventListener(arg0: 'ChangeValue' | ((change: SpreadsheetChange) => void), arg1?: (change: ChangeValue) => void): void {
-        if (typeof arg0 === 'string' && typeof arg1 === 'function') {
-            this.#listeners[arg0].push(arg1);
-        }
-        else if (typeof arg0 === 'function') {
-            this.#listeners['Any'].push(arg0);
-        }
-        else {
-            throw new Panic(arg0, arg1);
-        }
-    }
-}
 
 export interface ColumnProp {
     label: string | null;
@@ -169,7 +119,6 @@ interface DataColumn {
 interface DataSheet {
     columns: DataColumn[];
     records: (Primitive | null)[][];
-    changes: SpreadsheetChangeTracker;
 }
 
 export function spreadsheetBasicContentRenderer(value: Primitive | null) {
@@ -326,22 +275,6 @@ function spreadsheet_ondrop(ev: DragEvent & EventT<HTMLDivElement>) {
     }
 }
 
-function spreadsheet_onmount(ev: EventT<HTMLDivElement>) {
-    const spreadsheet = ev.currentTarget;
-    const datasheet = getDataSheet(spreadsheet);
-
-    datasheet.changes.addEventListener('ChangeValue', changeValue => {
-        const row = spreadsheet.querySelector(`.spreadsheet-row:nth-child(${changeValue.record + 2})`);
-        const cell = row?.querySelector(`.spreadsheet-cell:nth-child(${changeValue.column + 2})`);
-        if (cell != null) {
-            const column = datasheet.columns[changeValue.column];
-            const content = column.renderer(changeValue.newValue);
-            cell.replaceChildren(content);
-            cell.classList.add('spreadsheet-cell-changed');
-        }
-    });
-}
-
 function spreadsheet_onunmount(ev: EventT<HTMLDivElement>) {
     const spreadsheet = ev.currentTarget;
     const key = getKey(spreadsheet);
@@ -460,12 +393,14 @@ function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
                     const record = getElementIndex(row) - 1;
                     const newRecord = datasheet.columns.map(() => null);
 
-                    const notCanceled = spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', { detail: new InsertRecord(record, newRecord) }));
-                    if (notCanceled) {
-                        datasheet.records.splice(record, 0, newRecord);
-                        const newRow = renderRow(newRecord, datasheet);
-                        row.before(newRow);
-                    }
+                    spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', {
+                        cancelable: false,
+                        detail: new InsertRecord(record, newRecord),
+                    }));
+
+                    datasheet.records.splice(record, 0, newRecord);
+                    const newRow = renderRow(newRecord, datasheet);
+                    row.before(newRow);
                 }
             },
                 div(icon('table-insert-row-regular')),
@@ -599,18 +534,25 @@ function activateEditor(ev: Event) {
         onaccept: function editor_onaccept(ev: CustomEvent<AcceptEventDetails> & EventT<Element>) {
             ev.stopImmediatePropagation();
 
-            const sheet = getDataSheet(spreadsheet);
+            const datasheet = getDataSheet(spreadsheet);
 
             // Apply changes to cells
+            const coordinates = Array.from(selectedCells).map(getDataCoordinates);
             const newValue = ev.detail.value;
-            for (const selectedContent of selectedCells) {
-                const [record, column] = getDataCoordinates(selectedContent);
-                sheet.changes.push({
-                    type: "ChangeValue",
-                    record,
-                    column,
-                    newValue,
-                });
+            spreadsheet.dispatchEvent(new CustomEvent('ChangeValues', {
+                cancelable: false,
+                detail: new ChangeValues(coordinates, newValue),
+            }));
+
+            for (const [rec, col] of coordinates) {
+                const row = spreadsheet.querySelector(`.spreadsheet-row:nth-child(${rec + 2})`);
+                const cell = row?.querySelector(`.spreadsheet-cell:nth-child(${col + 2})`);
+                if (cell != null) {
+                    const column = datasheet.columns[col];
+                    const content = column.renderer(newValue);
+                    cell.replaceChildren(content);
+                    cell.classList.add('spreadsheet-cell-changed');
+                }
             }
 
             const original = ev.detail.original;
