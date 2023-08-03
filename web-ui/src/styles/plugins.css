@@ -282,7 +282,7 @@ svg.icon {
 
 .context-menu {
     background: #fff;
-    border-radius: 8px;
+    border-radius: 9px;
     box-shadow: 0 5px 10px #00000033;
     position: fixed;
     margin: 0;
@@ -303,24 +303,32 @@ svg.icon {
 
 .context-menu-list {
     font-size: .9em;
-    padding: 5px 0;
+    padding: 8px 0;
     min-width: 240px;
     white-space: nowrap;
 }
 
 .context-menu-item {
     display: flex;
-    padding: 0 10px 1px;
+    padding: 0 9px 1px;
     text-align: left;
     width: 100%;
 }
 
 .context-menu-item> :nth-child(1) {
-    width: 26px;
+    width: 30px;
 }
 
 .context-menu-item> :nth-child(2) {
+    flex-grow: 2;
+}
+
+.context-menu-item> :nth-child(3) {
     flex-grow: 1;
+}
+
+.context-menu-item> :nth-child(4) {
+    width: 16px;
 }
 
 button.context-menu-item {
