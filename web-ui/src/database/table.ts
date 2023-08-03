@@ -1,5 +1,5 @@
 import { FileNode, getParentPath } from '../files/files';
-import { ChangeValues, ColumnProp, InsertRecord, spreadsheet } from '../ui/spreadsheet';
+import { ChangeValues, ColumnProp, DeleteRecords, InsertRecord, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
 import { PubT, val } from '../utils/pubSub';
@@ -17,7 +17,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     }));
 
     const hasChanges = val(false);
-    const changes: (InsertRecord | ChangeValues)[] = [];
+    const changes: (ChangeValues | DeleteRecords | InsertRecord)[] = [];
 
     return div({ class: 'flex flex-down fill' },
         div(
@@ -38,7 +38,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     )
 }
 
-async function renderSpreadsheet(changes: (InsertRecord | ChangeValues)[], columns: ColumnProp[], databasePath: string, schema: Schema, tableInfo: Table, hasChanges: PubT<boolean>) {
+async function renderSpreadsheet(changes: (ChangeValues | DeleteRecords | InsertRecord)[], columns: ColumnProp[], databasePath: string, schema: Schema, tableInfo: Table, hasChanges: PubT<boolean>) {
 
     return spreadsheet({
         columns,
@@ -52,6 +52,10 @@ async function renderSpreadsheet(changes: (InsertRecord | ChangeValues)[], colum
             changes.push(ev.detail);
             hasChanges.pub(true);
         },
+        onDeleteRecords(ev) {
+            changes.push(ev.detail);
+            hasChanges.pub(true);
+        }
     });
 }
 

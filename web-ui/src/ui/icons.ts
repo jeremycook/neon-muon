@@ -17,6 +17,7 @@ const iconLookup = {
     'person-regular': () => import('@iconify-icons/fluent/person-16-regular'),
     'rename-regular': () => import('@iconify-icons/fluent/rename-16-regular'),
     'sparkle-regular': () => import('@iconify-icons/fluent/sparkle-16-regular'),
+    'table-delete-row-regular': () => import('@iconify-icons/fluent/table-delete-row-16-regular'),
     'table-insert-row-regular': () => import('@iconify-icons/fluent/table-insert-row-16-regular'),
     'text-add-regular': () => import('@iconify-icons/fluent/text-add-20-regular'),
 }

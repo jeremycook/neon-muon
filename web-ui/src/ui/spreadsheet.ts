@@ -23,6 +23,7 @@ export async function spreadsheet(props: {
     columns: readonly ColumnProp[];
     records: (Primitive | null)[][];
     onChangeValues?: (ev: CustomEvent<ChangeValues> & EventT<HTMLElement>) => any,
+    onDeleteRecords?: (ev: CustomEvent<DeleteRecords> & EventT<HTMLElement>) => any,
     onInsertRecord?: (ev: CustomEvent<InsertRecord> & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
@@ -44,6 +45,7 @@ export async function spreadsheet(props: {
         ondrop: spreadsheet_ondrop,
         onunmount: spreadsheet_onunmount,
         onChangeValues: props.onChangeValues,
+        onDeleteRecords: props.onDeleteRecords,
         onInsertRecord: props.onInsertRecord,
     },
         div({ class: 'spreadsheet-head' },
@@ -92,6 +94,12 @@ export class ChangeValues {
     constructor(
         public coordinates: [number, number][],
         public newValue: Primitive | null,
+    ) { }
+};
+
+export class DeleteRecords {
+    constructor(
+        public records: number[],
     ) { }
 };
 
@@ -362,6 +370,10 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
 
 let rowSelectorContextMenu: HTMLDialogElement | null = null;
 function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
+    if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) {
+        return;
+    }
+
     ev.preventDefault();
 
     rowSelectorContextMenu?.dispatchEvent(new Event('cancel'));
@@ -384,34 +396,73 @@ function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
         },
     },
         div({ class: 'context-menu-list' },
-            button({
-                class: 'context-menu-item',
-                onpointerdown: function rowContextMenu_insertRowAbove() {
-                    const spreadsheet = getSpreadsheet(rowSelector);
-                    const datasheet = getDataSheet(spreadsheet);
-                    const row = getRow(rowSelector);
-                    const record = getElementIndex(row) - 1;
-                    const newRecord = datasheet.columns.map(() => null);
-
-                    spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', {
-                        cancelable: false,
-                        detail: new InsertRecord(record, newRecord),
-                    }));
-
-                    datasheet.records.splice(record, 0, newRecord);
-                    const newRow = renderRow(newRecord, datasheet);
-                    row.before(newRow);
-                }
-            },
-                div(icon('table-insert-row-regular')),
-                div('Insert Row Above'),
-                div(),
-                div()
-            )
+            deleteRowsButton(rowSelector),
+            insertRowAboveButton(rowSelector),
         )
     );
     document.body.append(rowSelectorContextMenu);
     rowSelectorContextMenu.showModal();
+}
+
+function deleteRowsButton(rowSelector: EventTarget & HTMLElement) {
+    const spreadsheet = getSpreadsheet(rowSelector);
+    const selectedRowSelectors = spreadsheet.querySelectorAll('.selected-row');
+
+    return button({
+        class: 'context-menu-item',
+        onpointerdown: function deleteRowsButton_onpointerdown() {
+            const spreadsheet = getSpreadsheet(rowSelector);
+            const rows = spreadsheet.querySelectorAll('.spreadsheet-row');
+            const records = <number[]>Array.from(rows)
+                .map((el, i) => el.querySelector('.selected-row') ? i : null)
+                .filter(i => i != null);
+
+            // Apply changes to state and UI
+            const datasheet = getDataSheet(spreadsheet);
+            for (const record of records) {
+                datasheet.records.splice(record, 1);
+                rows[record].remove();
+            }
+
+            // Notify listeners
+            spreadsheet.dispatchEvent(new CustomEvent('DeleteRecords', {
+                cancelable: false,
+                detail: new DeleteRecords(records),
+            }));
+        }
+    },
+        div(icon('table-delete-row-regular')),
+        div(selectedRowSelectors.length > 1 ? 'Delete Rows' : 'Delete Row'),
+        div(),
+        div()
+    );
+}
+
+function insertRowAboveButton(rowSelector: EventTarget & HTMLElement) {
+    return button({
+        class: 'context-menu-item',
+        onpointerdown: function insertRowAboveButton_onpointerdown() {
+            const spreadsheet = getSpreadsheet(rowSelector);
+            const datasheet = getDataSheet(spreadsheet);
+            const row = getRow(rowSelector);
+            const record = getElementIndex(row) - 1;
+            const newRecord = datasheet.columns.map(() => null);
+
+            spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', {
+                cancelable: false,
+                detail: new InsertRecord(record, newRecord),
+            }));
+
+            datasheet.records.splice(record, 0, newRecord);
+            const newRow = renderRow(newRecord, datasheet);
+            row.before(newRow);
+        }
+    },
+        div(icon('table-insert-row-regular')),
+        div('Insert Rows Above'),
+        div(),
+        div()
+    );
 }
 
 function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
@@ -419,7 +470,7 @@ function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
     const row = selector.closest<HTMLDivElement>('.spreadsheet-row')!;
     const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
 
-    if (!ev.ctrlKey) {
+    if (!ev.ctrlKey && ev.button === 0) {
         deselectAll(spreadsheet);
     }
 
