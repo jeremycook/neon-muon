@@ -1,5 +1,5 @@
 import { FileNode, getParentPath } from '../files/files';
-import { ColumnProp, SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
+import { ColumnProp, InsertRecord, SpreadsheetChangeTracker, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
 import { val } from '../utils/pubSub';
@@ -38,6 +38,9 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
                     onChange(change) {
                         changeTracker.push(change);
                     },
+                    onInsertRecord(ev: CustomEvent<InsertRecord>) {
+                        console.log(ev.detail);
+                    }
                 }),
                 div('Loading…')
             )

@@ -24,6 +24,7 @@ export async function spreadsheet(props: {
     columns: readonly ColumnProp[];
     records: (Primitive | null)[][];
     onChange?: (change: SpreadsheetChange) => void,
+    onInsertRecord?: (ev: CustomEvent<InsertRecord> & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
     const datasheet: DataSheet = {
@@ -48,6 +49,7 @@ export async function spreadsheet(props: {
         ondrop: spreadsheet_ondrop,
         onmount: spreadsheet_onmount,
         onunmount: spreadsheet_onunmount,
+        onInsertRecord: props.onInsertRecord,
     },
         div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
@@ -66,23 +68,28 @@ export async function spreadsheet(props: {
         ),
 
         datasheet.records.map(record =>
-            div({ class: 'spreadsheet-row' },
-                div({ class: 'spreadsheet-row-selector' }, {
-                    oncontextmenu: rowSelector_oncontextmenu,
-                    onpointerdown: rowSelector_onpointerdown,
-                },
-                    div({ class: 'spreadsheet-row-resizer' })
-                ),
-                ...record.map((value, i) =>
-                    div({ class: 'spreadsheet-cell' }, {
-                        ondblclick: cell_ondblclick,
-                        onpointerdown: cell_onpointerdown,
-                    },
-                        datasheet.columns[i].renderer(value)
-                    ),
-                )
-            ),
+            renderRow(record, datasheet),
         ),
+    );
+}
+
+function renderRow(record: (Primitive | null)[], datasheet: DataSheet): HTMLDivElement {
+    return div({ class: 'spreadsheet-row' },
+        div({ class: 'spreadsheet-row-selector' }, {
+            oncontextmenu: rowSelector_oncontextmenu,
+            onpointerdown: rowSelector_onpointerdown,
+        },
+            div({ class: 'spreadsheet-row-resizer' })
+        ),
+        ...record.map((value, i) =>
+            div({
+                class: 'spreadsheet-cell',
+                ondblclick: cell_ondblclick,
+                onpointerdown: cell_onpointerdown,
+            },
+                datasheet.columns[i].renderer(value)
+            )
+        )
     );
 }
 
@@ -92,6 +99,14 @@ export class ChangeValue {
         public record: number,
         public column: number,
         public newValue: Primitive | null,
+    ) { }
+};
+
+export class InsertRecord {
+    type = 'InsertRecord';
+    constructor(
+        public record: number,
+        public newRecord: (Primitive | null)[],
     ) { }
 };
 
@@ -418,8 +433,8 @@ function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
 
     rowSelectorContextMenu?.dispatchEvent(new Event('cancel'));
 
+    const rowSelector = ev.currentTarget;
     rowSelectorContextMenu = dialog({
-        // open: true,
         class: 'spreadsheet-row-context-menu context-menu',
         style: {
             left: `${ev.pageX}px`,
@@ -428,17 +443,31 @@ function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
         oncancel(ev: EventT<HTMLDialogElement>) {
             ev.currentTarget.remove();
         },
-        onclose(ev: EventT<HTMLDialogElement>) {
+        onclose(ev: CloseEvent & EventT<HTMLDialogElement>) {
             ev.currentTarget.remove();
         },
         onpointerdown(ev: PointerEvent) {
-            if (ev.currentTarget === ev.target) {
-                ev.currentTarget?.dispatchEvent(new Event('cancel'));
-            }
+            ev.currentTarget?.dispatchEvent(new Event('cancel'));
         },
     },
         div({ class: 'context-menu-list' },
-            button({ class: 'context-menu-item' },
+            button({
+                class: 'context-menu-item',
+                onpointerdown: function rowContextMenu_insertRowAbove() {
+                    const spreadsheet = getSpreadsheet(rowSelector);
+                    const datasheet = getDataSheet(spreadsheet);
+                    const row = getRow(rowSelector);
+                    const record = getElementIndex(row) - 1;
+                    const newRecord = datasheet.columns.map(() => null);
+
+                    const notCanceled = spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', { detail: new InsertRecord(record, newRecord) }));
+                    if (notCanceled) {
+                        datasheet.records.splice(record, 0, newRecord);
+                        const newRow = renderRow(newRecord, datasheet);
+                        row.before(newRow);
+                    }
+                }
+            },
                 div(icon('table-insert-row-regular')),
                 div('Insert Row Above'),
                 div(),
@@ -741,7 +770,7 @@ function getRow(cell: HTMLElement) {
     return cell.closest('.spreadsheet-row')!;
 }
 
-function getDataCoordinates(cell: HTMLElement) {
+function getDataCoordinates(cell: HTMLElement): [number, number] {
     const row = getRow(cell);
     const recordIndex = getElementIndex(row) - 1;
     const columnIndex = getElementIndex(cell) - 1;

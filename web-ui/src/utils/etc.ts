@@ -9,7 +9,7 @@ export type TagParams<TElement> = (
     | (string | Node)[]
     | { 'class': { [className: string]: boolean } }
     | { 'style': { [propertyName: string]: string } }
-    | { [attributeName: string]: null | string | boolean | number | EventListener | Function }
+    | { [attributeName: string]: undefined | null | string | boolean | number | EventListener | Function }
     | TElement
 );
 
@@ -114,7 +114,7 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                         });
                     }
                 }
-                else if (val === false || val === null) {
+                else if (val === false || val === null || typeofVal === 'undefined') {
                     element.removeAttribute(name);
                 }
                 else if (typeofVal === 'function' && name.startsWith('on')) {
