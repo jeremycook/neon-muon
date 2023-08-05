@@ -15,6 +15,7 @@ const iconLookup = {
     'mail-read-regular': () => import('@iconify-icons/fluent/mail-read-16-regular'),
     'mail-unread-regular': () => import('@iconify-icons/fluent/mail-unread-16-regular'),
     'person-regular': () => import('@iconify-icons/fluent/person-16-regular'),
+    'plug-connected-add-regular': () => import('@iconify-icons/fluent/plug-connected-add-20-regular'),
     'rename-regular': () => import('@iconify-icons/fluent/rename-16-regular'),
     'sparkle-regular': () => import('@iconify-icons/fluent/sparkle-16-regular'),
     'table-delete-row-regular': () => import('@iconify-icons/fluent/table-delete-row-16-regular'),
