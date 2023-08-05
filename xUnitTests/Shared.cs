@@ -5,6 +5,7 @@ using DatabaseMod.Models;
 using DataCore;
 using DataMod.Sqlite;
 using Microsoft.Data.Sqlite;
+using SqliteMod;
 
 namespace xUnitTests;
 
@@ -13,7 +14,7 @@ public sealed class UserContext {
     public static FromQuery<UserContext, User> Users => new();
     public static FromQuery<UserContext, UserRole> UserRoles => new();
 
-    public static IReadOnlyDatabase<UserContext> Database { get; }
+    public static Database<UserContext> Database { get; }
     static UserContext() {
         var database = new Database<UserContext>();
         database.ContributeQueryContext();

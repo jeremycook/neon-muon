@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace DatabaseMod.Models;
 
@@ -14,6 +15,13 @@ public interface IReadOnlyTableIndex {
 
 public class TableIndex : IReadOnlyTableIndex {
     public TableIndex(string? name, TableIndexType indexType, IEnumerable<string> columns) {
+        Name = name;
+        IndexType = indexType;
+        Columns.AddRange(columns);
+    }
+
+    [JsonConstructor]
+    public TableIndex(string? name, TableIndexType indexType, List<string> columns) {
         Name = name;
         IndexType = indexType;
         Columns.AddRange(columns);

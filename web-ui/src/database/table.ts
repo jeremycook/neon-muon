@@ -38,15 +38,20 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     )
 }
 
-async function renderSpreadsheet(changes: (ChangeValues | DeleteRecords | InsertRecord)[], columns: ColumnProp[], databasePath: string, schema: Schema, tableInfo: Table, hasChanges: PubT<boolean>) {
-
+async function renderSpreadsheet(
+    changes: (ChangeValues | DeleteRecords | InsertRecord)[],
+    columns: ColumnProp[],
+    databasePath: string,
+    schema: Schema,
+    tableInfo: Table,
+    hasChanges: PubT<boolean>
+) {
     return spreadsheet({
         columns,
         records: await getRecords(databasePath, schema, tableInfo),
         onInsertRecord(ev) {
             changes.push(ev.detail);
             hasChanges.pub(true);
-
         },
         onChangeValues(ev) {
             changes.push(ev.detail);

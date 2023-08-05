@@ -1,11 +1,12 @@
-import { modalConfirm, modalPrompt } from '../ui/modals';
+import { FileNode, getParentPath, promptDeleteFile, promptMoveFile, refreshRoot } from '../files/files';
 import { icon } from '../ui/icons';
+import { modalConfirm, modalPrompt } from '../ui/modals';
 import { dynamic } from '../utils/dynamicHtml';
 import { a, button, details, div, h1, h2, input, label, option, p, section, select, summary, table, tbody, td, th, thead, tr } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { Pub, val } from '../utils/pubSub';
 import { makeUrl, redirect } from '../utils/url';
-import { FileNode, getParentPath, promptDeleteFile, promptMoveFile, refreshRoot } from '../files/files';
+import { CreateColumn, CreateTable, DropColumn, DropTable, alterDatabase } from './alterDatabase';
 
 export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
@@ -111,7 +112,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
                                     td(
                                         button({ onclick: async () => await dropColumn(column, tbl, schema, database, path) },
                                             icon('delete-regular')
-                                        )
+                                        ),
                                     )
                                 )),
                             )
@@ -142,8 +143,7 @@ async function createTable(schema: Schema, onSuccess: Pub, databasePath: string)
     if (tableName) {
         const codeName = tableName.replace(/[^A-Za-z0-9_]/g, '');
         const primaryKeyColumnName = codeName + 'Id';
-        const newTable = {
-            '$type': 'CreateTable',
+        const newTable = new CreateTable({
             schemaName: schema.name,
             tableName: tableName,
             owner: null,
@@ -152,21 +152,18 @@ async function createTable(schema: Schema, onSuccess: Pub, databasePath: string)
                 storeType: StoreType.Integer,
                 isNullable: false,
             })],
-            primaryKey: [primaryKeyColumnName],
-        };
+            indexes: [new TableIndex({ name: null, indexType: TableIndexType.primaryKey, columns: [primaryKeyColumnName] })],
+            foreignKeys: [],
+        });
         const response = await alterDatabase(databasePath, newTable);
 
         if (response.ok) {
             schema.tables.push(new Table({
                 name: newTable.tableName,
                 columns: newTable.columns,
-                indexes: [
-                    new TableIndex({
-                        name: 'pk_' + codeName,
-                        indexType: TableIndexType.primaryKey,
-                        columns: [primaryKeyColumnName]
-                    })
-                ]
+                indexes: newTable.indexes,
+                foreignKeys: [],
+                owner: null,
             }));
             onSuccess.pub();
         }
@@ -182,11 +179,10 @@ async function dropTable(tbl: Table, schema: Schema, onSuccess: Pub, databasePat
         return;
     }
 
-    const response = await alterDatabase(databasePath, {
-        '$type': 'DropTable',
+    const response = await alterDatabase(databasePath, new DropTable({
         schemaName: schema.name,
         tableName: tbl.name,
-    });
+    }));
 
     if (response.ok) {
         schema.tables.splice(schema.tables.indexOf(tbl), 1);
@@ -203,12 +199,11 @@ async function dropColumn(column: Column, tbl: Table, schema: Schema, onSuccess:
         return;
     }
 
-    const response = await alterDatabase(databasePath, {
-        '$type': 'DropColumn',
+    const response = await alterDatabase(databasePath, new DropColumn({
         schemaName: schema.name,
         tableName: tbl.name,
         columnName: column.name,
-    });
+    }));
 
     if (response.ok) {
         tbl.columns.splice(tbl.columns.indexOf(column), 1);
@@ -262,12 +257,11 @@ async function createColumn(tbl: Table, schema: Schema, onSuccess: Pub, database
         return;
     }
 
-    const response = await alterDatabase(databasePath, {
-        '$type': 'CreateColumn',
+    const response = await alterDatabase(databasePath, new CreateColumn({
         schemaName: schema.name,
         tableName: tbl.name,
         column,
-    });
+    }));
 
     if (response.ok) {
         tbl.columns.push(column);
@@ -298,12 +292,6 @@ export async function getDatabase(databasePath: string) {
     }
 }
 
-export async function alterDatabase(databasePath: string, ...alterations: any[]) {
-    const url = makeUrl('/api/alter-database', { path: databasePath });
-    const response = await jsonPost(url, alterations);
-    return response;
-}
-
 export class Database {
     public schemas: Schema[];
 
@@ -323,13 +311,17 @@ export class Schema {
 }
 
 export class Table {
-    public name: string;
-    public columns: Column[];
-    public indexes: TableIndex[];
+    name: string;
+    columns: Column[];
+    indexes: TableIndex[];
+    foreignKeys: TableForeignKey[];
+    owner: string | null;
     constructor(data?: Table) {
         this.name = data?.name ?? '';
-        this.indexes = data?.indexes?.map(o => new TableIndex(o)) ?? [];
         this.columns = data?.columns?.map(o => new Column(o)) ?? [];
+        this.indexes = data?.indexes?.map(o => new TableIndex(o)) ?? [];
+        this.foreignKeys = data?.foreignKeys?.map(o => new TableForeignKey(o)) ?? [];
+        this.owner = data?.owner ?? null;
     }
 }
 
@@ -368,14 +360,30 @@ export enum TableIndexType {
 }
 
 export class TableIndex {
-    public name: string;
+    public name: string | null;
     public indexType: TableIndexType;
     public columns: string[];
 
     constructor(data?: TableIndex) {
-        this.name = data?.name ?? '';
+        this.name = data?.name ?? null;
         this.indexType = data?.indexType ?? TableIndexType.index;
         this.columns = data?.columns ?? [];
+    }
+}
+
+export class TableForeignKey {
+    name: string | null;
+    columns: string[];
+    foreignSchemaName: string;
+    foreignTableName: string;
+    foreignColumns: string[];
+
+    constructor(data?: TableForeignKey) {
+        this.name = data?.name ?? '';
+        this.columns = data?.columns.slice() ?? [];
+        this.foreignSchemaName = data?.foreignSchemaName ?? '';
+        this.foreignTableName = data?.foreignTableName ?? '';
+        this.foreignColumns = data?.foreignColumns.slice() ?? [];
     }
 }
 

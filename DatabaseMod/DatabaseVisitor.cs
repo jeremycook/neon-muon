@@ -37,6 +37,9 @@ public class DatabaseVisitor
                 {
                     visitor(index);
                 }
+                foreach (var fk in table.ForeignKeys) {
+                    visitor(fk);
+                }
             }
         }
     }

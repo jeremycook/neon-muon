@@ -1,9 +1,9 @@
 ﻿using DatabaseMod.Alterations.Models;
 using DatabaseMod.Models;
-using DataCore;
+using SqlMod;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using static DataCore.Sql;
+using static SqlMod.Sql;
 
 namespace DataMod.Npgsql;
 

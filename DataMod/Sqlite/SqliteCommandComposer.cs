@@ -1,9 +1,11 @@
 ﻿using DatabaseMod.Models;
 using DataCore;
 using Microsoft.Data.Sqlite;
+using SqliteMod;
+using SqlMod;
 using System.Data.Common;
 using System.Reflection;
-using static DataCore.Sql;
+using static SqlMod.Sql;
 
 namespace DataMod.Sqlite;
 

@@ -97,6 +97,7 @@ public static class SqliteConnectionHelpers {
 
     public static List<T> List<T>(this SqliteConnection connection, Sql sql) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
+        Console.WriteLine(CommandText);
 
         using var command = connection.CreateCommand();
         command.CommandText = CommandText;
@@ -223,8 +224,8 @@ public static class SqliteConnectionHelpers {
                 }
                 else {
                     throw new NotSupportedException();
-                    itemActivator = parameters => Activator.CreateInstance<T>();
-                    parameters = Array.Empty<(string? Name, int Ordinal, Type Type)>();
+                    //itemActivator = parameters => Activator.CreateInstance<T>();
+                    //parameters = Array.Empty<(string? Name, int Ordinal, Type Type)>();
                 }
 
                 var settableProperties = type.GetProperties()

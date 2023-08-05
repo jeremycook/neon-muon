@@ -1,5 +1,6 @@
 ﻿using DataCore;
 using Microsoft.Data.Sqlite;
+using SqliteMod;
 
 namespace DataMod.Sqlite;
 
@@ -24,25 +25,25 @@ public class SqliteQueryRunner<TDb> : IQueryRunner<TDb> {
         }
     }
 
-    public async ValueTask<int> Execute(IQuery<TDb> query, CancellationToken cancellationToken = default) {
+    public ValueTask<int> Execute(IQuery<TDb> query, CancellationToken cancellationToken = default) {
         using var accessor = connectionFactory.Create();
         using var command = composer.CreateCommand(query);
 
         try {
-            return await accessor.Connection.ExecuteAsync(command, cancellationToken);
+            return ValueTask.FromResult(accessor.Connection.Execute(command));
         }
         catch (Exception ex) {
             throw new Exception(ex.GetBaseException().Message + "\n" + command.CommandText, ex);
         }
     }
 
-    public async ValueTask<List<T1>> List<T1>(IQuery<TDb, T1> query, CancellationToken cancellationToken = default) {
+    public ValueTask<List<T1>> List<T1>(IQuery<TDb, T1> query, CancellationToken cancellationToken = default) {
         using var accessor = connectionFactory.Create();
         using var command = composer.CreateCommand(query);
 
         try {
-            var list = await accessor.Connection.ListAsync<T1>(command, cancellationToken);
-            return list;
+            var list = accessor.Connection.List<T1>(command);
+            return ValueTask.FromResult(list);
         }
         catch (Exception ex) {
             throw new Exception(ex.GetBaseException().Message + "\n" + command.CommandText, ex);

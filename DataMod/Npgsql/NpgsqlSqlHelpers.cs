@@ -1,24 +1,20 @@
-﻿using DataCore;
-using Npgsql;
+﻿using Npgsql;
+using SqlMod;
 
 namespace DataMod.Npgsql;
 
-public static class NpgsqlSqlHelpers
-{
-    public static string Quote(this SqlIdentifier sqlIdentifier)
-    {
+public static class NpgsqlSqlHelpers {
+    public static string Quote(this SqlIdentifier sqlIdentifier) {
         return
             (!string.IsNullOrEmpty(sqlIdentifier.Prefix) ? "\"" + sqlIdentifier.Prefix.Replace("\"", "\"\"") + "\"." : string.Empty) +
             (sqlIdentifier.Value == "*" ? "*" : "\"" + sqlIdentifier.Value.Replace("\"", "\"\"") + "\"");
     }
 
-    public static string Quote(this SqlLiteral sqlLiteral)
-    {
+    public static string Quote(this SqlLiteral sqlLiteral) {
         return "'" + sqlLiteral.Value.Replace("'", "''") + "'";
     }
 
-    public static NpgsqlBatchCommand NpgsqlBatchCommand(this Sql sql)
-    {
+    public static NpgsqlBatchCommand NpgsqlBatchCommand(this Sql sql) {
         var (commandText, parameterValues) = ParameterizeSql(sql);
 
         NpgsqlBatchCommand batchCommand = new(commandText);
@@ -27,15 +23,12 @@ public static class NpgsqlSqlHelpers
         return batchCommand;
     }
 
-    public static (string commandText, NpgsqlParameter[] parameterValues) ParameterizeSql(this Sql sql)
-    {
+    public static (string commandText, NpgsqlParameter[] parameterValues) ParameterizeSql(this Sql sql) {
         var tempValues = new List<object>();
         var formatArgs = new List<string>(sql.Arguments.Count);
 
-        foreach (var arg in sql.Arguments)
-        {
-            switch (arg)
-            {
+        foreach (var arg in sql.Arguments) {
+            switch (arg) {
                 case SqlIdentifier sqlIdentifier:
                     formatArgs.Add(Quote(sqlIdentifier));
                     break;
@@ -57,8 +50,7 @@ public static class NpgsqlSqlHelpers
 
         string commandText = string.Format(sql.Format, args: formatArgs.ToArray());
         var parameterValues = tempValues
-            .Select(val => val switch
-            {
+            .Select(val => val switch {
                 char[] charArray => new NpgsqlParameter() { Value = charArray, NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.InternalChar },
                 _ => new NpgsqlParameter() { Value = val },
             })
@@ -66,14 +58,11 @@ public static class NpgsqlSqlHelpers
         return (commandText, parameterValues);
     }
 
-    private static string GetParameterizedSql(Sql sql, ref List<object> parameterValues)
-    {
+    private static string GetParameterizedSql(Sql sql, ref List<object> parameterValues) {
         var formatArgs = new List<string>(sql.Arguments.Count);
 
-        foreach (var arg in sql.Arguments)
-        {
-            switch (arg)
-            {
+        foreach (var arg in sql.Arguments) {
+            switch (arg) {
                 case SqlIdentifier sqlIdentifier:
                     formatArgs.Add(Quote(sqlIdentifier));
                     break;

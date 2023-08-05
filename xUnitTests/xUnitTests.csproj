@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataMod\DataMod.csproj" />
+    <ProjectReference Include="..\SqliteMod\SqliteMod.csproj" />
   </ItemGroup>
 
 </Project>

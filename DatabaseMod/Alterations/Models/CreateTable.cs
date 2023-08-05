@@ -2,21 +2,21 @@
 
 namespace DatabaseMod.Alterations.Models;
 
-public class CreateTable : DatabaseAlteration
-{
-    public CreateTable(string schemaName, string tableName, string? owner, Column[] columns, string[] primaryKey)
-        : base(nameof(CreateTable))
-    {
+public class CreateTable : DatabaseAlteration {
+    public CreateTable(string schemaName, string tableName, Column[] columns, TableIndex[] indexes, TableForeignKey[] foreignKeys, string? owner = null)
+        : base(nameof(CreateTable)) {
         SchemaName = schemaName;
         TableName = tableName;
-        Owner = owner;
         Columns = columns;
-        PrimaryKey = primaryKey;
+        Indexes = indexes;
+        ForeignKeys = foreignKeys;
+        Owner = owner;
     }
 
     public string SchemaName { get; }
     public string TableName { get; }
-    public string? Owner { get; }
     public Column[] Columns { get; }
-    public string[] PrimaryKey { get; }
+    public TableIndex[] Indexes { get; set; }
+    public TableForeignKey[] ForeignKeys { get; }
+    public string? Owner { get; }
 }

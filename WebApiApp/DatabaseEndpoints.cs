@@ -109,7 +109,7 @@ public class DatabaseEndpoints {
                     columns.Insert(0, pkColumn);
                 }
 
-                var createTable = new CreateTable("", tableName, null, columns.ToArray(), primaryKey);
+                var createTable = new CreateTable("", tableName, columns.ToArray(), indexes: new[] { new TableIndex(null, TableIndexType.PrimaryKey, primaryKey) }, foreignKeys: Array.Empty<TableForeignKey>(), owner: null);
 
                 data.Add(tableName, dataTable);
                 databaseAlterations.Add(createTable);

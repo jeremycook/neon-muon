@@ -4,7 +4,7 @@ using DatabaseMod.Models;
 namespace DatabaseMod.Alterations;
 
 public static class TableDiffer {
-    public static List<DatabaseAlteration> DiffTables(string schemaName, IReadOnlyTable? current, IReadOnlyTable goal) {
+    public static List<DatabaseAlteration> DiffTables(string schemaName, Table? current, Table goal) {
         var changes = new List<DatabaseAlteration>();
 
         string tableName = goal.Name;
@@ -15,12 +15,7 @@ public static class TableDiffer {
                 goal.Columns.Take(1).Select(o => o.Name).ToList();
 
             // Create the table
-            changes.Add(new CreateTable(schemaName, tableName, goal.Owner, goal.Columns.Cast<Column>().ToArray(), primaryKey.ToArray()));
-
-            // Create the non-pk indexes
-            changes.AddRange(goal.Indexes
-                .Where(index => index.IndexType != TableIndexType.PrimaryKey)
-                .Select(index => new CreateIndex(schemaName, tableName, index)));
+            changes.Add(new CreateTable(schemaName, tableName, goal.Columns.Cast<Column>().ToArray(), indexes: goal.Indexes.ToArray(), foreignKeys: goal.ForeignKeys.ToArray(), owner: goal.Owner));
 
             // Return early
             return changes;

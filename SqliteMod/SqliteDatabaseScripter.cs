@@ -9,15 +9,13 @@ using static SqlMod.Sql;
 namespace SqliteMod;
 
 public static class SqliteDatabaseScripter {
-    private static Sql ScriptColumnDefinition(IReadOnlyColumn column, string tableName, IReadOnlyCollection<string> primaryKey, bool creatingTable) {
-        var isPrimaryKey = primaryKey.Contains(column.Name);
+    private static Sql ScriptColumnDefinition(IReadOnlyColumn column, bool isRowId = false, bool creatingTable = false) {
         return Join(" ", new Sql[]
         {
             Interpolate($"{Identifier(column.Name)} {ScriptStoreType(column.StoreType)}"),
             Raw(column.IsNullable ? "NULL" : "NOT NULL"),
-            !isPrimaryKey ? (creatingTable ? ScriptCreateTableColumnDefault(column) : ScriptAddColumnDefault(column)) : Empty,
-            !isPrimaryKey && !string.IsNullOrWhiteSpace(column.ComputedColumnSql) ? Interpolate($"GENERATED ALWAYS AS ({column.ComputedColumnSql}) STORED") : Empty,
-            isPrimaryKey && primaryKey.Count == 1 && column.StoreType == StoreType.Integer ? Interpolate($"CONSTRAINT {Identifier("pk_" + tableName)} PRIMARY KEY AUTOINCREMENT") : Empty,
+            !isRowId ? (creatingTable ? ScriptCreateTableColumnDefault(column) : ScriptAddColumnDefault(column)) : Empty,
+            !string.IsNullOrWhiteSpace(column.ComputedColumnSql) ? Interpolate($"GENERATED ALWAYS AS ({column.ComputedColumnSql}) STORED") : Empty,
         }.Except(EmptyEnumerable));
     }
 
@@ -63,6 +61,9 @@ public static class SqliteDatabaseScripter {
         else if (!column.IsNullable && CreateTableColumnDefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql)) {
             return Interpolate($"DEFAULT ({Raw(defaultValueSql)})");
         }
+        else if (!column.IsNullable && AddColumnDefaultValueSqlMap.TryGetValue(column.StoreType, out var defaultValueSql2)) {
+            return Interpolate($"DEFAULT ({Raw(defaultValueSql2)})");
+        }
         else {
             return Empty;
         }
@@ -100,6 +101,7 @@ public static class SqliteDatabaseScripter {
             CreateIndex addIndex => ScriptCreateIndex(addIndex),
             AlterIndex alterIndex => ScriptAlterIndex(alterIndex),
             DropIndex dropIndex => ScriptDropIndex(dropIndex),
+            CreateForeignKey createForeignKey => ScriptCreateForeignKey(createForeignKey),
             _ => throw new NotImplementedException(alteration.GetType().AssemblyQualifiedName),
         };
     }
@@ -111,18 +113,34 @@ public static class SqliteDatabaseScripter {
 
 
     private static Sql ScriptCreateTable(CreateTable change) {
-        var columns = change.Columns.Select(column => ScriptColumnDefinition(column, change.TableName, change.PrimaryKey, creatingTable: true));
-
-        if (change.PrimaryKey.Length == 1 &&
-            change.Columns.First(c => c.Name == change.PrimaryKey[0]) is var pkColumn &&
+        string? rowIdAlias;
+        if (change.Indexes.SingleOrDefault(index => index.IndexType == TableIndexType.PrimaryKey) is TableIndex primaryKey &&
+            primaryKey.Columns.Count == 1 &&
+            change.Columns.First(c => c.Name == primaryKey.Columns[0]) is Column pkColumn &&
             pkColumn.StoreType == StoreType.Integer) {
-            // Skip because PK index is handled by ScriptColumnDefinition
+            rowIdAlias = pkColumn.Name;
         }
-        else if (change.PrimaryKey.Any()) {
-            columns = columns.Append(Interpolate($"CONSTRAINT {Identifier(change.SchemaName, "pk_" + change.TableName)} PRIMARY KEY ({Join(", ", change.PrimaryKey.Select(Identifier))})"));
+        else {
+            rowIdAlias = null;
         }
 
-        return Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns)});");
+        var columns = change.Columns
+            .Select(column => ScriptColumnDefinition(column, isRowId: column.Name == rowIdAlias, creatingTable: true));
+
+        var constraints = change.Indexes
+            .Where(index => index.IndexType == TableIndexType.UniqueConstraint || index.IndexType == TableIndexType.PrimaryKey)
+            .Select(index => Interpolate($"{Raw(index.IndexType == TableIndexType.UniqueConstraint ? "UNIQUE" : "PRIMARY KEY")} ({IdentifierList(index.Columns)})"));
+
+        var foreignKeys = change.ForeignKeys
+            .Select(foreignKey => Interpolate($"FOREIGN KEY ({IdentifierList(foreignKey.Columns)}) REFERENCES {Identifier(foreignKey.ForeignSchemaName, foreignKey.ForeignTableName)} ({IdentifierList(foreignKey.ForeignColumns)}) ON DELETE RESTRICT ON UPDATE CASCADE"));
+
+        var createTable = Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns.Concat(constraints).Concat(foreignKeys))});");
+
+        var indexes = change.Indexes
+            .Where(index => index.IndexType != TableIndexType.PrimaryKey)
+            .Select(index => ScriptCreateIndex(new(change.SchemaName, change.TableName, index)));
+
+        return Join("\n", indexes.Prepend(createTable));
     }
 
     private static Sql ScriptDropTable(DropTable change) {
@@ -139,7 +157,7 @@ public static class SqliteDatabaseScripter {
 
 
     private static Sql ScriptAddColumn(CreateColumn change) {
-        return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} ADD COLUMN {ScriptColumnDefinition(change.Column, change.TableName, Array.Empty<string>(), creatingTable: false)};");
+        return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} ADD COLUMN {ScriptColumnDefinition(change.Column, isRowId: false, creatingTable: false)};");
     }
 
     private static Sql ScriptRenameColumn(RenameColumn change) {
@@ -188,6 +206,10 @@ public static class SqliteDatabaseScripter {
 
         var index = change.Index;
         return Interpolate($"CREATE {Raw(index.IndexType == TableIndexType.UniqueConstraint ? "UNIQUE INDEX" : "INDEX")} {Identifier(index.GetName(change.TableName))} ON {Identifier(change.TableName)} ({Join(", ", index.Columns.Select(Identifier))});");
+    }
+
+    private static Sql ScriptCreateForeignKey(CreateForeignKey change) {
+        return Interpolate($"ALTER TABLE {Identifier(change.SchemaName, change.TableName)} FOREIGN KEY({IdentifierList(change.ForeignKey.Columns)}) REFERENCE {Identifier(change.ForeignKey.ForeignSchemaName, change.ForeignKey.ForeignTableName)}({IdentifierList(change.ForeignKey.ForeignColumns)});");
     }
 
     private static Sql ScriptAlterIndex(AlterIndex change) {
