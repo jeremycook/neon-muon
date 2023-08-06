@@ -54,11 +54,12 @@ public class RecordEndpoints {
             };
         }
 
-        var sql = Sql.Interpolate($"""
+        var sql = Sql.Interpolate(
+            $"""
             SELECT {Sql.IdentifierList(columnNames)}
             FROM {Sql.Identifier(tableSchema, table.Name)}
             ORDER BY {Sql.Join(", ", orderBy.Select(x => Sql.Interpolate($"{Sql.Identifier(x.Item1)} {Sql.Raw(x.Item2 == SortDirection.Desc ? "DESC" : "")}")))}
-        """);
+            """);
 
         var records = connection.List(sql, storeTypes);
 
@@ -104,11 +105,12 @@ public class RecordEndpoints {
     public static List<object?[]> InsertSqlRecords(SqliteConnection connection, string schemaName, Table table, string[] columns, IEnumerable<IEnumerable<Sql>> records, string[] returningColumns) {
         var returningRecords = new List<object?[]>();
         foreach (var record in records) {
-            var sql = Sql.Interpolate($"""
+            var sql = Sql.Interpolate(
+                $"""
                 INSERT INTO {Sql.Identifier(schemaName, table.Name)} ({Sql.IdentifierList(columns)})
                 VALUES ({Sql.Join(", ", record)})
                 RETURNING {Sql.IdentifierList(returningColumns)}
-            """);
+                """);
             var newRecord = connection.First(sql, table.Columns.Select(column => column.StoreType).ToArray());
             returningRecords.Add(newRecord);
         }
@@ -118,10 +120,11 @@ public class RecordEndpoints {
     public static int InsertSqlRecords(SqliteConnection connection, string schemaName, Table table, string[] columns, IEnumerable<IEnumerable<Sql>> records) {
         var changes = 0;
         foreach (var record in records) {
-            var sql = Sql.Interpolate($"""
+            var sql = Sql.Interpolate(
+                $"""
                 INSERT INTO {Sql.Identifier(schemaName, table.Name)} ({Sql.IdentifierList(columns)})
                 VALUES ({Sql.Join(", ", record)})
-            """);
+                """);
             changes += connection.Execute(sql);
         }
         return changes;
@@ -173,11 +176,12 @@ public class RecordEndpoints {
 
         var changes = 0;
         foreach (var record in input.Records) {
-            var sql = Sql.Interpolate($"""
+            var sql = Sql.Interpolate(
+                $"""
                 UPDATE {Sql.Identifier(input.Schema, input.Table)}
                 SET {Sql.Join(", ", modifiedColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], columnsByName[o.name].StoreType) ?? DBNull.Value)}")))}
                 WHERE {Sql.Join(" AND ", pkColumnNames.Select(o => Sql.Interpolate($"{Sql.Identifier(o.name)} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(record[o.i], columnsByName[o.name].StoreType))}")))}
-            """);
+                """);
             using var command = connection.CreateCommand(sql);
             changes += command.ExecuteNonQuery();
         }
@@ -207,14 +211,15 @@ public class RecordEndpoints {
         var columnsByName = table.Columns.ToDictionary(o => o.Name);
         var storeTypes = input.Columns.Select(columnName => columnsByName[columnName].StoreType).ToArray();
 
-        var sql = Sql.Interpolate($"""
+        var sql = Sql.Interpolate(
+            $"""
             DELETE FROM {Sql.Identifier(input.Schema, input.Table)}
             WHERE ({Sql.Join(") OR (", input.Records.Select(r =>
                 Sql.Join(" AND ", r.Select((value, i) =>
                     Sql.Interpolate($"(({Sql.Identifier(input.Columns[i])} IS NULL AND {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(value, storeTypes[i]) ?? DBNull.Value)} IS NULL) OR {Sql.Identifier(input.Columns[i])} = {Sql.Value(SqliteDatabaseHelpers.ConvertJsonElementToStoreValue(value, storeTypes[i]) ?? DBNull.Value)})")
                 ))
             ))})
-        """);
+            """);
 
         var changes = connection.Execute(sql);
 
