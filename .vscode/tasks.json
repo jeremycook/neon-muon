@@ -9,6 +9,15 @@
 			],
 			"group": "build",
 			"label": "dotnet: build"
+		},
+		{
+			"type": "dotnet",
+			"task": "watch WebApiApp",
+			"file": "WebApiApp/WebApiApp.csproj",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"label": "dotnet: watch WebApiApp"
 		}
 	]
 }

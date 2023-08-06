@@ -134,13 +134,14 @@ public static class SqliteDatabaseScripter {
         var foreignKeys = change.ForeignKeys
             .Select(foreignKey => Interpolate($"FOREIGN KEY ({IdentifierList(foreignKey.Columns)}) REFERENCES {Identifier(foreignKey.ForeignSchemaName, foreignKey.ForeignTableName)} ({IdentifierList(foreignKey.ForeignColumns)}) ON DELETE RESTRICT ON UPDATE CASCADE"));
 
+        // Wrap it altogether
         var createTable = Interpolate($"CREATE TABLE {Identifier(change.SchemaName, change.TableName)} ({Join(", ", columns.Concat(constraints).Concat(foreignKeys))});");
-
         var indexes = change.Indexes
             .Where(index => index.IndexType != TableIndexType.PrimaryKey)
             .Select(index => ScriptCreateIndex(new(change.SchemaName, change.TableName, index)));
+        var sql = Join("\n", indexes.Prepend(createTable));
 
-        return Join("\n", indexes.Prepend(createTable));
+        return sql;
     }
 
     private static Sql ScriptDropTable(DropTable change) {

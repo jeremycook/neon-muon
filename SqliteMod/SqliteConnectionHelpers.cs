@@ -1,6 +1,8 @@
 ﻿using DatabaseMod.Models;
+using LogMod;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SqlMod;
 using System.Data;
 using System.Data.Common;
@@ -8,6 +10,8 @@ using System.Data.Common;
 namespace SqliteMod;
 
 public static class SqliteConnectionHelpers {
+    private static ILogger? _logger;
+    private static ILogger Logger { get => _logger ??= Log.CreateLogger(typeof(SqliteConnectionHelpers)); }
 
     public static string GetAppConnectionString(this IConfigurationRoot configuration, string connectionString) {
         string appDataDir = configuration.GetRequiredSection("AppDataDir").Value!;
@@ -58,6 +62,8 @@ public static class SqliteConnectionHelpers {
     }
 
     public static int Execute(this SqliteConnection connection, SqliteCommand command) {
+        Logger.LogDebug("Executing non-query {CommandText}", command.CommandText);
+
         var lastConnection = command.Connection;
         command.Connection = connection;
 
@@ -82,6 +88,8 @@ public static class SqliteConnectionHelpers {
     }
 
     public static object? Scalar(this SqliteConnection connection, SqliteCommand command) {
+        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
+
         var lastConnection = command.Connection;
         command.Connection = connection;
 
@@ -97,7 +105,6 @@ public static class SqliteConnectionHelpers {
 
     public static List<T> List<T>(this SqliteConnection connection, Sql sql) {
         var (CommandText, ParameterValues) = SqliteSqlHelpers.ParameterizeSql(sql);
-        Console.WriteLine(CommandText);
 
         using var command = connection.CreateCommand();
         command.CommandText = CommandText;
@@ -145,6 +152,7 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
+        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
 
         var list = new List<object?[]>();
 
@@ -162,6 +170,8 @@ public static class SqliteConnectionHelpers {
     }
 
     public static List<T> List<T>(SqliteCommand command) {
+        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
+
         var type = typeof(T);
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
         var list = new List<T>();

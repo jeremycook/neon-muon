@@ -32,8 +32,14 @@ public static class SqliteDatabaseHelpers
     public static StoreType DatabaseTypeToStoreType(string sqliteType)
     {
         var text = sqliteType.Split(' ')[0];
-        var storeType = Enum.Parse<StoreType>(text, ignoreCase: true);
-        return storeType;
+        if (Enum.TryParse<StoreType>(text, ignoreCase: true, out var storeType))
+        {
+            return storeType;
+        }
+        else
+        {
+            return StoreType.General;
+        }
     }
 
     public static object? ConvertDatabaseValueToStoreValue(object databaseValue, StoreType storeType)
@@ -48,7 +54,7 @@ public static class SqliteDatabaseHelpers
             StoreType.General => databaseValue,
             StoreType.Text => (string)databaseValue,
             StoreType.Blob => (byte[])databaseValue,
-            StoreType.Numeric => (decimal)databaseValue,
+            StoreType.Numeric => databaseValue,
             StoreType.Boolean => (bool)databaseValue,
             StoreType.Real => (double)databaseValue,
             StoreType.Uuid => Guid.Parse((string)databaseValue),
