@@ -62,7 +62,7 @@ public static class SqliteConnectionHelpers {
     }
 
     public static int Execute(this SqliteConnection connection, SqliteCommand command) {
-        Logger.LogDebug("Executing non-query {CommandText}", command.CommandText);
+        Logger.LogDebug("Execute int {CommandText}", command.CommandText);
 
         var lastConnection = command.Connection;
         command.Connection = connection;
@@ -88,7 +88,7 @@ public static class SqliteConnectionHelpers {
     }
 
     public static object? Scalar(this SqliteConnection connection, SqliteCommand command) {
-        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
+        Logger.LogDebug("Scalar object? {CommandText}", command.CommandText);
 
         var lastConnection = command.Connection;
         command.Connection = connection;
@@ -152,7 +152,7 @@ public static class SqliteConnectionHelpers {
         command.CommandText = CommandText;
         command.Parameters.AddRange(ParameterValues);
 
-        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
+        Logger.LogDebug("List<object?[]> {CommandText}", command.CommandText);
 
         var list = new List<object?[]>();
 
@@ -170,7 +170,7 @@ public static class SqliteConnectionHelpers {
     }
 
     public static List<T> List<T>(SqliteCommand command) {
-        Logger.LogDebug("Executing scalar {CommandText}", command.CommandText);
+        Logger.LogDebug("List<T> {CommandText}", command.CommandText);
 
         var type = typeof(T);
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
