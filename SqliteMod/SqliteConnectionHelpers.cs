@@ -170,7 +170,7 @@ public static class SqliteConnectionHelpers {
     }
 
     public static List<T> List<T>(SqliteCommand command) {
-        Logger.LogDebug("List<T> {CommandText}", command.CommandText);
+        Logger.LogDebug("List<{T}> {CommandText}", typeof(T).Name, command.CommandText);
 
         var type = typeof(T);
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
