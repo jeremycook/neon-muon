@@ -227,7 +227,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
         deselectAll(spreadsheet);
-        setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
+        setActiveCell(<HTMLElement>row.children[columnDelta]);
 
         ev.preventDefault();
         return;
@@ -240,7 +240,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
         deselectAll(spreadsheet);
-        setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
+        setActiveCell(<HTMLElement>row.children[columnDelta]);
 
         ev.preventDefault();
         return;
@@ -254,7 +254,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
             : Math.min(spreadsheet.childElementCount - 1, cellRowIndex + 1);
 
         deselectAll(spreadsheet);
-        setActiveCell(<HTMLElement>spreadsheet.childNodes[rowDelta].childNodes[cellColumnIndex]);
+        setActiveCell(<HTMLElement>spreadsheet.children[rowDelta].children[cellColumnIndex]);
 
         ev.preventDefault();
         return;
@@ -635,7 +635,7 @@ function activateEditor(ev: Event) {
                     : Math.min(row.childElementCount - 1, cellColumnIndex + 1);
 
                 deselectAll(spreadsheet);
-                setActiveCell(<HTMLElement>row.childNodes[columnDelta]);
+                setActiveCell(<HTMLElement>row.children[columnDelta]);
             }
 
             unmountActiveEditor();
