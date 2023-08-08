@@ -177,8 +177,7 @@ public static class SqliteDatabaseHelpers
         NOT c."notnull" AS IsNullable,
         c.dflt_value AS DefaultValueSql,
         c.pk AS PrimaryKey
-    FROM sqlite_master AS m
-        CROSS JOIN
+    FROM sqlite_master AS m,
         pragma_table_info(m.name) AS c
     WHERE m.type = 'table' AND 
         m.name NOT IN ('sqlite_sequence');
@@ -205,10 +204,8 @@ public static class SqliteDatabaseHelpers
         il."unique" AS IsUnique,
         il.partial AS Partial,
         il.seq AS SequenceInIndex
-    FROM sqlite_master AS m
-        CROSS JOIN
-        pragma_index_list(m.name) AS il
-        CROSS JOIN
+    FROM sqlite_master AS m,
+        pragma_index_list(m.name) AS il,
         pragma_index_info(il.name) AS ii
     WHERE m.type = 'table'
     GROUP BY m.tbl_name,
