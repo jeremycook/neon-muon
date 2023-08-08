@@ -8,7 +8,6 @@ namespace SqliteMod;
 
 public static class SqliteDatabaseHelpers
 {
-
     // See: https://www.sqlite.org/datatype3.html#determination_of_column_affinity
     public static Sql StoreTypeToSqliteType(StoreType storeType)
     {
