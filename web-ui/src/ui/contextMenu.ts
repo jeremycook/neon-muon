@@ -12,6 +12,7 @@ export function contextMenu(
     }
 
     ev.preventDefault();
+    ev.stopPropagation();
 
     contextMenuDialog?.dispatchEvent(new Event('cancel'));
 
