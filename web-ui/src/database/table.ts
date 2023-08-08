@@ -49,7 +49,7 @@ async function renderSpreadsheet(
     return spreadsheet({
         columns,
         records: await getRecords(databasePath, schema, tableInfo),
-        onInsertRecord(ev) {
+        onInsertRecords(ev) {
             changes.push(ev.detail);
             hasChanges.pub(true);
         },

@@ -1,6 +1,7 @@
 import { Primitive } from '../database/database';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
-import { button, dialog, div, input } from '../utils/html';
+import { button, div, input } from '../utils/html';
+import { contextMenu } from './contextMenu';
 import { icon } from './icons';
 import './spreadsheet.css';
 
@@ -24,7 +25,7 @@ export async function spreadsheet(props: {
     records: (Primitive | null)[][];
     onChangeValues?: (ev: CustomEvent<ChangeValues> & EventT<HTMLElement>) => any,
     onDeleteRecords?: (ev: CustomEvent<DeleteRecords> & EventT<HTMLElement>) => any,
-    onInsertRecord?: (ev: CustomEvent<InsertRecords> & EventT<HTMLElement>) => any,
+    onInsertRecords?: (ev: CustomEvent<InsertRecords> & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
     const datasheet: DataSheet = {
@@ -41,12 +42,13 @@ export async function spreadsheet(props: {
     return div({
         'spreadsheet-key': key,
         class: 'spreadsheet',
+        oncontextmenu: spreadsheet_oncontextmenu,
         ondragover: spreadsheet_ondragover,
         ondrop: spreadsheet_ondrop,
         onunmount: spreadsheet_onunmount,
         onChangeValues: props.onChangeValues,
         onDeleteRecords: props.onDeleteRecords,
-        onInsertRecord: props.onInsertRecord,
+        onInsertRecords: props.onInsertRecords,
     },
         div({ class: 'spreadsheet-head' },
             div({ class: 'spreadsheet-corner' }),
@@ -278,6 +280,10 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
     activateEditor(ev);
 }
 
+function spreadsheet_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
+    contextMenu(ev, insertRowButton(ev.currentTarget));
+}
+
 function spreadsheet_ondragover(ev: DragEvent) {
     ev.preventDefault();
 }
@@ -395,40 +401,8 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
     ev.preventDefault();
 }
 
-let rowSelectorContextMenu: HTMLDialogElement | null = null;
 function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
-    if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) {
-        return;
-    }
-
-    ev.preventDefault();
-
-    rowSelectorContextMenu?.dispatchEvent(new Event('cancel'));
-
-    const rowSelector = ev.currentTarget;
-    rowSelectorContextMenu = dialog({
-        class: 'spreadsheet-row-context-menu context-menu',
-        style: {
-            left: `${ev.pageX}px`,
-            top: `${ev.pageY}px`
-        },
-        oncancel(ev: EventT<HTMLDialogElement>) {
-            ev.currentTarget.remove();
-        },
-        onclose(ev: CloseEvent & EventT<HTMLDialogElement>) {
-            ev.currentTarget.remove();
-        },
-        onpointerdown(ev: PointerEvent) {
-            ev.currentTarget?.dispatchEvent(new Event('cancel'));
-        },
-    },
-        div({ class: 'context-menu-list' },
-            deleteRowsButton(rowSelector),
-            insertRowAboveButton(rowSelector),
-        )
-    );
-    document.body.append(rowSelectorContextMenu);
-    rowSelectorContextMenu.showModal();
+    contextMenu(ev, deleteRowsButton(ev.currentTarget), insertRowAboveButton(ev.currentTarget));
 }
 
 function deleteRowsButton(rowSelector: EventTarget & HTMLElement) {
@@ -485,6 +459,32 @@ function insertRowAboveButton(rowSelector: EventTarget & HTMLElement) {
         datasheet.records.splice(record, 0, newRecord);
         const newRow = renderRow(newRecord, datasheet);
         row.before(newRow);
+    }
+}
+
+function insertRowButton(spreadsheet: EventTarget & HTMLElement) {
+    return button({
+        class: 'context-menu-item',
+        onpointerdown,
+    },
+        div(icon('table-insert-row-regular')),
+        div('Insert Row'),
+        div(),
+        div()
+    );
+
+    function onpointerdown() {
+        const record = Math.max(0, spreadsheet.children.length - 2);
+        const datasheet = getDataSheet(spreadsheet);
+        const newRecord = datasheet.columns.map(() => null);
+
+        spreadsheet.dispatchEvent(new InsertRecordsEvent(record, [newRecord]));
+
+        datasheet.records.splice(record, 0, newRecord);
+
+        const row = spreadsheet.children[record];
+        const newRow = renderRow(newRecord, datasheet);
+        row.after(newRow);
     }
 }
 
