@@ -1,5 +1,5 @@
 import { FileNode, getParentPath } from '../files/files';
-import { ChangeValues, ColumnProp, DeleteRecords, InsertRecord, spreadsheet } from '../ui/spreadsheet';
+import { ChangeValues, ColumnProp, DeleteRecords, InsertRecords, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
 import { PubT, val } from '../utils/pubSub';
@@ -17,7 +17,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
     }));
 
     const hasChanges = val(false);
-    const changes: (ChangeValues | DeleteRecords | InsertRecord)[] = [];
+    const changes: (ChangeValues | DeleteRecords | InsertRecords)[] = [];
 
     return div({ class: 'flex flex-down fill' },
         div(
@@ -39,7 +39,7 @@ export async function tableApp({ fileNode }: { fileNode: FileNode }) {
 }
 
 async function renderSpreadsheet(
-    changes: (ChangeValues | DeleteRecords | InsertRecord)[],
+    changes: (ChangeValues | DeleteRecords | InsertRecords)[],
     columns: ColumnProp[],
     databasePath: string,
     schema: Schema,

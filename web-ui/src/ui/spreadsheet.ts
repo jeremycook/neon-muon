@@ -24,7 +24,7 @@ export async function spreadsheet(props: {
     records: (Primitive | null)[][];
     onChangeValues?: (ev: CustomEvent<ChangeValues> & EventT<HTMLElement>) => any,
     onDeleteRecords?: (ev: CustomEvent<DeleteRecords> & EventT<HTMLElement>) => any,
-    onInsertRecord?: (ev: CustomEvent<InsertRecord> & EventT<HTMLElement>) => any,
+    onInsertRecord?: (ev: CustomEvent<InsertRecords> & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
     const datasheet: DataSheet = {
@@ -97,18 +97,45 @@ export class ChangeValues {
     ) { }
 };
 
+export class ChangeValuesEvent extends CustomEvent<ChangeValues> {
+    constructor(coordinates: [number, number][], newValue: Primitive | null) {
+        super('ChangeValues', {
+            cancelable: false,
+            detail: new ChangeValues(coordinates, newValue),
+        });
+    }
+}
+
 export class DeleteRecords {
     constructor(
         public records: number[],
     ) { }
 };
 
-export class InsertRecord {
+export class DeleteRecordsEvent extends CustomEvent<DeleteRecords> {
+    constructor(records: number[]) {
+        super('DeleteRecords', {
+            cancelable: false,
+            detail: new DeleteRecords(records),
+        });
+    }
+}
+
+export class InsertRecords {
     constructor(
         public record: number,
-        public newRecord: (Primitive | null)[],
+        public newRecords: (Primitive | null)[][],
     ) { }
 };
+
+export class InsertRecordsEvent extends CustomEvent<InsertRecords> {
+    constructor(record: number, newRecords: null[][]) {
+        super('InsertRecords', {
+            cancelable: false,
+            detail: new InsertRecords(record, newRecords),
+        });
+    }
+}
 
 export interface ColumnProp {
     label: string | null;
@@ -425,10 +452,7 @@ function deleteRowsButton(rowSelector: EventTarget & HTMLElement) {
             }
 
             // Notify listeners
-            spreadsheet.dispatchEvent(new CustomEvent('DeleteRecords', {
-                cancelable: false,
-                detail: new DeleteRecords(records),
-            }));
+            spreadsheet.dispatchEvent(new DeleteRecordsEvent(records));
         }
     },
         div(icon('table-delete-row-regular')),
@@ -441,28 +465,27 @@ function deleteRowsButton(rowSelector: EventTarget & HTMLElement) {
 function insertRowAboveButton(rowSelector: EventTarget & HTMLElement) {
     return button({
         class: 'context-menu-item',
-        onpointerdown: function insertRowAboveButton_onpointerdown() {
-            const spreadsheet = getSpreadsheet(rowSelector);
-            const datasheet = getDataSheet(spreadsheet);
-            const row = getRow(rowSelector);
-            const record = getElementIndex(row) - 1;
-            const newRecord = datasheet.columns.map(() => null);
-
-            spreadsheet.dispatchEvent(new CustomEvent('InsertRecord', {
-                cancelable: false,
-                detail: new InsertRecord(record, newRecord),
-            }));
-
-            datasheet.records.splice(record, 0, newRecord);
-            const newRow = renderRow(newRecord, datasheet);
-            row.before(newRow);
-        }
+        onpointerdown,
     },
         div(icon('table-insert-row-regular')),
         div('Insert Rows Above'),
         div(),
         div()
     );
+
+    function onpointerdown() {
+        const spreadsheet = getSpreadsheet(rowSelector);
+        const datasheet = getDataSheet(spreadsheet);
+        const row = getRow(rowSelector);
+        const record = getElementIndex(row) - 1;
+        const newRecord = datasheet.columns.map(() => null);
+
+        spreadsheet.dispatchEvent(new InsertRecordsEvent(record, [newRecord]));
+
+        datasheet.records.splice(record, 0, newRecord);
+        const newRow = renderRow(newRecord, datasheet);
+        row.before(newRow);
+    }
 }
 
 function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
@@ -590,10 +613,7 @@ function activateEditor(ev: Event) {
             // Apply changes to cells
             const coordinates = Array.from(selectedCells).map(getDataCoordinates);
             const newValue = ev.detail.value;
-            spreadsheet.dispatchEvent(new CustomEvent('ChangeValues', {
-                cancelable: false,
-                detail: new ChangeValues(coordinates, newValue),
-            }));
+            spreadsheet.dispatchEvent(new ChangeValuesEvent(coordinates, newValue));
 
             for (const [rec, col] of coordinates) {
                 const row = spreadsheet.querySelector(`.spreadsheet-row:nth-child(${rec + 2})`);
