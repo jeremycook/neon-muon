@@ -4,7 +4,7 @@ import { Partial } from '../utils/types';
 
 let contextMenuDialog: HTMLDialogElement | null = null;
 
-function blockContextMenu(ev: MouseEvent) {
+function shouldBlockContextMenu(ev: MouseEvent) {
     return ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey;
 }
 
@@ -12,7 +12,7 @@ export function openContextMenu(
     ev: MouseEvent & EventT<Element>,
     ...contextMenuItems: TagChild[]
 ) {
-    if (blockContextMenu(ev)) {
+    if (shouldBlockContextMenu(ev)) {
         return false;
     }
 
@@ -66,5 +66,5 @@ export function contextMenuItem(
         div(content),
         div(),
         div()
-    )
+    );
 }
