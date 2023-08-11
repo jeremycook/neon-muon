@@ -1,24 +1,29 @@
 ﻿export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
 
-export type TagParams<TElement> = (
+export type TagAttribute =
+    | { 'class': { [className: string]: boolean } }
+    | { 'style': { [propertyName: string]: string } }
+    | { [attributeName: string]: undefined | null | string | boolean | number | EventListener | Function };
+
+export type TagChild =
     | undefined
     | null
     | false
     | string
     | Node
-    | (string | Node)[]
-    | { 'class': { [className: string]: boolean } }
-    | { 'style': { [propertyName: string]: string } }
-    | { [attributeName: string]: undefined | null | string | boolean | number | EventListener | Function }
-    | TElement
-);
+    | (string | Node)[];
+
+export type TagParam<TElement> =
+    | Partial<TElement>
+    | TagAttribute
+    | TagChild;
 
 /**
  * Create an HTML element.
  * @param tag The name of the tag.
  * @param data An array of strings, Nodes, and attribute objects.
  */
-export function createHtmlElement<K extends keyof HTMLElementTagNameMap, TElement extends HTMLElementTagNameMap[K]>(tag: K, ...data: TagParams<TElement>[]) {
+export function createHtmlElement<K extends keyof HTMLElementTagNameMap, TElement extends HTMLElementTagNameMap[K]>(tag: K, ...data: TagParam<TElement>[]) {
     return createElement<TElement>(tag, TagNamespace.html, ...data);
 }
 
@@ -27,7 +32,7 @@ export function createHtmlElement<K extends keyof HTMLElementTagNameMap, TElemen
  * @param tag The name of the tag.
  * @param data An array of strings, Nodes, and attribute objects.
  */
-export function createSvgElement<K extends keyof SVGElementTagNameMap, TElement extends SVGElementTagNameMap[K]>(tag: K, ...data: TagParams<TElement>[]) {
+export function createSvgElement<K extends keyof SVGElementTagNameMap, TElement extends SVGElementTagNameMap[K]>(tag: K, ...data: TagParam<TElement>[]) {
     return createElement<TElement>(tag, TagNamespace.svg, ...data);
 }
 
@@ -42,7 +47,7 @@ export enum TagNamespace {
  * @param namespace 
  * @param data An array of strings, Nodes, and attribute objects.
  */
-export function createElement<TElement extends Element>(tag: string, namespace: TagNamespace, ...data: TagParams<TElement>[]): TElement {
+export function createElement<TElement extends Element>(tag: string, namespace: TagNamespace, ...data: TagParam<TElement>[]): TElement {
 
     const element = namespace === TagNamespace.html
         ? document.createElement(tag)

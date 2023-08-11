@@ -1,9 +1,9 @@
-import { TagParams, createSvgElement } from './etc';
+import { TagParam, createSvgElement } from './etc';
 
-export function svg(...data: TagParams<SVGSVGElement>[]) {
+export function svg(...data: TagParam<SVGSVGElement>[]) {
     return createSvgElement('svg', ...data);
 }
 
-export function line(...data: TagParams<SVGLineElement>[]) {
+export function line(...data: TagParam<SVGLineElement>[]) {
     return createSvgElement('line', ...data);
 }

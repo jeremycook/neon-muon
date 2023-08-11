@@ -1,4 +1,4 @@
-import { EventT, TagParams, mountElement, unmountElement } from '../utils/etc';
+import { EventT, TagParam, mountElement, unmountElement } from '../utils/etc';
 import { button, div, form, h2, input, label } from '../utils/html';
 
 export async function modalPrompt(text: string, title: string = '', initialValue: string = '') {
@@ -19,7 +19,7 @@ export async function modalPrompt(text: string, title: string = '', initialValue
     return confirmed ? data : undefined;
 }
 
-export function modalConfirm(...props: TagParams<HTMLFormElement>[]) {
+export function modalConfirm(...props: TagParam<HTMLFormElement>[]) {
     return new Promise<boolean>((resolve) => {
 
         const view = div({ class: 'modal' }, {
