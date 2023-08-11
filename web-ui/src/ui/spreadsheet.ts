@@ -23,9 +23,9 @@ let activeEditor: HTMLElement | null = null;
 export async function spreadsheet(props: {
     columns: readonly ColumnProp[];
     records: (Primitive | null)[][];
-    onChangeValues?: (ev: CustomEvent<ChangeValues> & EventT<HTMLElement>) => any,
-    onDeleteRecords?: (ev: CustomEvent<DeleteRecords> & EventT<HTMLElement>) => any,
-    onInsertRecords?: (ev: CustomEvent<InsertRecords> & EventT<HTMLElement>) => any,
+    onChangeValues?: (ev: ChangeValuesEvent & EventT<HTMLElement>) => any,
+    onDeleteRecords?: (ev: DeleteRecordsEvent & EventT<HTMLElement>) => any,
+    onInsertRecords?: (ev: InsertRecordsEvent & EventT<HTMLElement>) => any,
 }) {
     const key = (prevKey++).toString();
     const datasheet: DataSheet = {
