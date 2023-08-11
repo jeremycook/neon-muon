@@ -1,14 +1,19 @@
-import { EventT } from '../utils/etc';
-import { dialog, div } from '../utils/html';
+import { EventT, TagChild } from '../utils/etc';
+import { button, dialog, div } from '../utils/html';
+import { Partial } from '../utils/typeHelpers';
 
 let contextMenuDialog: HTMLDialogElement | null = null;
 
-export function contextMenu(
-    ev: MouseEvent & Event & { currentTarget: HTMLElement; },
-    ...contextMenuItems: HTMLElement[]
+function blockContextMenu(ev: MouseEvent) {
+    return ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey;
+}
+
+export function openContextMenu(
+    ev: MouseEvent & EventT<Element>,
+    ...contextMenuItems: TagChild[]
 ) {
-    if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) {
-        return;
+    if (blockContextMenu(ev)) {
+        return false;
     }
 
     ev.preventDefault();
@@ -43,4 +48,23 @@ export function contextMenu(
     );
     document.body.append(contextMenuDialog);
     contextMenuDialog.showModal();
+
+    return true;
+}
+
+export function contextMenuItem(
+    { icon, content, ...params }: {
+        icon?: Element;
+        content: Element | string;
+    } & Partial<HTMLButtonElement>
+) {
+    return button({
+        class: 'context-menu-item',
+    },
+        <HTMLButtonElement>params,
+        div(icon),
+        div(content),
+        div(),
+        div()
+    )
 }
