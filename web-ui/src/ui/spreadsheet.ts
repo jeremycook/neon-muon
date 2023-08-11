@@ -1,4 +1,4 @@
-import { Primitive } from '../database/database';
+import { Primitive } from '../utils/types';
 import { EventT, dispatchMountEvent, dispatchUnmountEvent } from '../utils/etc';
 import { button, div, input } from '../utils/html';
 import { contextMenuItem, openContextMenu } from './contextMenu';
@@ -282,6 +282,7 @@ function document_onkeydown(this: Document, ev: KeyboardEvent) {
 
 function spreadsheet_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
     openContextMenu(ev,
+        copyMenuItem(ev.currentTarget),
         insertRowButton(ev.currentTarget)
     );
 }
@@ -405,12 +406,27 @@ function columnResizer_ondblclick(ev: EventT<HTMLDivElement>) {
 
 function rowSelector_oncontextmenu(ev: MouseEvent & EventT<HTMLElement>) {
     openContextMenu(ev,
-        deleteRowsButton(ev.currentTarget),
+        copyMenuItem(ev.currentTarget),
+        deleteRowsMenuItem(ev.currentTarget),
         insertRowAboveButton(ev.currentTarget)
     );
 }
 
-function deleteRowsButton(rowSelector: HTMLElement) {
+function copyMenuItem(element: Element) {
+    const spreadsheet = getSpreadsheet(element);
+
+    return contextMenuItem({
+        icon: icon('copy-regular'),
+        content: 'Copy',
+        onpointerdown,
+    });
+
+    function onpointerdown() {
+        copySelectedCells(spreadsheet);
+    }
+}
+
+function deleteRowsMenuItem(rowSelector: HTMLElement) {
     const spreadsheet = getSpreadsheet(rowSelector);
     const selectedRowSelectors = spreadsheet.querySelectorAll('.selected-row');
 
@@ -465,7 +481,7 @@ function insertRowAboveButton(rowSelector: EventTarget & HTMLElement) {
     }
 }
 
-function insertRowButton(spreadsheet: HTMLElement) {
+function insertRowButton(element: Element) {
     return contextMenuItem({
         icon: icon('table-insert-row-regular'),
         content: 'Insert Row',
@@ -473,6 +489,7 @@ function insertRowButton(spreadsheet: HTMLElement) {
     });
 
     function onpointerdown() {
+        const spreadsheet = getSpreadsheet(element);
         const record = Math.max(0, spreadsheet.children.length - 2);
         const datasheet = getDataSheet(spreadsheet);
         const newRecord = datasheet.columns.map(() => null);
@@ -488,6 +505,10 @@ function insertRowButton(spreadsheet: HTMLElement) {
 }
 
 function rowSelector_onpointerdown(ev: PointerEvent & EventT<HTMLDivElement>) {
+    if (ev.button != 0) {
+        return;
+    }
+
     const selector = ev.currentTarget;
     const row = selector.closest<HTMLDivElement>('.spreadsheet-row')!;
     const spreadsheet = row.closest<HTMLDivElement>('.spreadsheet')!;
@@ -520,6 +541,10 @@ function cell_ondblclick(ev: MouseEvent & EventT<HTMLElement>) {
 }
 
 function cell_onpointerdown(ev: PointerEvent & EventT<HTMLElement>) {
+    if (ev.button != 0) {
+        return;
+    }
+
     const cell = ev.currentTarget;
     const spreadsheet = cell.closest<HTMLElement>('.spreadsheet')!;
 

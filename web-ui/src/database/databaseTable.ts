@@ -5,7 +5,8 @@ import { EventT } from '../utils/etc';
 import { button, div, h2, input, label, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
 import { PubT, val } from '../utils/pubSub';
 import { Unreachable } from '../utils/exceptions';
-import { Column, Primitive, Schema, StoreType, Table, TableIndexType } from './database';
+import { Column, Schema, StoreType, Table, TableIndexType } from './database';
+import { Primitive } from '../utils/types';
 import { deleteRecords, insertRecords, selectRecords, updateRecords } from './records';
 
 export async function databaseTable(tableInfo: Table, schema: Schema, databasePath: string) {

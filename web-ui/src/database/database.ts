@@ -325,8 +325,6 @@ export class Table {
     }
 }
 
-export type Primitive = string | number | boolean | Date;
-
 export enum StoreType {
     General = 'General',
     Text = 'Text',

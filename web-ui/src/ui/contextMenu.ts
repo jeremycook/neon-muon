@@ -1,6 +1,6 @@
 import { EventT, TagChild } from '../utils/etc';
 import { button, dialog, div } from '../utils/html';
-import { Partial } from '../utils/typeHelpers';
+import { Partial } from '../utils/types';
 
 let contextMenuDialog: HTMLDialogElement | null = null;
 

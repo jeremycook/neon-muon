@@ -1,5 +1,6 @@
 import { jsonPost, jsonPut } from '../utils/http';
-import { Column, Primitive, Table } from './database';
+import { Column, Table } from './database';
+import { Primitive } from '../utils/types';
 
 const selectRecordsUrl = '/api/select-records';
 const insertRecordsUrl = '/api/insert-records';
