@@ -1,4 +1,6 @@
-﻿export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
+﻿import { Exception } from './exceptions';
+
+export type EventT<TCurrentTarget = any, TTarget = any> = Event & { currentTarget: TCurrentTarget; target: TTarget };
 
 export type TagAttribute =
     | { 'class': { [className: string]: boolean } }
@@ -11,7 +13,7 @@ export type TagChild =
     | false
     | string
     | Node
-    | (string | Node)[];
+    | TagChild[];
 
 export type TagParam<TElement> =
     | Partial<TElement>
@@ -56,32 +58,10 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
     for (let i = 0; i < data.length; i++) {
         const content = data[i];
 
-        if (typeof content === 'string') {
-            if (content.length > 0) {
-                const child = createText(content);
-                element.appendChild(child);
-            }
+        if (tryAppend(element, content)) {
+            continue;
         }
-        else if (content instanceof Node) {
-            element.appendChild(content);
-        }
-        else if (content instanceof Array) {
-            for (const node of content.flat(32)) {
-                if (typeof node === 'string') {
-                    if (node.length > 0) {
-                        const child = createText(node);
-                        element.appendChild(child);
-                    }
-                }
-                else {
-                    element.appendChild(node);
-                }
-            }
-        }
-        else if (typeof content === 'undefined' || content === null || content === false) {
-            // Noop
-        }
-        else {
+        else if (typeof content === 'object') {
             for (const name in content) {
                 const val = (<any>content)[name];
                 const typeofVal = typeof val;
@@ -136,9 +116,12 @@ export function createElement<TElement extends Element>(tag: string, namespace: 
                     }
                 }
                 else {
-                    throw new Error(`The "${name}" attribute of type "${typeofVal}" is not supported. Event attributes must start with "on".`);
+                    throw new Exception('The "{name}" attribute of type "{typeofVal}" is not supported for {val}. Event attributes must start with "on".', name, typeofVal, val);
                 }
             }
+        }
+        else {
+            throw new Exception(`The {content} is not supported.`, content);
         }
     }
 
@@ -285,4 +268,28 @@ function _isInViewport(element: Element) {
         rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
         rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
+}
+
+function tryAppend<TElement extends Element>(element: HTMLElement | SVGElement, content: TagParam<TElement>) {
+    if (typeof content === 'string') {
+        if (content) {
+            element.append(content);
+        }
+    }
+    else if (content instanceof Node) {
+        element.appendChild(content);
+    }
+    else if (content instanceof Array) {
+        for (const node of content) {
+            tryAppend(element, node);
+        }
+    }
+    else if (typeof content === 'undefined' || content === null || content === false) {
+        // Noop
+    }
+    else {
+        return false;
+    }
+
+    return true;
 }
