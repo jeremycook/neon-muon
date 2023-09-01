@@ -2,7 +2,6 @@
 using LinqToDB.Data;
 using LinqToDB.Mapping;
 using Microsoft.AspNetCore.Mvc;
-using NeonMS.Authentication;
 
 namespace NeonMS.Postgres;
 

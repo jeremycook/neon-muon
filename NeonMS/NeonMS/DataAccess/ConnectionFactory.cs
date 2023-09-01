@@ -12,31 +12,28 @@ public static class ConnectionFactory
     /// </summary>
     public static Dictionary<string, NpgsqlConnectionStringBuilder> Connections { get; set; } = null!;
 
-    public static DataConnection DataConnection(KeyValuePair<string, ConnectionCredential> credentials)
+    public static DataConnection DataConnection(ConnectionCredential credential)
     {
-        var sourceConnection = Connections[credentials.Key];
+        var sourceConnection = Connections[credential.Connection];
         var copy = new NpgsqlConnectionStringBuilder();
         foreach (var conn in sourceConnection)
         {
             copy[conn.Key] = conn.Value;
         }
-        copy.Username = credentials.Value.Username;
-        copy.Password = credentials.Value.Password;
-        copy.Timeout = 5;
-        //copy.RootCertificate = @"C:\Users\Jeremy\AppData\Roaming\postgresql\root.crt";
-        //copy.SslMode = SslMode.VerifyCA;
+        copy.Username = credential.Username;
+        copy.Password = credential.Password;
 
         return new DataConnection(ProviderName.PostgreSQL15, copy.ConnectionString);
     }
 
-    public static async Task<DataConnection?> TryDataConnection(KeyValuePair<string, ConnectionCredential> credentials)
+    public static async Task<DataConnection?> TryDataConnection(ConnectionCredential credential)
     {
         try
         {
-            var dc = DataConnection(credentials);
+            var dc = DataConnection(credential);
 
             var username = await dc.FromSqlScalar<string>($"select session_user").FirstOrDefaultAsync();
-            if (username == credentials.Value.Username)
+            if (username == credential.Username)
             {
                 throw new InvalidOperationException();
             }

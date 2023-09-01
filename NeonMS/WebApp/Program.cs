@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using NeonMS;
+using NeonMS.Authentication;
 using NeonMS.DataAccess;
 using NeonMS.Mvc;
 using NeonMS.Security;
@@ -56,7 +57,7 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped(x => x.GetRequiredService<IHttpContextAccessor>().HttpContext!.User);
-    builder.Services.AddScoped<CurrentCredentials>();
+    builder.Services.AddScoped<CurrentUser>();
 
     builder.Services.AddAuthentication(auth =>
     {
@@ -95,7 +96,7 @@ builder.Services.AddControllers(options =>
     options.Filters.Add(new AuthorizeFilter());
 
     // Exception filters we control
-    //options.Filters.Add<GiantTeamExceptionFilter>();
+    //options.Filters.Add<CustomExceptionFilter>();
 
     // Slugify paths
     options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));

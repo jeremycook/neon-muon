@@ -2,12 +2,14 @@
 
 public class ConnectionCredential
 {
-    public ConnectionCredential(string username, string password)
+    public ConnectionCredential(string connection, string username, string password)
     {
+        Connection = connection;
         Username = username;
         Password = password;
     }
 
-    public string Username { get; } = null!;
-    public string Password { get; } = null!;
+    public string Connection { get; }
+    public string Username { get; }
+    public string Password { get; }
 }
