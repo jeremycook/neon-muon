@@ -9,3 +9,5 @@ appdata/
 appsettings/
 userdata/
 UpgradeLog.htm
+*.ffs_db
+Backup/
