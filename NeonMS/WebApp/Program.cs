@@ -86,36 +86,39 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
                 OnTokenValidated = OnTokenValidated,
             };
         });
+
+    Task OnTokenValidated(TokenValidatedContext context)
+    {
+        return Task.CompletedTask;
+    }
 }
 
-Task OnTokenValidated(TokenValidatedContext context)
+// API
 {
-    return Task.CompletedTask;
-}
+    builder.Services.AddControllers(options =>
+    {
+        // Enforce the default authorization policy on controllers
+        options.Filters.Add(new AuthorizeFilter());
 
-builder.Services.AddControllers(options =>
-{
-    // Enforce the default authorization policy on controllers
-    options.Filters.Add(new AuthorizeFilter());
+        // Exception filters we control
+        //options.Filters.Add<CustomExceptionFilter>();
 
-    // Exception filters we control
-    //options.Filters.Add<CustomExceptionFilter>();
+        // Slugify paths
+        options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));
+    })
+        // ASP.NET MVC API
+        .AddJsonOptions(options => ConfigureJsonSerializerOptions(options.JsonSerializerOptions));
 
-    // Slugify paths
-    options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));
-})
-    // ASP.NET MVC API
-    .AddJsonOptions(options => ConfigureJsonSerializerOptions(options.JsonSerializerOptions));
+    // Minimal API
+    builder.Services.Configure<JsonOptions>(options => ConfigureJsonSerializerOptions(options.SerializerOptions));
 
-// Minimal API
-builder.Services.Configure<JsonOptions>(options => ConfigureJsonSerializerOptions(options.SerializerOptions));
-
-static void ConfigureJsonSerializerOptions(JsonSerializerOptions json)
-{
-    json.Converters.Add(new JsonStringEnumConverter());
-    json.AllowTrailingCommas = true;
-    json.PropertyNameCaseInsensitive = true;
-    json.ReadCommentHandling = JsonCommentHandling.Skip;
+    static void ConfigureJsonSerializerOptions(JsonSerializerOptions json)
+    {
+        json.Converters.Add(new JsonStringEnumConverter());
+        json.AllowTrailingCommas = true;
+        json.PropertyNameCaseInsensitive = true;
+        json.ReadCommentHandling = JsonCommentHandling.Skip;
+    }
 }
 
 var app = builder.Build();
@@ -124,8 +127,6 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
 }
-
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
