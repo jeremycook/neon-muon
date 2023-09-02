@@ -8,6 +8,7 @@ app_data/
 appdata/
 appsettings/
 userdata/
+Backup/
 UpgradeLog.htm
 *.ffs_db
-Backup/
+*.ffs_lock
