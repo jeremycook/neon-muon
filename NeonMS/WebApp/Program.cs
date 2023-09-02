@@ -11,7 +11,10 @@ using NeonMS.Mvc;
 using NeonMS.Security;
 using NeonMS.Utils;
 using Npgsql;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,11 +26,11 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 
 // Database
 {
-    ConnectionFactory.Connections = builder.Configuration
+    DB.Connections = builder.Configuration
         .GetSection("Connections")
         .Get<Dictionary<string, NpgsqlConnectionStringBuilder>>()
         ?? throw new InvalidOperationException();
-    Log.Info<DataConnection>("Configuration Connections: {Connections}", ConnectionFactory.Connections.Select(x => x.Key + ": " + Regex.Replace(x.Value.ConnectionString, "(Pass[^=]*|Pwd[^=]*)[^;]+", "$1=***", RegexOptions.IgnoreCase)));
+    Log.Info<DataConnection>("Configuration Connections: {Connections}", DB.Connections.Select(x => x.Key + ": " + Regex.Replace(x.Value.ConnectionString, "(Pass[^=]*|Pwd[^=]*)[^;]+", "$1=***", RegexOptions.IgnoreCase)));
     DataConnection.DefaultSettings = new AppLinqToDBSettings();
 
     if (builder.Environment.IsDevelopment())
@@ -100,7 +103,20 @@ builder.Services.AddControllers(options =>
 
     // Slugify paths
     options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));
-});
+})
+    // ASP.NET MVC API
+    .AddJsonOptions(options => ConfigureJsonSerializerOptions(options.JsonSerializerOptions));
+
+// Minimal API
+builder.Services.Configure<JsonOptions>(options => ConfigureJsonSerializerOptions(options.SerializerOptions));
+
+static void ConfigureJsonSerializerOptions(JsonSerializerOptions json)
+{
+    json.Converters.Add(new JsonStringEnumConverter());
+    json.AllowTrailingCommas = true;
+    json.PropertyNameCaseInsensitive = true;
+    json.ReadCommentHandling = JsonCommentHandling.Skip;
+}
 
 var app = builder.Build();
 

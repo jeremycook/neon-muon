@@ -28,7 +28,7 @@ public class AppLinqToDBSettings : ILinqToDBSettings
 
     public AppLinqToDBSettings()
     {
-        ConnectionStrings = ConnectionFactory.Connections
+        ConnectionStrings = DB.Connections
             .Select(x => new AppConnectionStringSettings
             {
                 Name = x.Key,

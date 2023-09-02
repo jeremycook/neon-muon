@@ -33,7 +33,7 @@ public class AuthController : ControllerBase
 
         var credential = new ConnectionCredential(input.Connection!, input.Username!, input.Password!);
 
-        using var dc = await ConnectionFactory.TryDataConnection(credential);
+        using var dc = await DB.TryDataConnection(credential);
 
         if (dc is not null)
         {
