@@ -16,7 +16,7 @@ public class AuthController : ControllerBase
     {
         [Required] public string? Connection { get; set; }
         [Required] public string? Username { get; set; }
-        [Required, MinLength(20)] public string? Password { get; set; }
+        [Required, MinLength(10)] public string? Password { get; set; }
     }
 
     [AllowAnonymous]
@@ -45,7 +45,8 @@ public class AuthController : ControllerBase
         }
         else
         {
-            return Unauthorized();
+            ModelState.AddModelError("", "The Password or Username is incorrect.");
+            return ValidationProblem(ModelState);
         }
     }
 
