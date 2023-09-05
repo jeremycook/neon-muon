@@ -3,6 +3,5 @@
 # Development
 
 * Copy the contents of `appsettings.Example.json` into the user secrets file and tweak as needed.
-* The user secrets file:
     * Windows: `%APPDATA%\Microsoft\UserSecrets\NeonMS\secrets.json`
 * [Connection string parameters](https://www.npgsql.org/doc/connection-string-parameters.html)

@@ -10,9 +10,13 @@ namespace NeonMS.DataAccess.InformationSchema;
 public class InformationSchemaController : ControllerBase
 {
     [HttpGet]
-    public async Task<IReadOnlyList<Columns>> Columns(CurrentUser currentUser)
+    public async Task<IReadOnlyList<Columns>> Columns(
+        CancellationToken cancellationToken,
+        CurrentUser currentUser,
+        string database
+    )
     {
-        using var dc = DB.DataConnection(currentUser.Credential);
+        using var dc = await DB.OpenDataConnection(currentUser.Credential, database, cancellationToken);
 
         var data = await dc
             .GetTable<Columns>()

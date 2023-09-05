@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.DataAccess;
 using NeonMS.Security;
+using Npgsql;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace NeonMS.Authentication;
@@ -14,7 +16,6 @@ public class AuthController : ControllerBase
 
     public class AuthInput
     {
-        [Required] public string? Connection { get; set; }
         [Required] public string? Username { get; set; }
         [Required, MinLength(10)] public string? Password { get; set; }
     }
@@ -23,7 +24,8 @@ public class AuthController : ControllerBase
     [HttpPost("[controller]")]
     public async Task<IActionResult> Default(
         Keys keys,
-        AuthInput input
+        AuthInput input,
+        CancellationToken cancellationToken
     )
     {
         if (!ModelState.IsValid)
@@ -31,23 +33,76 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var credential = new ConnectionCredential(input.Connection!, input.Username!, input.Password!);
-
-        using var dc = await DB.TryDataConnection(credential);
-
-        if (dc is not null)
+        var credential = new DataCredential()
         {
-            string token = TokenService.GetToken(keys, DateTime.UtcNow.AddDays(expireDays), new Dictionary<string, object>()
-            {
-                { "cc", JsonSerializer.Serialize(new string[] { credential.Connection, credential.Username, credential.Password }) },
-            });
-            return Ok(token);
-        }
-        else
+            Username = input.Username!,
+            Password = input.Password!,
+        };
+
+        bool validCredentials = await DB.IsValid(credential, DB.DirectoryDatabase, cancellationToken);
+        if (!validCredentials)
         {
             ModelState.AddModelError("", "The Password or Username is incorrect.");
             return ValidationProblem(ModelState);
         }
+
+        DateTime validUntil = DateTime.UtcNow.AddDays(expireDays);
+        var newCredential = new DataCredential()
+        {
+            Username = $"{credential.Username}:{DateTime.UtcNow:yyyyMMddHHmmss}",
+            Password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
+            Role = credential.Username,
+        };
+
+        {
+            using var maintenance = await DB.MaintenanceConnection(cancellationToken);
+            await CreateLogin(maintenance, newCredential, validUntil);
+        }
+
+        string token = TokenService.GetToken(keys, validUntil, new Dictionary<string, object>()
+        {
+            { "dc", JsonSerializer.Serialize(newCredential) },
+        });
+
+        return Ok(token);
+    }
+
+    private static async Task<int> CreateLogin(
+        NpgsqlConnection connection,
+        DataCredential credential,
+        DateTime validUntil
+    )
+    {
+        if (credential.Role == null)
+        {
+            throw new NullReferenceException("The value of credential.Role is null.");
+        }
+
+        var newLoginIdentifier = Quote.Identifier(credential.Username);
+        var newPasswordLiteral = Quote.Literal(SCRAMSHA256.EncryptPassword(credential.Password));
+        var validUntilLiteral = Quote.Literal(validUntil);
+        var grantedRoleIdentifier = Quote.Identifier(credential.Role);
+
+        var cmd = new NpgsqlCommand()
+        {
+            Connection = connection,
+            CommandText = $"""
+                CREATE ROLE {newLoginIdentifier} WITH
+                    LOGIN
+                    NOSUPERUSER
+                    NOCREATEDB
+                    NOCREATEROLE
+                    INHERIT
+                    NOREPLICATION
+                    CONNECTION LIMIT -1
+                    VALID UNTIL {validUntilLiteral}
+                    ENCRYPTED PASSWORD {newPasswordLiteral};
+                GRANT {grantedRoleIdentifier} TO {newLoginIdentifier};
+                ALTER ROLE {newLoginIdentifier} SET role TO {grantedRoleIdentifier};
+                """,
+        };
+
+        return await cmd.ExecuteNonQueryAsync();
     }
 
     [AllowAnonymous]
@@ -67,8 +122,8 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             IsAuthenticated = User.Identity?.IsAuthenticated == true,
-            currentUser.Credential?.Connection,
-            currentUser.Credential?.Username
+            currentUser.Credential.Username,
+            currentUser.Credential.Role,
         });
     }
 }

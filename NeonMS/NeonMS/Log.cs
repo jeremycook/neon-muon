@@ -32,33 +32,45 @@ public static class Log
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "I don't care")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Debug<T>(string message, params object?[] args)
     {
         Factory.CreateLogger<T>().LogDebug(message, args);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "I don't care")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Error<T>(Exception? exception, string message, params object?[] args)
     {
         Factory.CreateLogger<T>().LogError(exception, message, args);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "I don't care")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Error(Type type, Exception? exception, string message, params object?[] args)
     {
         Factory.CreateLogger(type).LogError(exception, message, args);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "I don't care")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Info<T>(string message, params object?[] args)
     {
         Factory.CreateLogger<T>().LogInformation(message, args);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "I don't care")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Info(Type type, string message, params object?[] args)
     {
         Factory.CreateLogger(type).LogInformation(message, args);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
+    public static void Warn<T>(Exception? exception, string message, params object?[] args)
+    {
+        Factory.CreateLogger<T>().LogWarning(exception, message, args);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
+    public static void Warn(Type type, Exception? exception, string message, params object?[] args)
+    {
+        Factory.CreateLogger(type).LogWarning(exception, message, args);
     }
 }

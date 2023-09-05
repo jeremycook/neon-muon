@@ -10,10 +10,8 @@ using NeonMS.DataAccess;
 using NeonMS.Mvc;
 using NeonMS.Security;
 using NeonMS.Utils;
-using Npgsql;
 using System.Text.Json.Serialization;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,12 +24,18 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 
 // Database
 {
-    DB.Connections = builder.Configuration
-        .GetSection("Connections")
-        .Get<Dictionary<string, NpgsqlConnectionStringBuilder>>()
+    DB.Servers = builder.Configuration
+        .GetSection("DataServers")
+        .Get<Dictionary<string, DataServer>>()
         ?? throw new InvalidOperationException();
-    Log.Info<DataConnection>("Configuration Connections: {Connections}", DB.Connections.Select(x => x.Key + ": " + Regex.Replace(x.Value.ConnectionString, "(Pass[^=]*|Pwd[^=]*)[^;]+", "$1=***", RegexOptions.IgnoreCase)));
-    DataConnection.DefaultSettings = new AppLinqToDBSettings();
+    Log.Info<DataConnection>("DataServers: {DataServers}", DB.Servers.Select(x => x.Key + ": " + x.Value.ToString()));
+
+    DB.MasterCredentials = builder.Configuration
+        .GetSection("MasterCredentials")
+        .Get<Dictionary<string, DataCredential>>()
+        ?? throw new InvalidOperationException();
+
+    // DataConnection.DefaultSettings = new AppLinqToDBSettings();
 
     if (builder.Environment.IsDevelopment())
     {

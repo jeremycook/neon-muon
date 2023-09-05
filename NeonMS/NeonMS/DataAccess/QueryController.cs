@@ -4,6 +4,7 @@ using NeonMS.Authentication;
 using Npgsql;
 using Npgsql.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace NeonMS.DataAccess.InformationSchema;
 
@@ -14,26 +15,15 @@ public class QueryController : ControllerBase
     [HttpPut]
     [ActionName("Batch")]
     public async Task<ActionResult> BatchPUT(
-        CancellationToken ct,
+        CancellationToken cancellationToken,
         CurrentUser currentUser,
         QueryInput input
     )
     {
-        using var batch = new NpgsqlBatch();
-        foreach (var action in input.Actions)
-        {
-            var cmd = new NpgsqlBatchCommand(action.Sql);
-            cmd.Parameters.AddRange(action.Parameters);
+        using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
+        using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-            batch.BatchCommands.Add(cmd);
-        }
-
-        using var con = DB.Connection(currentUser.Credential, input.Database);
-        await con.OpenAsync(ct);
-        using var tx = await con.BeginTransactionAsync(ct);
-
-        batch.Connection = con;
-        var (headers, results) = await QueryAsync(batch, input, ct);
+        var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
 
         return Ok(new
         {
@@ -45,25 +35,17 @@ public class QueryController : ControllerBase
     [HttpPost]
     [ActionName("Batch")]
     public async Task<ActionResult> BatchPOST(
-        CancellationToken ct,
+        CancellationToken cancellationToken,
         CurrentUser currentUser,
         QueryInput input
     )
     {
-        using var batch = new NpgsqlBatch();
-        foreach (var action in input.Actions)
-        {
-            var cmd = new NpgsqlBatchCommand(action.Sql);
-            cmd.Parameters.AddRange(action.Parameters);
+        using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
+        using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-            batch.BatchCommands.Add(cmd);
-        }
+        var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
 
-        using var con = DB.Connection(currentUser.Credential, input.Database);
-        await con.OpenAsync(ct);
-        batch.Connection = con;
-
-        var (headers, results) = await QueryAsync(batch, input, ct);
+        await tx.CommitAsync(cancellationToken);
 
         return Ok(new
         {
@@ -72,18 +54,28 @@ public class QueryController : ControllerBase
         });
     }
 
-    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)> QueryAsync(NpgsqlBatch batch, QueryInput input, CancellationToken ct)
+    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)> QueryAsync(NpgsqlConnection con, NpgsqlTransaction tx, QueryInput input, CancellationToken cancellationToken = default)
     {
         var headers = new List<IReadOnlyCollection<QueryColumn>>();
         var results = new List<IReadOnlyCollection<object?[]>>();
 
-        using (var reader = await batch.ExecuteReaderAsync(ct))
+        foreach (var action in input.Actions)
         {
-            foreach (var action in input.Actions)
+            if (action.IsSelect())
             {
+                using var cmd = con.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = action.Sql;
+                foreach (var parameter in action.Parameters)
+                {
+                    cmd.Parameters.Add(new() { Value = parameter });
+                }
+
+                using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
                 if (action.Headers)
                 {
-                    IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync();
+                    IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
                     var header = schema.Select(col => new QueryColumn(col)).ToArray();
                     headers.Add(header);
                 }
@@ -93,7 +85,7 @@ public class QueryController : ControllerBase
                 }
 
                 var list = new List<object?[]>();
-                while (await reader.ReadAsync(ct))
+                while (await reader.ReadAsync(cancellationToken))
                 {
                     object?[] record = new object?[reader.FieldCount];
                     reader.GetValues(record!);
@@ -107,9 +99,64 @@ public class QueryController : ControllerBase
                     list.Add(record);
                 }
                 results.Add(list);
-
-                await reader.NextResultAsync(ct);
             }
+            else
+            {
+                using var cmd = con.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = action.Sql;
+                foreach (var parameter in action.Parameters)
+                {
+                    cmd.Parameters.Add(new() { Value = parameter.GetString() });
+                }
+
+                var affectedRows = await cmd.ExecuteNonQueryAsync(cancellationToken);
+
+                headers.Add(Array.Empty<QueryColumn>());
+                results.Add(new[] { new object?[] { affectedRows } });
+            }
+        }
+
+        return (headers, results);
+    }
+
+    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)> QueryAsync(NpgsqlBatch batch, QueryInput input, CancellationToken cancellationToken = default)
+    {
+        var headers = new List<IReadOnlyCollection<QueryColumn>>();
+        var results = new List<IReadOnlyCollection<object?[]>>();
+
+        using var reader = await batch.ExecuteReaderAsync(cancellationToken);
+
+        foreach (var action in input.Actions)
+        {
+            if (action.Headers)
+            {
+                IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
+                var header = schema.Select(col => new QueryColumn(col)).ToArray();
+                headers.Add(header);
+            }
+            else
+            {
+                headers.Add(Array.Empty<QueryColumn>());
+            }
+
+            var list = new List<object?[]>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                object?[] record = new object?[reader.FieldCount];
+                reader.GetValues(record!);
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    if (record[i] == DBNull.Value)
+                    {
+                        record[i] = null;
+                    }
+                }
+                list.Add(record);
+            }
+            results.Add(list);
+
+            await reader.NextResultAsync(cancellationToken);
         }
 
         return (headers, results);
@@ -118,6 +165,12 @@ public class QueryController : ControllerBase
 
 public class QueryColumn
 {
+    public QueryColumn(string dataTypeName, string columnName)
+    {
+        DataTypeName = dataTypeName;
+        ColumnName = columnName;
+    }
+
     public QueryColumn(NpgsqlDbColumn col)
     {
         DataTypeName = col.DataTypeName;
@@ -157,7 +210,12 @@ public class QueryAction
     public int? Page { get; set; }
     public int? Range { get; set; }
     public string Sql { get; set; } = null!;
-    public object?[] Parameters { get; set; } = Array.Empty<object?>();
+    public JsonElement[] Parameters { get; set; } = Array.Empty<JsonElement>();
+
+    public bool IsSelect()
+    {
+        return Sql.TrimStart().StartsWith("SELECT ", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public enum QueryActionType
