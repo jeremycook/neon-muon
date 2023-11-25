@@ -12,18 +12,35 @@ namespace NeonMS.DataAccess.InformationSchema;
 [Route("[controller]/[action]")]
 public class QueryController : ControllerBase
 {
+    /// <summary>
+    /// Issues a batch of queries that is always rolled back.
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <param name="currentUser"></param>
+    /// <param name="input"></param>
+    /// <returns></returns>
     [HttpPut]
     [ActionName("Batch")]
-    public async Task<ActionResult> BatchPUT(
-        CancellationToken cancellationToken,
+    public async Task<ActionResult>
+    BatchPUT(
         CurrentUser currentUser,
-        QueryInput input
+        QueryInput input,
+        CancellationToken cancellationToken
     )
     {
         using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
         using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-        var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+        List<IReadOnlyCollection<QueryColumn>> headers;
+        List<IReadOnlyCollection<object?[]>> results;
+        try
+        {
+            (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+        }
+        finally
+        {
+            await tx.RollbackAsync(cancellationToken);
+        }
 
         return Ok(new
         {
@@ -32,12 +49,20 @@ public class QueryController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Issue a batch of queries that will be committed if all succeed.
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <param name="currentUser"></param>
+    /// <param name="input"></param>
+    /// <returns></returns>
     [HttpPost]
     [ActionName("Batch")]
-    public async Task<ActionResult> BatchPOST(
-        CancellationToken cancellationToken,
+    public async Task<ActionResult>
+    BatchPOST(
         CurrentUser currentUser,
-        QueryInput input
+        QueryInput input,
+        CancellationToken cancellationToken
     )
     {
         using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
@@ -54,7 +79,13 @@ public class QueryController : ControllerBase
         });
     }
 
-    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)> QueryAsync(NpgsqlConnection con, NpgsqlTransaction tx, QueryInput input, CancellationToken cancellationToken = default)
+    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
+    QueryAsync(
+        NpgsqlConnection con,
+        NpgsqlTransaction tx,
+        QueryInput input,
+        CancellationToken cancellationToken
+    )
     {
         var headers = new List<IReadOnlyCollection<QueryColumn>>();
         var results = new List<IReadOnlyCollection<object?[]>>();
@@ -120,7 +151,12 @@ public class QueryController : ControllerBase
         return (headers, results);
     }
 
-    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)> QueryAsync(NpgsqlBatch batch, QueryInput input, CancellationToken cancellationToken = default)
+    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
+    QueryAsync(
+        NpgsqlBatch batch,
+        QueryInput input,
+        CancellationToken cancellationToken
+    )
     {
         var headers = new List<IReadOnlyCollection<QueryColumn>>();
         var results = new List<IReadOnlyCollection<object?[]>>();
