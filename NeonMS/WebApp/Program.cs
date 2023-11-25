@@ -25,13 +25,13 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 // Database
 {
     DB.Servers = builder.Configuration
-        .GetSection("DataServers")
+        .GetRequiredSection("DataServers")
         .Get<Dictionary<string, DataServer>>()
         ?? throw new InvalidOperationException();
     Log.Info<DataConnection>("DataServers: {DataServers}", DB.Servers.Select(x => x.Key + ": " + x.Value.ToString()));
 
     DB.MasterCredentials = builder.Configuration
-        .GetSection("MasterCredentials")
+        .GetRequiredSection("MasterCredentials")
         .Get<Dictionary<string, DataCredential>>()
         ?? throw new InvalidOperationException();
 
