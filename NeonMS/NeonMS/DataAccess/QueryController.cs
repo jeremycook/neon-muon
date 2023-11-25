@@ -126,6 +126,10 @@ public class QueryController : ControllerBase
                         {
                             record[i] = null;
                         }
+                        else if (record[i] is string text && reader.GetDataTypeName(i) == "json")
+                        {
+                            record[i] = JsonDocument.Parse(text);
+                        }
                     }
                     list.Add(record);
                 }
