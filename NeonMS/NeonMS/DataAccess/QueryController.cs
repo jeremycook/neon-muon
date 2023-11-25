@@ -15,9 +15,9 @@ public class QueryController : ControllerBase
     /// <summary>
     /// Issues a batch of queries that is always rolled back.
     /// </summary>
-    /// <param name="cancellationToken"></param>
     /// <param name="currentUser"></param>
     /// <param name="input"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [HttpPut]
     [ActionName("Batch")]
@@ -28,7 +28,7 @@ public class QueryController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
+        using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
         using var tx = await con.BeginTransactionAsync(cancellationToken);
 
         List<IReadOnlyCollection<QueryColumn>> headers;
@@ -52,9 +52,9 @@ public class QueryController : ControllerBase
     /// <summary>
     /// Issue a batch of queries that will be committed if all succeed.
     /// </summary>
-    /// <param name="cancellationToken"></param>
     /// <param name="currentUser"></param>
     /// <param name="input"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [HttpPost]
     [ActionName("Batch")]
@@ -65,7 +65,7 @@ public class QueryController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        using var con = await DB.OpenConnection(currentUser.Credential, input.Database);
+        using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
         using var tx = await con.BeginTransactionAsync(cancellationToken);
 
         var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
