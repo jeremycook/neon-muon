@@ -51,9 +51,21 @@ public static class Log
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
+    public static void Info<T>(Exception? exception, string message, params object?[] args)
+    {
+        Factory.CreateLogger<T>().LogInformation(exception, message, args);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Info<T>(string message, params object?[] args)
     {
         Factory.CreateLogger<T>().LogInformation(message, args);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
+    public static void Info(Type type, Exception? exception, string message, params object?[] args)
+    {
+        Factory.CreateLogger(type).LogInformation(exception, message, args);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]

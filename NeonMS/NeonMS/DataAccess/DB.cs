@@ -13,7 +13,7 @@ public static class DB
 
     public static string DirectoryDatabase { get; set; } = "postgres";
     public static Dictionary<string, DataServer> Servers { get; set; } = null!;
-    public static Dictionary<string, DataCredential> MasterCredentials { get; set; } = null!;
+    public static Dictionary<string, MasterCredential> MasterCredentials { get; set; } = null!;
 
     public static async Task<NpgsqlConnection> MaintenanceConnection(CancellationToken cancellationToken = default)
     {
@@ -75,9 +75,11 @@ public static class DB
     {
         // TODO: LRU cache
 
+        var masterCredential = credential as MasterCredential;
+
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = server.Host,
+            Host = masterCredential?.Host ?? server.Host,
             Port = server.Port,
             MaxAutoPrepare = server.MaxAutoPrepare,
             IncludeErrorDetail = server.IncludeErrorDetail,
@@ -106,10 +108,15 @@ public static class DB
             using var con = await OpenConnection(server, credential, database, cancellationToken);
             return true;
         }
+        catch (PostgresException ex) when (ex.SqlState == "28P01")
+        {
+            Log.Info(typeof(DB), ex, "Postgres credential validation failed {ExceptionType}: {ExceptionMessage}", ex.GetType(), ex.Message);
+            return false;
+        }
         catch (Exception ex)
         {
             Log.Error(typeof(DB), ex, "Suppressed {ExceptionType}: {ExceptionMessage}", ex.GetBaseException().GetType(), ex.GetBaseException().Message);
-            throw;
+            return false;
         }
     }
 }
@@ -138,4 +145,9 @@ public class DataCredential
     public string Username { get; set; } = null!;
     public string Password { get; set; } = null!;
     public string? Role { get; set; }
+}
+
+public class MasterCredential : DataCredential
+{
+    public string? Host { get; set; }
 }

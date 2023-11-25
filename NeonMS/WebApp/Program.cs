@@ -16,6 +16,8 @@ using Microsoft.AspNetCore.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddUserSecrets(typeof(Program).Assembly);
+
 Log.Factory = LoggerFactory.Create(options => options
     .AddConfiguration(builder.Configuration.GetSection("Logging"))
     .AddConsole());
@@ -32,7 +34,7 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 
     DB.MasterCredentials = builder.Configuration
         .GetRequiredSection("MasterCredentials")
-        .Get<Dictionary<string, DataCredential>>()
+        .Get<Dictionary<string, MasterCredential>>()
         ?? throw new InvalidOperationException();
 
     // DataConnection.DefaultSettings = new AppLinqToDBSettings();
@@ -105,7 +107,7 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
         options.Filters.Add(new AuthorizeFilter());
 
         // Exception filters we control
-        //options.Filters.Add<CustomExceptionFilter>();
+        options.Filters.Add<CustomExceptionFilter>();
 
         // Slugify paths
         options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));
