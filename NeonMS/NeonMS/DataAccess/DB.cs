@@ -77,7 +77,7 @@ public static class DB
 
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = server.Server,
+            Host = server.Host,
             Port = server.Port,
             MaxAutoPrepare = server.MaxAutoPrepare,
             IncludeErrorDetail = server.IncludeErrorDetail,
@@ -116,7 +116,9 @@ public static class DB
 
 public class DataServer
 {
-    public string Server { get; set; } = "127.0.0.1";
+    private string? _Host;
+
+    public string Host { get => _Host ?? throw new NullReferenceException("The Host has not been set."); set => _Host = value; }
     public int Port { get; set; } = 5432;
 
     public int CommandTimeout { get; set; } = 10;

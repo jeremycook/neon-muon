@@ -56,7 +56,7 @@ public class AuthController : ControllerBase
 
         {
             using var maintenance = await DB.MaintenanceConnection(cancellationToken);
-            await CreateLogin(maintenance, newCredential, validUntil);
+            await CreateLogin(maintenance, newCredential, validUntil, cancellationToken);
         }
 
         string token = TokenService.GetToken(keys, validUntil, new Dictionary<string, object>()
@@ -70,7 +70,8 @@ public class AuthController : ControllerBase
     private static async Task<int> CreateLogin(
         NpgsqlConnection connection,
         DataCredential credential,
-        DateTime validUntil
+        DateTime validUntil,
+        CancellationToken cancellationToken
     )
     {
         if (credential.Role == null)
@@ -83,10 +84,10 @@ public class AuthController : ControllerBase
         var validUntilLiteral = Quote.Literal(validUntil);
         var grantedRoleIdentifier = Quote.Identifier(credential.Role);
 
-        var cmd = new NpgsqlCommand()
+        using var batch = new NpgsqlBatch(connection)
         {
-            Connection = connection,
-            CommandText = $"""
+            BatchCommands = {
+                new($"""
                 CREATE ROLE {newLoginIdentifier} WITH
                     LOGIN
                     NOSUPERUSER
@@ -96,13 +97,14 @@ public class AuthController : ControllerBase
                     NOREPLICATION
                     CONNECTION LIMIT -1
                     VALID UNTIL {validUntilLiteral}
-                    ENCRYPTED PASSWORD {newPasswordLiteral};
-                GRANT {grantedRoleIdentifier} TO {newLoginIdentifier};
-                ALTER ROLE {newLoginIdentifier} SET role TO {grantedRoleIdentifier};
-                """,
+                    ENCRYPTED PASSWORD {newPasswordLiteral}
+                """),
+                new($"GRANT {grantedRoleIdentifier} TO {newLoginIdentifier}"),
+                new($"ALTER ROLE {newLoginIdentifier} SET role TO {grantedRoleIdentifier}"),
+            }
         };
 
-        return await cmd.ExecuteNonQueryAsync();
+        return await batch.ExecuteNonQueryAsync(cancellationToken);
     }
 
     [AllowAnonymous]
