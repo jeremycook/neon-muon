@@ -10,8 +10,8 @@ export default defineConfig({
         https: true,
         proxy: {
             '/api': {
-                target: 'https://localhost:7104',
-                secure: false,
+                target: 'http://127.0.0.1:5295',
+                // secure: false,
             }
         }
     }

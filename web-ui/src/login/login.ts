@@ -1,7 +1,7 @@
 import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
-import { jsonPost } from '../utils/http';
+import { jsonPost, setBearerToken } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
@@ -46,8 +46,9 @@ async function onsubmit(
 ) {
     ev.preventDefault();
 
-    var response = await jsonPost('/api/login', data);
+    var response = await jsonPost<string>('/api/auth/login', data);
     if (response.ok) {
+        setBearerToken(response.result!)
         await refreshCurrentLogin();
         redirectLocal(redirectUrl);
         return;

@@ -1,5 +1,5 @@
+import { jsonPut } from '../utils/http';
 import { PubSubT, computed, val } from '../utils/pubSub';
-import { jsonGet } from '../utils/http'
 
 export type Login = {
     auth: boolean;
@@ -13,7 +13,7 @@ export type CurrentLogin =
     PubSubT<Readonly<Login>>
 
 const currentLoginKey = 'currentLogin';
-const loginInfoUrl = '/api/login-info';
+const loginInfoUrl = '/api/auth/current';
 const guest = Object.freeze({
     auth: false,
     sub: '00000000-0000-0000-0000-000000000000',
@@ -26,7 +26,7 @@ export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());
 export const isAuthenticated = computed(currentLogin, () => currentLogin.val.auth);
 
 export const refreshCurrentLogin = async () => {
-    const response = await jsonGet<Login>(loginInfoUrl);
+    const response = await jsonPut<Login>(loginInfoUrl);
     if (response.result?.auth === true) {
         currentLogin.pub(Object.freeze(response.result));
     }

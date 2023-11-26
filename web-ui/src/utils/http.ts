@@ -13,6 +13,16 @@ export class HttpError extends Error {
 
 export const ErrorUnknownStatusCode = -1;
 
+let AuthorizationHeader: object | null = null;
+
+export function setBearerToken(token: string) {
+    AuthorizationHeader = token
+        ? {
+            'Authorization': 'Bearer ' + token
+        }
+        : null;
+}
+
 /** Parse {@param response} content using {@link parseJson}. */
 export const parseJsonResponse = async (response: Response) => {
     const json = await response.text();
@@ -70,7 +80,10 @@ export async function jsonFetch<TResult>(init: { url: string } & RequestInit, in
 
         const body = input ? { body: JSON.stringify(input) } : {};
         const requestInit = {
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                ...AuthorizationHeader,
+                'Content-Type': 'application/json'
+            },
             ...body,
             ...init,
         };
