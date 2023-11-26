@@ -13,6 +13,7 @@ using NeonMS.Utils;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Mvc.Formatters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,29 +94,34 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
             };
         });
 
-    Task OnTokenValidated(TokenValidatedContext context)
+    static Task OnTokenValidated(TokenValidatedContext context)
     {
         return Task.CompletedTask;
     }
+
+    builder.Services.AddAuthorization();
 }
 
 // API
 {
     builder.Services.AddControllers(options =>
     {
-        // Enforce the default authorization policy on controllers
-        options.Filters.Add(new AuthorizeFilter());
+        // TODO? Enforce the default authorization policy on controllers
+        // options.Filters.Add(new AuthorizeFilter());
 
         // Exception filters we control
         options.Filters.Add<CustomExceptionFilter>();
 
         // Slugify paths
         options.Conventions.Add(new RouteTokenTransformerConvention(new CustomOutboundParameterTransformer(TextTransformers.Dashify)));
+
+        // JSON encode Controller.Ok(string) results
+        options.OutputFormatters.RemoveType<StringOutputFormatter>();
     })
         // ASP.NET MVC API
         .AddJsonOptions(options => ConfigureJsonSerializerOptions(options.JsonSerializerOptions));
 
-    // Minimal API
+    // Minimal API (app.MapGet, app.MapPost, etc.)
     builder.Services.Configure<JsonOptions>(options => ConfigureJsonSerializerOptions(options.SerializerOptions));
 
     static void ConfigureJsonSerializerOptions(JsonSerializerOptions json)

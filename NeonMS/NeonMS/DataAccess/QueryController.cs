@@ -1,6 +1,7 @@
 ﻿using LinqToDB;
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.Authentication;
+using NeonMS.Mvc;
 using Npgsql;
 using Npgsql.Schema;
 using System.ComponentModel.DataAnnotations;
@@ -9,7 +10,7 @@ using System.Text.Json;
 namespace NeonMS.DataAccess.InformationSchema;
 
 [ApiController]
-[Route("[controller]/[action]")]
+[Route(MvcConstants.StandardApiRoute)]
 public class QueryController : ControllerBase
 {
     /// <summary>
@@ -50,7 +51,7 @@ public class QueryController : ControllerBase
     }
 
     /// <summary>
-    /// Issue a batch of queries that will be committed if all succeed.
+    /// Issues a batch of queries that will be committed if all succeed.
     /// </summary>
     /// <param name="currentUser"></param>
     /// <param name="input"></param>
@@ -240,7 +241,7 @@ public class QueryColumn
 public class QueryInput
 {
     [Required] public string Database { get; set; } = null!;
-    [Required, MinLength(1)] public QueryAction[] Actions { get; set; } = Array.Empty<QueryAction>();
+    [Required, MinLength(1)] public QueryAction[] Actions { get; set; } = [];
 }
 
 public class QueryAction
@@ -250,7 +251,7 @@ public class QueryAction
     public int? Page { get; set; }
     public int? Range { get; set; }
     public string Sql { get; set; } = null!;
-    public JsonElement[] Parameters { get; set; } = Array.Empty<JsonElement>();
+    public JsonElement[] Parameters { get; set; } = [];
 
     public bool IsSelect()
     {

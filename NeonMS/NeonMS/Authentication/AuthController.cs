@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.DataAccess;
+using NeonMS.Mvc;
 using NeonMS.Security;
 using Npgsql;
 using System.ComponentModel.DataAnnotations;
@@ -10,6 +11,7 @@ using System.Text.Json;
 namespace NeonMS.Authentication;
 
 [ApiController]
+[Route(MvcConstants.StandardApiRoute)]
 public class AuthController : ControllerBase
 {
     private const int expireDays = 30;
@@ -21,8 +23,9 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("[controller]")]
-    public async Task<IActionResult> Default(
+    [HttpPost]
+    public async Task<ActionResult<string>>
+    Login(
         Keys keys,
         AuthInput input,
         CancellationToken cancellationToken
@@ -67,7 +70,8 @@ public class AuthController : ControllerBase
         return Ok(token);
     }
 
-    private static async Task<int> CreateLogin(
+    private static async Task<int>
+    CreateLogin(
         NpgsqlConnection connection,
         DataCredential credential,
         DateTime validUntil,
@@ -108,24 +112,29 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("[controller]/[action]")]
-    public IActionResult Current()
+    [HttpGet]
+    public IActionResult
+    Current()
     {
         return Ok(new
         {
-            IsAuthenticated = User.Identity?.IsAuthenticated == true,
+            Auth = User.Identity?.IsAuthenticated == true,
         });
     }
 
     [AllowAnonymous]
-    [HttpPut("[controller]/[action]")]
-    public IActionResult Current(CurrentUser currentUser)
+    [HttpPut]
+    public IActionResult
+    Current(CurrentUser currentUser)
     {
+        // TODO: Make this right
         return Ok(new
         {
-            IsAuthenticated = User.Identity?.IsAuthenticated == true,
-            currentUser.Credential.Username,
-            currentUser.Credential.Role,
+            Auth = User.Identity?.IsAuthenticated == true,
+            Sub = currentUser.Credential.Username,
+            Name = currentUser.Credential.Role,
+            Elevated = false,
+            Roles = Array.Empty<string>(),
         });
     }
 }

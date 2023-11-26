@@ -8,8 +8,19 @@ public class CurrentUser
 {
     public CurrentUser(ClaimsPrincipal principal)
     {
-        string dc = principal.FindFirstValue("dc")!;
-        Credential = JsonSerializer.Deserialize<DataCredential>(dc)!;
+        if (principal.FindFirstValue("dc") is string dc)
+        {
+            Credential = JsonSerializer.Deserialize<DataCredential>(dc)!;
+        }
+        else
+        {
+            // TODO: Get actual anonymous credential
+            Credential = new()
+            {
+                Username = "Guest",
+                Role = Guid.Empty.ToString(),
+            };
+        }
     }
 
     public DataCredential Credential { get; }
