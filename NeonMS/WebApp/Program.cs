@@ -2,7 +2,6 @@ using LinqToDB;
 using LinqToDB.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
-using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using NeonMS;
 using NeonMS.Authentication;
@@ -14,6 +13,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,18 +27,22 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 
 // Database
 {
-    DB.Servers = builder.Configuration
+    foreach (var (key, value) in builder.Configuration
         .GetRequiredSection("DataServers")
         .Get<Dictionary<string, DataServer>>()
-        ?? throw new InvalidOperationException();
+        ?? throw new InvalidOperationException())
+    {
+        DB.Servers.Add(key, value);
+    }
     Log.Info<DataConnection>("DataServers: {DataServers}", DB.Servers.Select(x => x.Key + ": " + x.Value.ToString()));
 
-    DB.MasterCredentials = builder.Configuration
-        .GetRequiredSection("MasterCredentials")
-        .Get<Dictionary<string, MasterCredential>>()
-        ?? throw new InvalidOperationException();
-
-    // DataConnection.DefaultSettings = new AppLinqToDBSettings();
+    foreach (var (key, value) in builder.Configuration
+        .GetRequiredSection("MaintenanceCredentials")
+        .Get<Dictionary<string, MaintenanceCredential>>()
+        ?? throw new InvalidOperationException())
+    {
+        DB.MaintenanceCredentials.Add(key, value);
+    }
 
     if (builder.Environment.IsDevelopment())
     {
@@ -106,8 +110,8 @@ builder.Services.AddScoped(typeof(ScopedLazy<>));
 {
     builder.Services.AddControllers(options =>
     {
-        // TODO? Enforce the default authorization policy on controllers
-        // options.Filters.Add(new AuthorizeFilter());
+        // Apply the default authorization policy to all controllers
+        options.Filters.Add(new AuthorizeFilter());
 
         // Exception filters we control
         options.Filters.Add<CustomExceptionFilter>();

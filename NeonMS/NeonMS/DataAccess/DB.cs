@@ -1,5 +1,4 @@
 ﻿using LinqToDB;
-using LinqToDB.Data;
 using Npgsql;
 
 namespace NeonMS.DataAccess;
@@ -11,46 +10,27 @@ public static class DB
         AppContext.SetSwitch("Npgsql.EnableSqlRewriting", false);
     }
 
-    public static string DirectoryDatabase { get; set; } = "postgres";
-    public static Dictionary<string, DataServer> Servers { get; set; } = null!;
-    public static Dictionary<string, MasterCredential> MasterCredentials { get; set; } = null!;
+    public static Dictionary<string, DataServer> Servers { get; } = [];
+    public static Dictionary<string, MaintenanceCredential> MaintenanceCredentials { get; } = [];
 
-    public static async Task<NpgsqlConnection> MaintenanceConnection(CancellationToken cancellationToken = default)
+    public static async Task<NpgsqlConnection> MaintenanceConnection(string dataServer, CancellationToken cancellationToken = default)
     {
-        return await MaintenanceConnection("Main", cancellationToken);
-    }
-
-    private static async Task<NpgsqlConnection> MaintenanceConnection(string name, CancellationToken cancellationToken = default)
-    {
-        var server = Servers[name];
-        var credential = MasterCredentials[name];
-        var connectionString = GetConnectionString(server, credential, DirectoryDatabase);
+        var server = Servers[dataServer];
+        var credential = MaintenanceCredentials[dataServer];
+        var connectionString = GetConnectionString(server, credential, credential.MaintenanceDatabase);
 
         var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        if (credential.Role != null)
+        if (!string.IsNullOrEmpty(credential.Role))
         {
             await connection.ExecuteNonQueryAsync($"SET role TO {Quote.Identifier(credential.Role)}", cancellationToken: cancellationToken);
         }
         return connection;
     }
 
-    public static async Task<DataConnection> OpenDataConnection(DataCredential credential, string database, CancellationToken cancellationToken = default)
-    {
-        var server = Servers["Main"];
-        var connectionString = GetConnectionString(server, credential, database);
-
-        var dataConnection = new DataConnection(ProviderName.PostgreSQL15, connectionString);
-        if (credential.Role != null)
-        {
-            await dataConnection.ExecuteAsync($"SET role TO {Quote.Identifier(credential.Role)}", cancellationToken);
-        }
-        return dataConnection;
-    }
-
     public static async Task<NpgsqlConnection> OpenConnection(DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
-        return await OpenConnection(Servers["Main"], credential, database, cancellationToken);
+        return await OpenConnection(Servers[credential.Server], credential, database, cancellationToken);
     }
 
     private static async Task<NpgsqlConnection> OpenConnection(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
@@ -59,7 +39,7 @@ public static class DB
 
         var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        if (credential.Role != null)
+        if (!string.IsNullOrEmpty(credential.Role))
         {
             await connection.ExecuteNonQueryAsync($"SET role TO {Quote.Identifier(credential.Role)}", cancellationToken);
         }
@@ -68,19 +48,20 @@ public static class DB
 
     public static string GetConnectionString(DataCredential credential, string database)
     {
-        return GetConnectionString(Servers["Main"], credential, database);
+        return GetConnectionString(Servers[credential.Server], credential, database);
     }
 
     private static string GetConnectionString(DataServer server, DataCredential credential, string database)
     {
         // TODO: LRU cache
 
-        var masterCredential = credential as MasterCredential;
+        var maintenanceCredential = credential as MaintenanceCredential;
 
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = masterCredential?.Host ?? server.Host,
+            Host = maintenanceCredential?.MaintenanceHost ?? server.Host,
             Port = server.Port,
+
             MaxAutoPrepare = server.MaxAutoPrepare,
             IncludeErrorDetail = server.IncludeErrorDetail,
             CommandTimeout = server.CommandTimeout,
@@ -96,9 +77,15 @@ public static class DB
         return builder.ToString();
     }
 
-    public static async Task<bool> IsValid(DataCredential credential, string database, CancellationToken cancellationToken = default)
+    public static async Task<bool> IsValid(DataCredential credential, CancellationToken cancellationToken = default)
     {
-        return await IsValid(Servers["Main"], credential, database, cancellationToken);
+        if (!Servers.TryGetValue(credential.Server, out DataServer? server))
+        {
+            Log.Warn(typeof(DB), "Invalid {DataServer}", credential.Server);
+            return false;
+        }
+
+        return await IsValid(server, credential, MaintenanceCredentials[credential.Server].MaintenanceDatabase, cancellationToken);
     }
 
     private static async Task<bool> IsValid(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
@@ -110,12 +97,12 @@ public static class DB
         }
         catch (PostgresException ex) when (ex.SqlState == "28P01")
         {
-            Log.Info(typeof(DB), ex, "Postgres credential validation failed {ExceptionType}: {ExceptionMessage}", ex.GetType(), ex.Message);
+            Log.Info(typeof(DB), ex, "Invalid credentials {ExceptionType}: {ExceptionMessage}", ex.GetType(), ex.Message);
             return false;
         }
         catch (Exception ex)
         {
-            Log.Error(typeof(DB), ex, "Suppressed {ExceptionType}: {ExceptionMessage}", ex.GetBaseException().GetType(), ex.GetBaseException().Message);
+            Log.SuppressedError(typeof(DB), ex);
             return false;
         }
     }
@@ -123,9 +110,9 @@ public static class DB
 
 public class DataServer
 {
-    private string? _Host;
+    public float TokenLifetimeHours { get; set; } = 1;
 
-    public string Host { get => _Host ?? throw new NullReferenceException("The Host has not been set."); set => _Host = value; }
+    public required string Host { get => _Host ?? throw new NullReferenceException("The Host has not been set."); set => _Host = value; }
     public int Port { get; set; } = 5432;
 
     public int CommandTimeout { get; set; } = 10;
@@ -133,6 +120,8 @@ public class DataServer
     public int MaxAutoPrepare { get; set; } = 0;
     public bool IncludeErrorDetail { get; set; } = false;
     public string Timezone { get; set; } = "UTC";
+
+    private string? _Host;
 
     public override string ToString()
     {
@@ -142,12 +131,14 @@ public class DataServer
 
 public class DataCredential
 {
-    public string Username { get; set; } = null!;
-    public string Password { get; set; } = null!;
-    public string? Role { get; set; }
+    public required string Server { get; set; }
+    public required string Username { get; set; }
+    public required string Password { get; set; }
+    public required string Role { get; set; }
 }
 
-public class MasterCredential : DataCredential
+public class MaintenanceCredential : DataCredential
 {
-    public string? Host { get; set; }
+    public string? MaintenanceHost { get; set; }
+    public required string MaintenanceDatabase { get; set; }
 }

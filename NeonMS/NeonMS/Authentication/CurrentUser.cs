@@ -14,11 +14,12 @@ public class CurrentUser
         }
         else
         {
-            // TODO: Get actual anonymous credential
             Credential = new()
             {
-                Username = "Guest",
-                Role = Guid.Empty.ToString(),
+                Server = string.Empty,
+                Username = string.Empty,
+                Password = string.Empty,
+                Role = string.Empty,
             };
         }
     }

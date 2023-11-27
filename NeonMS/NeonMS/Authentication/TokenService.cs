@@ -6,14 +6,14 @@ namespace NeonMS.Authentication;
 
 public class TokenService
 {
-    public static string GetToken(Keys keys, DateTime expires, IDictionary<string, object> claims)
+    public static string CreateToken(Keys keys, DateTime expires, IDictionary<string, object> claims)
     {
         if (expires > DateTime.UtcNow.AddDays(90))
         {
             throw new ArgumentException($"The {nameof(expires)} argument is more than 90 days in the future.", nameof(expires));
         }
 
-        SecurityTokenDescriptor tokenDescriptor = GetTokenDescriptor(keys, expires, claims);
+        SecurityTokenDescriptor tokenDescriptor = CreateTokenDescriptor(keys, expires, claims);
         JwtSecurityTokenHandler tokenHandler = new();
         SecurityToken securityToken = tokenHandler.CreateToken(tokenDescriptor);
         string token = tokenHandler.WriteToken(securityToken);
@@ -21,7 +21,7 @@ public class TokenService
         return token;
     }
 
-    private static SecurityTokenDescriptor GetTokenDescriptor(Keys keys, DateTime expires, IDictionary<string, object> claims)
+    private static SecurityTokenDescriptor CreateTokenDescriptor(Keys keys, DateTime expires, IDictionary<string, object> claims)
     {
         SecurityTokenDescriptor tokenDescriptor = new()
         {

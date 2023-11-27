@@ -1,4 +1,5 @@
 ﻿using LinqToDB;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.Authentication;
 using NeonMS.Mvc;
@@ -240,7 +241,7 @@ public class QueryColumn
 
 public class QueryInput
 {
-    [Required] public string Database { get; set; } = null!;
+    [Required] public string Database { get; set; } = string.Empty;
     [Required, MinLength(1)] public QueryAction[] Actions { get; set; } = [];
 }
 

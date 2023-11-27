@@ -14,17 +14,22 @@ namespace NeonMS.Authentication;
 [Route(MvcConstants.StandardApiRoute)]
 public class AuthController : ControllerBase
 {
-    private const int expireDays = 30;
-
     public class AuthInput
     {
-        [Required] public string? Username { get; set; }
-        [Required, MinLength(10)] public string? Password { get; set; }
+        [Required] public string DataServer { get; set; } = string.Empty;
+        [Required] public string Username { get; set; } = string.Empty;
+        [Required, MinLength(10)] public string Password { get; set; } = string.Empty;
+    }
+
+    public class AuthOutput
+    {
+        public required string Token { get; set; }
+        public required DateTime NotAfter { get; set; }
     }
 
     [AllowAnonymous]
     [HttpPost]
-    public async Task<ActionResult<string>>
+    public async Task<ActionResult<AuthOutput>>
     Login(
         Keys keys,
         AuthInput input,
@@ -36,38 +41,53 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var credential = new DataCredential()
+        if (!DB.Servers.TryGetValue(input.DataServer, out DataServer? dataServer))
         {
-            Username = input.Username!,
-            Password = input.Password!,
-        };
-
-        bool validCredentials = await DB.IsValid(credential, DB.DirectoryDatabase, cancellationToken);
-        if (!validCredentials)
-        {
-            ModelState.AddModelError("", "The Password or Username is incorrect.");
-            return ValidationProblem(ModelState);
+            ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
+            return ValidationProblem();
         }
 
-        DateTime validUntil = DateTime.UtcNow.AddDays(expireDays);
-        var newCredential = new DataCredential()
+        var credential = new DataCredential()
         {
-            Username = $"{credential.Username}:{DateTime.UtcNow:yyyyMMddHHmmss}",
+            Server = input.DataServer,
+            Username = input.Username!,
+            Password = input.Password!,
+            Role = string.Empty,
+        };
+
+        bool validCredentials = await DB.IsValid(credential, cancellationToken);
+        if (!validCredentials)
+        {
+            ModelState.AddModelError("$", "The Username or Password is incorrect.");
+            return ValidationProblem();
+        }
+
+        var tokenLifetimeHours = dataServer.TokenLifetimeHours;
+
+        DateTime notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
+        var temporaryCredential = new DataCredential()
+        {
+            Server = credential.Server,
+            Username = $"{credential.Username}:{notAfter:yyyyMMddHHmmss}",
             Password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
             Role = credential.Username,
         };
 
         {
-            using var maintenance = await DB.MaintenanceConnection(cancellationToken);
-            await CreateLogin(maintenance, newCredential, validUntil, cancellationToken);
+            using var maintenance = await DB.MaintenanceConnection(input.DataServer!, cancellationToken);
+            await CreateLogin(maintenance, temporaryCredential, notAfter, cancellationToken);
         }
 
-        string token = TokenService.GetToken(keys, validUntil, new Dictionary<string, object>()
+        string token = TokenService.CreateToken(keys, notAfter, new Dictionary<string, object>()
         {
-            { "dc", JsonSerializer.Serialize(newCredential) },
+            { "dc", JsonSerializer.Serialize(temporaryCredential) },
         });
 
-        return Ok(token);
+        return new AuthOutput()
+        {
+            Token = token,
+            NotAfter = notAfter,
+        };
     }
 
     private static async Task<int>
@@ -78,10 +98,9 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        if (credential.Role == null)
-        {
-            throw new NullReferenceException("The value of credential.Role is null.");
-        }
+        if (string.IsNullOrWhiteSpace(credential.Username)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Username)}"); }
+        if (string.IsNullOrWhiteSpace(credential.Password)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Password)}"); }
+        if (string.IsNullOrWhiteSpace(credential.Role)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Role)}"); }
 
         var newLoginIdentifier = Quote.Identifier(credential.Username);
         var newPasswordLiteral = Quote.Literal(SCRAMSHA256.EncryptPassword(credential.Password));
@@ -109,32 +128,5 @@ public class AuthController : ControllerBase
         };
 
         return await batch.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    [AllowAnonymous]
-    [HttpGet]
-    public IActionResult
-    Current()
-    {
-        return Ok(new
-        {
-            Auth = User.Identity?.IsAuthenticated == true,
-        });
-    }
-
-    [AllowAnonymous]
-    [HttpPut]
-    public IActionResult
-    Current(CurrentUser currentUser)
-    {
-        // TODO: Make this right
-        return Ok(new
-        {
-            Auth = User.Identity?.IsAuthenticated == true,
-            Sub = currentUser.Credential.Username,
-            Name = currentUser.Credential.Role,
-            Elevated = false,
-            Roles = Array.Empty<string>(),
-        });
     }
 }
