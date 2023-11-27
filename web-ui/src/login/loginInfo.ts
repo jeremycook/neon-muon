@@ -1,12 +1,11 @@
-import { jsonPut } from '../utils/http';
+import { jsonPut, setBearerToken } from '../utils/http';
 import { PubSubT, computed, val } from '../utils/pubSub';
 
 export type Login = {
     auth: boolean;
     sub: string;
     name: string;
-    elevated: boolean;
-    roles: string[];
+    notAfter: Date;
 };
 
 export type CurrentLogin =
@@ -14,16 +13,28 @@ export type CurrentLogin =
 
 const currentLoginKey = 'currentLogin';
 const loginInfoUrl = '/api/auth/current';
-const guest = Object.freeze({
+export const guest = Object.freeze({
     auth: false,
-    sub: '00000000-0000-0000-0000-000000000000',
+    sub: '?',
     name: 'Guest',
-    elevated: false,
-    roles: [],
+    notAfter: new Date(),
 });
 
 export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());
 export const isAuthenticated = computed(currentLogin, () => currentLogin.val.auth);
+
+export function setCurrentLogin(login: Readonly<Login>, token: string) {
+    setBearerToken(token);
+
+    if (login.auth === true) {
+        currentLogin.pub(Object.freeze(login));
+    }
+    else if (currentLogin.val !== guest) {
+        currentLogin.pub(guest);
+    }
+
+    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
+}
 
 export const refreshCurrentLogin = async () => {
     const response = await jsonPut<Login>(loginInfoUrl);
@@ -36,7 +47,7 @@ export const refreshCurrentLogin = async () => {
 
     sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
 };
-refreshCurrentLogin()
+// TODO? refreshCurrentLogin()
 
 function getCurrentLoginFromSession(): Readonly<Login> {
     const json = sessionStorage.getItem(currentLoginKey);

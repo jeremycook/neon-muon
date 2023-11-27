@@ -1,10 +1,10 @@
 import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
-import { jsonPost, setBearerToken } from '../utils/http';
+import { jsonPost } from '../utils/http';
 import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
-import { refreshCurrentLogin } from './loginInfo';
+import { guest, setCurrentLogin } from './loginInfo';
 
 export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
 
@@ -41,19 +41,27 @@ export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: stri
 async function onsubmit(
     ev: SubmitEvent,
     errorMessage: PubT<string>,
-    data: { username: string, password: string },
+    data: { username: string; password: string },
     redirectUrl?: string
 ) {
     ev.preventDefault();
 
-    var response = await jsonPost<string>('/api/auth/login', data);
+    var response = await jsonPost<{ token: string; notAfter: Date }>('/api/auth/login', {
+        ...data,
+        dataServer: 'Main',
+    });
     if (response.ok) {
-        setBearerToken(response.result!)
-        await refreshCurrentLogin();
+        setCurrentLogin({
+            auth: true,
+            sub: data.username,
+            name: data.username,
+            notAfter: response.result!.notAfter,
+        }, response.result!.token);
         redirectLocal(redirectUrl);
         return;
     }
     else {
+        setCurrentLogin(guest, '');
         errorMessage.pub(response.errorMessage ?? 'An error occured');
     }
 }
