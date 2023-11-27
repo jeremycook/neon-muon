@@ -6,12 +6,13 @@ import { PubT, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 import { guest, setCurrentLogin } from './loginInfo';
 
-export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: string, requestElevated?: 't' }) {
+export function loginPage({ redirectUrl }: { redirectUrl?: string, requestElevated?: 't' }) {
 
     const data = {
         username: '',
         password: '',
-        requestElevated: requestElevated?.startsWith('t'),
+        dataServer: 'Main',
+        // requestElevated: requestElevated?.startsWith('t'),
     };
 
     const errorMessage = val('');
@@ -41,19 +42,16 @@ export function loginPage({ redirectUrl, requestElevated }: { redirectUrl?: stri
 async function onsubmit(
     ev: SubmitEvent,
     errorMessage: PubT<string>,
-    data: { username: string; password: string },
+    data: { username: string; password: string; dataServer: string },
     redirectUrl?: string
 ) {
     ev.preventDefault();
 
-    var response = await jsonPost<{ token: string; notAfter: Date }>('/api/auth/login', {
-        ...data,
-        dataServer: 'Main',
-    });
+    var response = await jsonPost<{ token: string; notAfter: Date }>('/api/auth/login', data);
     if (response.ok) {
         setCurrentLogin({
             auth: true,
-            sub: data.username,
+            sub: data.username + '@' + data.dataServer,
             name: data.username,
             notAfter: response.result!.notAfter,
         }, response.result!.token);
