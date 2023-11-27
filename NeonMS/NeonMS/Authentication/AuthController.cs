@@ -124,6 +124,8 @@ public class AuthController : ControllerBase
                 """),
                 new($"GRANT {grantedRoleIdentifier} TO {newLoginIdentifier}"),
                 new($"ALTER ROLE {newLoginIdentifier} SET role TO {grantedRoleIdentifier}"),
+                // TODO: Call this on a timer from a background service
+                new("CALL public.drop_expired_logins()"),
             }
         };
 
