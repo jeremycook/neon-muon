@@ -26,7 +26,10 @@ public static class SCRAMSHA256
     /// </summary>
     const int SCRAM_DEFAULT_ITERATIONS = 4096;
 
+    // See scram_ClientKey at https://github.com/postgres/postgres/blob/master/src/common/scram-common.c
     static readonly byte[] CLIENT_KEY = Encoding.UTF8.GetBytes("Client Key");
+
+    // See scram_ServerKey at https://github.com/postgres/postgres/blob/master/src/common/scram-common.c
     static readonly byte[] SERVER_KEY = Encoding.UTF8.GetBytes("Server Key");
 
     public static string EncryptPassword(string password, int minLength = 22)
@@ -47,6 +50,7 @@ public static class SCRAMSHA256
 
         var serverKey = HMACSHA256.HashData(digestKey, SERVER_KEY);
 
+        // The format is SCRAM-SHA-256$<iteration count>:<salt>$<StoredKey>:<ServerKey>
         return $"{SCRAM_SHA_256_NAME}${SCRAM_DEFAULT_ITERATIONS}:{Convert.ToBase64String(salt)}${Convert.ToBase64String(storedKey)}:{Convert.ToBase64String(serverKey)}";
     }
 }
