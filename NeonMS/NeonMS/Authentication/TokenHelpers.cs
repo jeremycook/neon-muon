@@ -4,7 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace NeonMS.Authentication;
 
-public class TokenService
+public class TokenHelpers
 {
     public static string CreateToken(Keys keys, DateTime expires, IDictionary<string, object> claims)
     {
