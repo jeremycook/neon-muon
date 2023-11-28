@@ -15,7 +15,7 @@ BEGIN
 		FROM pg_catalog.pg_roles
 		WHERE rolname LIKE '%:%' AND rolvaliduntil < CURRENT_TIMESTAMP 
 	LOOP
-		RAISE NOTICE 'dropping expired role % at %', rol.rolname, rol.rolvaliduntil;
+		RAISE NOTICE 'dropping expired role	%	%', rol.rolname, rol.rolvaliduntil;
 		EXECUTE rol.stmt;
 	END LOOP;
 END;

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using NeonMS.DataAccess;
 using NeonMS.Mvc;
 using NeonMS.Security;
-using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -68,17 +67,14 @@ public class AuthController : ControllerBase
         var temporaryCredential = new DataCredential()
         {
             Server = credential.Server,
-            Username = $"{credential.Username}:{notAfter:yyyyMMddHHmmss}",
+            Username = $"{credential.Username}:{notAfter:yyyyMMddHHmmss}Z",
             Password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
             Role = credential.Username,
         };
 
-        {
-            using var maintenance = await DB.MaintenanceConnection(input.DataServer!, cancellationToken);
-            await CreateLogin(maintenance, temporaryCredential, notAfter, cancellationToken);
-        }
+        await AuthHelpers.CreateLogin(temporaryCredential, notAfter, cancellationToken);
 
-        string token = TokenService.CreateToken(keys, notAfter, new Dictionary<string, object>()
+        string token = TokenHelpers.CreateToken(keys, notAfter, new Dictionary<string, object>()
         {
             { "dc", JsonSerializer.Serialize(temporaryCredential) },
         });
@@ -90,45 +86,42 @@ public class AuthController : ControllerBase
         };
     }
 
-    private static async Task<int>
-    CreateLogin(
-        NpgsqlConnection connection,
-        DataCredential credential,
-        DateTime validUntil,
+    [Authorize]
+    [HttpPost]
+    public async Task<ActionResult<AuthOutput>>
+    Renew(
+        Keys keys,
+        CurrentUser currentUser,
         CancellationToken cancellationToken
     )
     {
-        if (string.IsNullOrWhiteSpace(credential.Username)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Username)}"); }
-        if (string.IsNullOrWhiteSpace(credential.Password)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Password)}"); }
-        if (string.IsNullOrWhiteSpace(credential.Role)) { throw new ArgumentException("The value is empty.", $"{nameof(credential)}.{nameof(credential.Role)}"); }
-
-        var newLoginIdentifier = Quote.Identifier(credential.Username);
-        var newPasswordLiteral = Quote.Literal(SCRAMSHA256.EncryptPassword(credential.Password));
-        var validUntilLiteral = Quote.Literal(validUntil);
-        var grantedRoleIdentifier = Quote.Identifier(credential.Role);
-
-        using var batch = new NpgsqlBatch(connection)
+        if (!ModelState.IsValid)
         {
-            BatchCommands = {
-                new($"""
-                CREATE ROLE {newLoginIdentifier} WITH
-                    LOGIN
-                    NOSUPERUSER
-                    NOCREATEDB
-                    NOCREATEROLE
-                    INHERIT
-                    NOREPLICATION
-                    CONNECTION LIMIT -1
-                    VALID UNTIL {validUntilLiteral}
-                    ENCRYPTED PASSWORD {newPasswordLiteral}
-                """),
-                new($"GRANT {grantedRoleIdentifier} TO {newLoginIdentifier}"),
-                new($"ALTER ROLE {newLoginIdentifier} SET role TO {grantedRoleIdentifier}"),
-                // TODO: Call this on a timer from a background service
-                new("CALL public.drop_expired_logins()"),
-            }
-        };
+            return ValidationProblem(ModelState);
+        }
 
-        return await batch.ExecuteNonQueryAsync(cancellationToken);
+        DataCredential credential = currentUser.Credential;
+        if (!DB.Servers.TryGetValue(credential.Server, out DataServer? dataServer))
+        {
+            ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
+            return ValidationProblem();
+        }
+
+        var tokenLifetimeHours = dataServer.TokenLifetimeHours;
+
+        DateTime notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
+
+        await AuthHelpers.RenewLogin(credential, notAfter, cancellationToken);
+
+        string token = TokenHelpers.CreateToken(keys, notAfter, new Dictionary<string, object>()
+        {
+            { "dc", JsonSerializer.Serialize(credential) },
+        });
+
+        return new AuthOutput()
+        {
+            Token = token,
+            NotAfter = notAfter,
+        };
     }
 }
