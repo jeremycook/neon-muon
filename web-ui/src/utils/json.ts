@@ -10,7 +10,7 @@ export function parseValue(value: string | number | null) {
 }
 
 /** Revive JSON with {@link parseValue}.
- * @example JSON.parse(someJson, jsonParseValueReviver)
+ * @example JSON.parse(someJson, parseValueJsonReviver)
  */
 export function parseValueJsonReviver(this: any, _: string, value: any) {
     return parseValue(value);
