@@ -35,8 +35,7 @@ public static class Starter
 
         builder.Configuration.SetBasePath(tenant.ContentRoot);
         builder.Configuration
-            // .AddJsonFile(Path.GetFullPath("appsettings.json", tenant.ContentRoot));
-            .AddJsonFile("appsettings.json");
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
         builder.Logging
             .AddConfiguration(builder.Configuration.GetSection("Logging"))

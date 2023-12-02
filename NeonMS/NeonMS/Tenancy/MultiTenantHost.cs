@@ -142,6 +142,10 @@ public static class MultiTenantHost
                 // Log startup errors and continue loading other tenants
                 Log.Critical(typeof(MultiTenantHost), ex, "Tenant failed to start: " + tenant.Id);
                 tenantsTasks[i] = Task.CompletedTask;
+                if (isDevelopment)
+                {
+                    throw;
+                }
             }
         }
 
