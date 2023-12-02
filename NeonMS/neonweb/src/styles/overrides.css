@@ -1,0 +1,7 @@
+﻿/* Vendor overrides */
+
+.ace_editor {
+    border-width: 1px;
+    border-style: solid;
+    min-height: 70vh;
+}

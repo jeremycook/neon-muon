@@ -1,0 +1,125 @@
+@import '../styles/colors.css';
+
+.spreadsheet {
+    --row-selector-width: 1.5rem;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+}
+
+.spreadsheet-head {
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    width: max-content;
+}
+
+.spreadsheet-corner {
+    background-color: #eee;
+    border-right: 1px solid #ddd;
+    min-width: var(--row-selector-width);
+    max-width: var(--row-selector-width);
+}
+
+.spreadsheet-column-selector {
+    background-color: #eee;
+    position: relative;
+    min-width: 6em;
+    max-width: 6em;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    cursor: pointer;
+}
+
+.spreadsheet-column-resizer {
+    background-color: #ddd;
+    width: 1px;
+    cursor: col-resize;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.spreadsheet-column-resizer::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    right: 0;
+}
+
+.spreadsheet-row {
+    display: flex;
+    position: relative;
+    width: max-content;
+}
+
+.spreadsheet-row-selector {
+    background-color: #eee;
+    border-right: 1px solid #ddd;
+    min-width: var(--row-selector-width);
+    max-width: var(--row-selector-width);
+    position: sticky;
+    left: 0;
+}
+
+.spreadsheet-row-resizer {
+    background-color: #ddd;
+    min-height: 1px;
+    max-height: 1px;
+    /* TODO: Change the cursor when row resizing becomes supported. */
+    /* cursor: row-resize; */
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.spreadsheet-cell {
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    min-width: 6em;
+    max-width: 6em;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.spreadsheet-content {
+    /* Using inline block so its size can be calculated for automatic resizing. */
+    display: inline-block;
+    padding: 0 2px;
+}
+
+.selected-column,
+.selected-row,
+.selected-cell {
+    background-color: var(--sky-50);
+    border-color: var(--sky-300);
+}
+
+.active-cell {
+    box-shadow: inset 0 0 0 1.25px var(--sky-300);
+}
+
+.spreadsheet-editor {
+    margin-top: -1px;
+    position: fixed;
+}
+
+.spreadsheet-editor-content {
+    background-color: #fff;
+    border: none;
+    margin: 0;
+    /* Match .spreadsheet-content */
+    padding: 0 2px;
+}

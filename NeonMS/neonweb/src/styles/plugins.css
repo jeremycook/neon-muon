@@ -1,0 +1,375 @@
+@import 'colors.css';
+@import 'vars.css';
+
+/* .card */
+
+.card {
+    border-style: var(--b-style);
+    border-radius: var(--radius);
+    background: var(--2nd-bg);
+    padding: var(--100);
+    box-shadow: var(--shadow-sm);
+}
+
+/* .dropdown > (.dropdown-button, .dropdown-anchor > .dropdown-content > (small, a, ...)) */
+
+.dropdown-anchor {
+    z-index: 1;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    top: 15px;
+    transition: opacity 200ms, top 200ms;
+}
+
+.dropdown-content {
+    position: absolute;
+    background: var(--bg);
+    padding: var(--25);
+    border-style: solid;
+    box-shadow: var(--shadow);
+    max-width: 300px;
+}
+
+.dropdown-content>* {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: var(--25);
+}
+
+.dropdown-content>small {
+    font-size: .8em;
+    font-weight: bold;
+    opacity: .5;
+    text-align: center;
+}
+
+.dropdown:hover .dropdown-anchor,
+.dropdown .dropdown-button:focus+.dropdown-anchor {
+    overflow: visible;
+    opacity: 1;
+    top: -1px;
+}
+
+/* .flex */
+
+.flex {
+    display: flex;
+}
+
+.flex-down {
+    flex-direction: column;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.flex-between {
+    justify-content: space-between;
+}
+
+/* .form-grid > (label, div>input, label, div>input, ... div, div>button) */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--50);
+}
+
+@media (min-width: 800px) {
+    .form-grid {
+        grid-template-columns: 1fr 2fr;
+    }
+}
+
+/* 
+    .flex.gap-?
+    .grid.gap-?
+ */
+
+.gap-25 {
+    gap: var(--25);
+}
+
+.gap-50 {
+    gap: var(--50);
+}
+
+.gap,
+.gap-100 {
+    gap: var(--100);
+}
+
+/*  */
+
+.mb {
+    margin-bottom: var(--100);
+}
+
+/* .navbar > (.navbar-group*3 > (.navbar-item, ...)) */
+
+.navbar {}
+
+.navbar-group {
+    display: flex;
+    justify-content: center;
+}
+
+.navbar-item {
+    padding: var(--50);
+}
+
+@media (min-width: 800px) {
+    .navbar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .navbar-group:first-child {
+        justify-content: start;
+    }
+
+    .navbar-group:last-child {
+        justify-content: end;
+    }
+
+    .navbar-group:last-child .dropdown-content {
+        right: var(--50-);
+    }
+}
+
+/* overflow */
+
+.overflow-auto {
+    overflow: auto;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
+/* .sr-only */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* svg.icon */
+
+svg.icon {
+    position: relative;
+    display: inline;
+    height: 1em;
+    vertical-align: baseline;
+    top: .1em;
+}
+
+/* .text-... */
+
+.text-error {
+    color: var(--fg-error);
+}
+
+.text-nowrap {
+    white-space: nowrap;
+}
+
+/* .toast-group > .toast-group-header */
+
+.toast-group-header {
+    font-weight: bold;
+    padding: var(--100) var(--100) 0;
+    text-align: center;
+}
+
+/* .toast-group > .toast.toast-type-?, ... > (.toast-header + .toast-content) */
+
+.toast {
+    border-bottom-style: var(--b-style);
+    padding: var(--100);
+}
+
+.toast-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--50);
+    font-weight: bold;
+}
+
+.toast-type-Info .toast-header,
+.toast-type-Info .toast-header * {
+    color: var(--fg-info);
+}
+
+.toast-type-Success .toast-header,
+.toast-type-Success .toast-header * {
+    color: var(--fg-success);
+}
+
+.toast-type-Warning .toast-header,
+.toast-type-Warning .toast-header * {
+    color: var(--fg-warning);
+}
+
+.toast-type-Error .toast-header,
+.toast-type-Error .toast-header * {
+    color: var(--fg-error);
+}
+
+.toast-content {}
+
+/* width and height */
+
+.fill {
+    width: 100%;
+    height: 100%;
+}
+
+.w-fill {
+    width: 100%;
+}
+
+.h-fill {
+    height: 100%;
+}
+
+.fit {
+    width: fit-content;
+    height: fit-content;
+}
+
+.w-fit {
+    width: fit-content;
+}
+
+.h-fit {
+    height: fit-content;
+}
+
+.w-200 {
+    max-width: var(--200px);
+}
+
+.w-400 {
+    max-width: var(--400px);
+}
+
+.w-800 {
+    max-width: var(--800px);
+}
+
+.w-1200 {
+    max-width: var(--1200px);
+}
+
+/* EXPERIMENTAL */
+
+/* .grow-wrap > textarea
+
+    A technique for automatically growing textareas with this CSS and the following JS.
+    textarea.addEventListener('input', ev => ev.currentTarget.parent.dataset.replicatedValue = ev.currentTarget.value)
+*/
+
+.grow-wrap {
+    /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
+    display: grid;
+}
+
+.grow-wrap::after {
+    /* Note the weird space! Needed to preventy jumpy behavior */
+    content: attr(data-replicated-value) " ";
+
+    /* This is how textarea text behaves */
+    white-space: pre-wrap;
+
+    /* Hidden from view, clicks, and screen readers */
+    visibility: hidden;
+}
+
+.grow-wrap>textarea {
+    /* You could leave this, but after a user resizes, then it ruins the auto sizing */
+    resize: none;
+
+    /* Firefox shows scrollbar on growth, you can hide like this. */
+    overflow: hidden;
+}
+
+.grow-wrap>textarea,
+.grow-wrap::after {
+    /* Identical styling required!! */
+    border: 1px solid black;
+    padding: 0.5rem;
+    font: inherit;
+
+    /* Place on top of each other */
+    grid-area: 1 / 1 / 2 / 2;
+}
+
+/* .modal > form > .modal-footer */
+
+.modal {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--100);
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: var(--100);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal>* {
+    max-width: 100%;
+}
+
+.modal>form {
+    background: white;
+    border-radius: var(--radius);
+    border-style: var(--b-style);
+    padding: var(--100);
+    box-shadow: var(--shadow);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--100);
+}
+
+/* Tree */
+
+.tree-element.expanded {
+    list-style-image: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="1em" height="1em" viewBox="0 0 24 24"%3E%3Cg transform="rotate(90 12 12)"%3E%3Cpath fill="currentColor" d="M9 17.898c0 1.074 1.265 1.648 2.073.941l6.31-5.522a1.75 1.75 0 0 0 0-2.634l-6.31-5.522C10.265 4.454 9 5.028 9 6.102v11.796Z"%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E');
+}
+
+.tree-element.collapsed {
+    list-style-image: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="1em" height="1em" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M9 17.898c0 1.074 1.265 1.648 2.073.941l6.31-5.522a1.75 1.75 0 0 0 0-2.634l-6.31-5.522C10.265 4.454 9 5.028 9 6.102v11.796Z"%2F%3E%3C%2Fsvg%3E');
+}
+
+/* Whens */
+
+:not(.active, :focus)>.parent-active {
+    display: none;
+}
+
+:is(.active, :focus)>.parent-inactive {
+    display: none;
+}
