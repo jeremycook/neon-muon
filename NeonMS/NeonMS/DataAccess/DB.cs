@@ -1,19 +1,18 @@
 ﻿using LinqToDB;
+using NeonMS.Configuration;
 using Npgsql;
 
 namespace NeonMS.DataAccess;
 
-public static class DB
+[Singleton]
+public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentials)
 {
     static DB()
     {
         AppContext.SetSwitch("Npgsql.EnableSqlRewriting", false);
     }
 
-    public static Dictionary<string, DataServer> Servers { get; } = [];
-    public static Dictionary<string, MaintenanceCredential> MaintenanceCredentials { get; } = [];
-
-    public static async Task<NpgsqlConnection> MaintenanceConnection(string dataServer, CancellationToken cancellationToken = default)
+    public async Task<NpgsqlConnection> MaintenanceConnection(string dataServer, CancellationToken cancellationToken = default)
     {
         var server = Servers[dataServer];
         var credential = MaintenanceCredentials[dataServer];
@@ -28,12 +27,12 @@ public static class DB
         return connection;
     }
 
-    public static async Task<NpgsqlConnection> OpenConnection(DataCredential credential, string database, CancellationToken cancellationToken = default)
+    public async Task<NpgsqlConnection> OpenConnection(DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         return await OpenConnection(Servers[credential.Server], credential, database, cancellationToken);
     }
 
-    private static async Task<NpgsqlConnection> OpenConnection(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
+    private async Task<NpgsqlConnection> OpenConnection(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         var connectionString = GetConnectionString(server, credential, database);
 
@@ -46,7 +45,7 @@ public static class DB
         return connection;
     }
 
-    public static string GetConnectionString(DataCredential credential, string database)
+    public string GetConnectionString(DataCredential credential, string database)
     {
         return GetConnectionString(Servers[credential.Server], credential, database);
     }
@@ -77,7 +76,7 @@ public static class DB
         return builder.ToString();
     }
 
-    public static async Task<bool> IsValid(DataCredential credential, CancellationToken cancellationToken = default)
+    public async Task<bool> IsValid(DataCredential credential, CancellationToken cancellationToken = default)
     {
         if (!Servers.TryGetValue(credential.Server, out DataServer? server))
         {
@@ -88,7 +87,7 @@ public static class DB
         return await IsValid(server, credential, MaintenanceCredentials[credential.Server].MaintenanceDatabase, cancellationToken);
     }
 
-    private static async Task<bool> IsValid(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
+    private async Task<bool> IsValid(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -108,6 +107,11 @@ public static class DB
     }
 }
 
+[Settings]
+public class DataServers : Dictionary<string, DataServer>
+{
+    public DataServers() : base(StringComparer.OrdinalIgnoreCase) { }
+}
 public class DataServer
 {
     public float TokenLifetimeHours { get; set; } = 1;
@@ -137,6 +141,11 @@ public class DataCredential
     public required string Role { get; set; }
 }
 
+[Settings]
+public class MaintenanceCredentials : Dictionary<string, MaintenanceCredential>
+{
+    public MaintenanceCredentials() : base(StringComparer.OrdinalIgnoreCase) { }
+}
 public class MaintenanceCredential : DataCredential
 {
     public string? MaintenanceHost { get; set; }

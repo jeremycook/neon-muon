@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace NeonMS.Tenancy;
 
@@ -6,9 +7,9 @@ public static class MultiTenantHost
 {
     public static async Task RunAsync<TProgram>(string[] args) where TProgram : class
     {
-        string applicationName =
+        string? applicationName =
             Environment.GetEnvironmentVariable("ASPNETCORE_APPLICATIONNAME") ??
-            Assembly.GetEntryAssembly()!.GetName().Name!;
+            typeof(TProgram).Assembly.GetName().Name;
 
         string envName =
             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ??
@@ -17,9 +18,9 @@ public static class MultiTenantHost
         bool isDevelopment = envName == "Development";
 
         IConfigurationBuilder configurationBuilder = new ConfigurationBuilder()
-                    .AddJsonFile($"appsettings.{envName}.json", optional: true, reloadOnChange: true)
-                    .AddEnvironmentVariables()
-                    .AddCommandLine(args);
+            .AddJsonFile($"appsettings.{envName}.json", optional: true, reloadOnChange: true)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args);
         if (isDevelopment)
         {
             configurationBuilder.AddUserSecrets<TProgram>();
@@ -96,11 +97,16 @@ public static class MultiTenantHost
             starterLookup.Add(group.Key, group.First());
         }
 
-        var tenantsTasks = new Task[tenantsOptions.Length];
-        var i = -1;
-        foreach (var tenantOptions in tenantsOptions)
+        var cancellationTokenSource = new CancellationTokenSource();
+        PosixSignalRegistration.Create(PosixSignal.SIGINT, context =>
         {
-            i++;
+            cancellationTokenSource.Cancel();
+        });
+
+        var tenantsTasks = new Task[tenantsOptions.Length];
+        for (int i = 0; i < tenantsOptions.Length; i++)
+        {
+            var tenantOptions = tenantsOptions[i];
 
             if (!starterLookup.TryGetValue(tenantOptions.Starter, out var starterClass))
             {
@@ -113,7 +119,6 @@ public static class MultiTenantHost
 
             var tenant = new TenantInfo
             {
-                ApplicationName = null,
                 ContentRoot = Path.GetFullPath(string.Format(tenantOptions.ContentRoot, tenantOptions.Id)),
                 EnvironmentName = envName,
                 Id = tenantOptions.Id,
@@ -127,10 +132,40 @@ public static class MultiTenantHost
                 Directory.CreateDirectory(tenant.WebRoot);
             }
 
-            var task = (Task)mainMethod.Invoke(null, parameters: [args, tenant])!;
-            tenantsTasks[i] = task;
+            try
+            {
+                var task = (Task)mainMethod.Invoke(null, parameters: [args, tenant, cancellationTokenSource.Token])!;
+                tenantsTasks[i] = task;
+            }
+            catch (Exception ex)
+            {
+                // Log startup errors and continue loading other tenants
+                Log.Critical(typeof(MultiTenantHost), ex, "Tenant failed to start: " + tenant.Id);
+                tenantsTasks[i] = Task.CompletedTask;
+            }
         }
 
-        await Task.WhenAll(tenantsTasks);
+        // Keep hosting if at least one tenant is still running
+        while (!cancellationTokenSource.IsCancellationRequested &&
+               tenantsTasks.Any(t => !t.IsCompleted))
+        {
+            for (int i = 0; i < tenantsTasks.Length; i++)
+            {
+                var task = tenantsTasks[i];
+                if (task.Exception is Exception ex)
+                {
+                    tenantsTasks[i] = Task.CompletedTask;
+
+                    // Log runtime exceptions and terminate the tenant
+                    Log.Critical(typeof(MultiTenantHost), ex, "Tenant crashed: " + tenantsOptions[i].Id);
+                    task.Dispose();
+                }
+            }
+
+            if (tenantsTasks.Any(t => !t.IsCompleted))
+            {
+                await Task.Delay(1000, cancellationTokenSource.Token);
+            }
+        }
     }
 }

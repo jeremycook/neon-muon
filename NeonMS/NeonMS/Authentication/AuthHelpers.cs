@@ -8,6 +8,7 @@ internal class AuthHelpers
 {
     internal static async Task<int>
     CreateLogin(
+        DB DB,
         DataCredential credential,
         DateTime validUntil,
         CancellationToken cancellationToken
@@ -49,6 +50,7 @@ internal class AuthHelpers
 
     internal static async Task<int>
     RenewLogin(
+        DB DB,
         DataCredential credential,
         DateTime validUntil,
         CancellationToken cancellationToken

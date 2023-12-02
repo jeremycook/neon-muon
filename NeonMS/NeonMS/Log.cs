@@ -34,6 +34,13 @@ public static class Log
 
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
+    public static void Critical(Type type, Exception? exception, string message, params object?[] args)
+    {
+        Factory.CreateLogger(type).LogCritical(exception, message, args);
+    }
+
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't care")]
     public static void Debug<T>(string message, params object?[] args)
     {
         Factory.CreateLogger<T>().LogDebug(message, args);

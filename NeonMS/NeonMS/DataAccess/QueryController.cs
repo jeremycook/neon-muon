@@ -1,5 +1,4 @@
 ﻿using LinqToDB;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.Authentication;
 using NeonMS.Mvc;
@@ -25,6 +24,7 @@ public class QueryController : ControllerBase
     [ActionName("Batch")]
     public async Task<ActionResult>
     BatchPUT(
+        DB DB,
         CurrentUser currentUser,
         QueryInput input,
         CancellationToken cancellationToken
@@ -62,6 +62,7 @@ public class QueryController : ControllerBase
     [ActionName("Batch")]
     public async Task<ActionResult>
     BatchPOST(
+        DB DB,
         CurrentUser currentUser,
         QueryInput input,
         CancellationToken cancellationToken

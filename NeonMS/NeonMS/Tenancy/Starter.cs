@@ -1,15 +1,13 @@
 ﻿using LinqToDB;
 using LinqToDB.Data;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.IdentityModel.Tokens;
 using NeonMS.Authentication;
-using NeonMS.DataAccess;
+using NeonMS.Configuration;
 using NeonMS.Mvc;
-using NeonMS.Security;
 using NeonMS.Utils;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,40 +16,39 @@ namespace NeonMS.Tenancy;
 
 public static class Starter
 {
-    public static async Task Main(string[] args, TenantInfo tenant)
+    public static async Task Main(string[] args, TenantInfo tenant, CancellationToken cancellationToken)
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions()
+        var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions()
         {
-            ApplicationName = tenant.ApplicationName,
+            ApplicationName = null,
             Args = args,
             ContentRootPath = tenant.ContentRoot,
             EnvironmentName = tenant.EnvironmentName,
             WebRootPath = tenant.WebRoot,
         });
+        builder.WebHost.UseKestrel();
         builder.WebHost.UseUrls(tenant.Urls);
+        // if (tenant.Urls.Any(url => url.StartsWith("https:")))
+        // {
+        //     builder.WebHost.UseKestrelHttpsConfiguration();
+        // }
+
+        builder.Configuration.SetBasePath(tenant.ContentRoot);
+        builder.Configuration
+            // .AddJsonFile(Path.GetFullPath("appsettings.json", tenant.ContentRoot));
+            .AddJsonFile("appsettings.json");
+
+        builder.Logging
+            .AddConfiguration(builder.Configuration.GetSection("Logging"))
+            .AddConsole();
 
         // builder.Configuration.AddUserSecrets(typeof(Program).Assembly);
 
-        builder.Services.AddScoped(typeof(ScopedLazy<>));
+        // TODO? builder.Services.AddScoped(typeof(ScopedLazy<>));
 
         // Database
         {
-            foreach (var (key, value) in builder.Configuration
-                .GetRequiredSection("DataServers")
-                .Get<Dictionary<string, DataServer>>()
-                ?? throw new InvalidOperationException())
-            {
-                DB.Servers.Add(key, value);
-            }
-            Log.Info<DataConnection>("DataServers: {DataServers}", DB.Servers.Select(x => x.Key + ": " + x.Value.ToString()));
-
-            foreach (var (key, value) in builder.Configuration
-                .GetRequiredSection("MaintenanceCredentials")
-                .Get<Dictionary<string, MaintenanceCredential>>()
-                ?? throw new InvalidOperationException())
-            {
-                DB.MaintenanceCredentials.Add(key, value);
-            }
+            builder.BuildFromTypes(typeof(Starter).Assembly.ExportedTypes);
 
             if (builder.Environment.IsDevelopment())
             {
@@ -70,47 +67,16 @@ public static class Starter
                 Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
             }
 
-            Keys keys;
-            {
-                var signingKeys = builder.Configuration.GetSection("Keys:SigningKeys").Get<byte[][]>()!;
-                var decryptionKeys = builder.Configuration.GetSection("Keys:DecryptionKeys").Get<byte[][]>()!;
-                keys = new(signingKeys, decryptionKeys);
-                builder.Services.AddSingleton(keys);
-            }
-
             builder.Services.AddHttpContextAccessor();
-            builder.Services.AddScoped(x => x.GetRequiredService<IHttpContextAccessor>().HttpContext!.User);
-            builder.Services.AddScoped<CurrentUser>();
+            builder.Services.AddScoped(x => x.GetRequiredService<IHttpContextAccessor>().HttpContext?.User ?? new System.Security.Claims.ClaimsPrincipal());
 
-            builder.Services.AddAuthentication(auth =>
-            {
-                auth.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                auth.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-                .AddJwtBearer(jwt =>
+            builder.Services
+                .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
                 {
-                    jwt.SaveToken = true;
-                    jwt.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        //NameClaimType = "sub",
-                        ValidateAudience = false,
-                        ValidateIssuer = false,
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKeys = keys.SigningKeys,
-                        TokenDecryptionKeys = keys.DecryptionKeys,
-                        ValidateLifetime = true,
-                        //LifetimeValidator = LifetimeValidator
-                    };
-                    jwt.Events = new()
-                    {
-                        OnTokenValidated = OnTokenValidated,
-                    };
+                    options.Cookie.Name = builder.Environment.ApplicationName + "_" + tenant.Id + "_auth";
+                    options.Events = new ApiAwareCookieAuthenticationEvents();
                 });
-
-            static Task OnTokenValidated(TokenValidatedContext context)
-            {
-                return Task.CompletedTask;
-            }
 
             builder.Services.AddAuthorization();
         }
@@ -159,6 +125,9 @@ public static class Starter
         app.MapGet("up", () => Results.Ok());
         app.MapControllers();
 
-        await app.RunAsync();
+        app.Map("/api/{*ignore}", () => Results.NotFound());
+        app.MapFallbackToFile("/_content/NeonMS/index.html");
+
+        await app.RunAsync(cancellationToken);
     }
 }

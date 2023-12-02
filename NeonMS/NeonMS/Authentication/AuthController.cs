@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeonMS.DataAccess;
 using NeonMS.Mvc;
 using NeonMS.Security;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -11,7 +13,7 @@ namespace NeonMS.Authentication;
 
 [ApiController]
 [Route(MvcConstants.StandardApiRoute)]
-public class AuthController : ControllerBase
+public class AuthController(DB DB, DataServers DataServers) : ControllerBase
 {
     public class AuthInput
     {
@@ -22,7 +24,6 @@ public class AuthController : ControllerBase
 
     public class AuthOutput
     {
-        public required string Token { get; set; }
         public required DateTime NotAfter { get; set; }
     }
 
@@ -30,7 +31,6 @@ public class AuthController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<AuthOutput>>
     Login(
-        Keys keys,
         AuthInput input,
         CancellationToken cancellationToken
     )
@@ -40,7 +40,7 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        if (!DB.Servers.TryGetValue(input.DataServer, out DataServer? dataServer))
+        if (!DataServers.TryGetValue(input.DataServer, out DataServer? dataServer))
         {
             ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
             return ValidationProblem();
@@ -71,17 +71,22 @@ public class AuthController : ControllerBase
             Password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
             Role = credential.Username,
         };
+        await AuthHelpers.CreateLogin(DB, temporaryCredential, notAfter, cancellationToken);
 
-        await AuthHelpers.CreateLogin(temporaryCredential, notAfter, cancellationToken);
+        var identity = new ClaimsIdentity(claims: [
+            new("sub", temporaryCredential.Role),
+            new("name", temporaryCredential.Role),
+            new("dc", JsonSerializer.Serialize(temporaryCredential)),
+        ], authenticationType: "pglogin", "sub", "role");
+        var principal = new ClaimsPrincipal(identity);
 
-        string token = TokenHelpers.CreateToken(keys, notAfter, new Dictionary<string, object>()
+        await HttpContext.SignInAsync(principal, properties: new()
         {
-            { "dc", JsonSerializer.Serialize(temporaryCredential) },
+            AllowRefresh = true,
+            ExpiresUtc = notAfter,
         });
-
         return new AuthOutput()
         {
-            Token = token,
             NotAfter = notAfter,
         };
     }
@@ -100,8 +105,8 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        DataCredential credential = currentUser.Credential;
-        if (!DB.Servers.TryGetValue(credential.Server, out DataServer? dataServer))
+        DataCredential temporaryCredential = currentUser.Credential;
+        if (!DataServers.TryGetValue(temporaryCredential.Server, out DataServer? dataServer))
         {
             ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
             return ValidationProblem();
@@ -111,16 +116,22 @@ public class AuthController : ControllerBase
 
         DateTime notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
 
-        await AuthHelpers.RenewLogin(credential, notAfter, cancellationToken);
+        await AuthHelpers.RenewLogin(DB, temporaryCredential, notAfter, cancellationToken);
 
-        string token = TokenHelpers.CreateToken(keys, notAfter, new Dictionary<string, object>()
+        var identity = new ClaimsIdentity(claims: [
+            new("sub", temporaryCredential.Role),
+            new("name", temporaryCredential.Role),
+            new("dc", JsonSerializer.Serialize(temporaryCredential)),
+        ], authenticationType: "pglogin", "sub", "role");
+        var principal = new ClaimsPrincipal(identity);
+
+        await HttpContext.SignInAsync(principal, properties: new()
         {
-            { "dc", JsonSerializer.Serialize(credential) },
+            AllowRefresh = true,
+            ExpiresUtc = notAfter,
         });
-
         return new AuthOutput()
         {
-            Token = token,
             NotAfter = notAfter,
         };
     }

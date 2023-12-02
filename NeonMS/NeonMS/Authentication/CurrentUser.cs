@@ -1,9 +1,11 @@
-﻿using System.Security.Claims;
-using System.Text.Json;
+﻿using NeonMS.Configuration;
 using NeonMS.DataAccess;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace NeonMS.Authentication;
 
+[Scoped]
 public class CurrentUser
 {
     public CurrentUser(ClaimsPrincipal principal)
