@@ -32,7 +32,7 @@ public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentia
         return await OpenConnection(Servers[credential.Server], credential, database, cancellationToken);
     }
 
-    private async Task<NpgsqlConnection> OpenConnection(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
+    private static async Task<NpgsqlConnection> OpenConnection(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         var connectionString = GetConnectionString(server, credential, database);
 
@@ -87,7 +87,7 @@ public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentia
         return await IsValid(server, credential, MaintenanceCredentials[credential.Server].MaintenanceDatabase, cancellationToken);
     }
 
-    private async Task<bool> IsValid(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
+    private static async Task<bool> IsValid(DataServer server, DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         try
         {

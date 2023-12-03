@@ -6,25 +6,34 @@ using System.Text.Json;
 namespace NeonMS.Authentication;
 
 [Scoped]
-public class CurrentUser
+public class CurrentUser(ClaimsPrincipal principal)
 {
-    public CurrentUser(ClaimsPrincipal principal)
+    public IEnumerable<DataCredential> Credentials()
     {
-        if (principal.FindFirstValue("dc") is string dc)
+        foreach (var claim in principal.Claims)
         {
-            Credential = JsonSerializer.Deserialize<DataCredential>(dc)!;
-        }
-        else
-        {
-            Credential = new()
+            if (claim.Type.StartsWith("dc:"))
             {
-                Server = string.Empty,
-                Username = string.Empty,
-                Password = string.Empty,
-                Role = string.Empty,
-            };
+                yield return Credential(claim.Type);
+            }
         }
     }
 
-    public DataCredential Credential { get; }
+    public DataCredential Credential(string dataServer)
+    {
+        // TODO: Cache results?
+        if (principal.FindFirstValue("dc:" + dataServer) is string dc)
+        {
+            return JsonSerializer.Deserialize<DataCredential>(dc)!;
+        }
+
+        // TODO: Return anonymous credentials if available.
+        return new()
+        {
+            Server = dataServer,
+            Username = "unknown",
+            Password = "unknown",
+            Role = "",
+        };
+    }
 }

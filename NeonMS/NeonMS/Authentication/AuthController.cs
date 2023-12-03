@@ -73,10 +73,19 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
         };
         await AuthHelpers.CreateLogin(DB, temporaryCredential, notAfter, cancellationToken);
 
+        var dcClaim = new Claim("dc:" + temporaryCredential.Server, JsonSerializer.Serialize(temporaryCredential));
+
+        // Include other, existing dc: claims
+        var dcClaims = User
+            .Claims
+            .Where(x => x.Type.StartsWith("dc:") && x.Type != dcClaim.Type)
+            .Append(dcClaim)
+            .ToArray();
+
         var identity = new ClaimsIdentity(claims: [
-            new("sub", temporaryCredential.Role),
-            new("name", temporaryCredential.Role),
-            new("dc", JsonSerializer.Serialize(temporaryCredential)),
+            User.FindFirst("sub") ?? new("sub", temporaryCredential.Role),
+            User.FindFirst("name") ?? new("name", temporaryCredential.Role),
+            ..dcClaims,
         ], authenticationType: "pglogin", "sub", "role");
         var principal = new ClaimsPrincipal(identity);
 
@@ -105,34 +114,45 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        DataCredential temporaryCredential = currentUser.Credential;
-        if (!DataServers.TryGetValue(temporaryCredential.Server, out DataServer? dataServer))
+        DateTime maxNotAfter = DateTime.UtcNow;
+        var temporaryCredentials = new List<DataCredential>();
+        foreach (var credential in currentUser.Credentials())
         {
-            ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
-            return ValidationProblem();
+            if (!DataServers.TryGetValue(credential.Server, out DataServer? dataServer))
+            {
+                ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
+                continue;
+            }
+
+            var tokenLifetimeHours = dataServer.TokenLifetimeHours;
+            {
+                var notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
+                if (notAfter > maxNotAfter)
+                    maxNotAfter = notAfter;
+            }
+
+            await AuthHelpers.RenewLogin(DB, credential, maxNotAfter, cancellationToken);
+
+            temporaryCredentials.Add(credential);
         }
 
-        var tokenLifetimeHours = dataServer.TokenLifetimeHours;
-
-        DateTime notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
-
-        await AuthHelpers.RenewLogin(DB, temporaryCredential, notAfter, cancellationToken);
-
         var identity = new ClaimsIdentity(claims: [
-            new("sub", temporaryCredential.Role),
-            new("name", temporaryCredential.Role),
-            new("dc", JsonSerializer.Serialize(temporaryCredential)),
-        ], authenticationType: "pglogin", "sub", "role");
+            User.FindFirst("sub") ?? throw new InvalidOperationException("Missing sub claim."),
+            User.FindFirst("name") ?? throw new InvalidOperationException("Missing name claim."),
+            ..temporaryCredentials.Select(x =>
+                new Claim("dc:" + x.Server, JsonSerializer.Serialize(x))
+            ),
+        ], authenticationType: "renew", "sub", "role");
         var principal = new ClaimsPrincipal(identity);
 
         await HttpContext.SignInAsync(principal, properties: new()
         {
             AllowRefresh = true,
-            ExpiresUtc = notAfter,
+            ExpiresUtc = maxNotAfter,
         });
         return new AuthOutput()
         {
-            NotAfter = notAfter,
+            NotAfter = maxNotAfter,
         };
     }
 }

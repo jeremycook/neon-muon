@@ -11,81 +11,90 @@ namespace NeonMS.DataAccess.InformationSchema;
 
 [ApiController]
 [Route(MvcConstants.StandardApiRoute)]
-public class QueryController : ControllerBase
+public class QueryController(
+    DataServers DataServers,
+    DB DB,
+    CurrentUser CurrentUser
+) : ControllerBase
 {
     /// <summary>
     /// Issues a batch of queries that is always rolled back.
     /// </summary>
-    /// <param name="currentUser"></param>
-    /// <param name="input"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
     [HttpPut]
     [ActionName("Batch")]
-    public async Task<ActionResult>
+    public async Task<ActionResult<List<QueryResult>>>
     BatchPUT(
-        DB DB,
-        CurrentUser currentUser,
         QueryInput input,
         CancellationToken cancellationToken
     )
     {
-        using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
-        using var tx = await con.BeginTransactionAsync(cancellationToken);
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem();
+        }
+
+        if (!DataServers.ContainsKey(input.Server))
+        {
+            ModelState.AddModelError("Server", "The Server was not found.");
+            return ValidationProblem();
+        }
 
         try
         {
-            var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+            using var con = await DB.OpenConnection(CurrentUser.Credential(input.Server), input.Database, cancellationToken);
+            using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-            return Ok(new
+            try
             {
-                Headers = headers,
-                Results = results,
-            });
+                var batchQueryResult = await QueryAsync(con, tx, input, cancellationToken);
+
+                return Ok(batchQueryResult);
+            }
+            finally
+            {
+                // Never persist any changes
+                await tx.RollbackAsync(cancellationToken);
+            }
         }
         catch (PostgresException ex)
         {
             Log.SuppressedWarn<QueryController>(ex);
+
+            var statusCode =
+                ex.SqlState == "28P01" ? StatusCodes.Status401Unauthorized :
+                StatusCodes.Status400BadRequest;
             ModelState.AddModelError("", $"PostgreSQL error: {ex.MessageText} ({ex.SqlState})");
-            return ValidationProblem();
-        }
-        finally
-        {
-            await tx.RollbackAsync(cancellationToken);
+
+            return StatusCode(statusCode, new ValidationProblemDetails(ModelState));
         }
     }
 
     /// <summary>
     /// Issues a batch of queries that will be committed if all succeed.
     /// </summary>
-    /// <param name="currentUser"></param>
-    /// <param name="input"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
     [HttpPost]
     [ActionName("Batch")]
-    public async Task<ActionResult>
+    public async Task<ActionResult<List<QueryResult>>>
     BatchPOST(
-        DB DB,
-        CurrentUser currentUser,
         QueryInput input,
         CancellationToken cancellationToken
     )
     {
-        using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
-        using var tx = await con.BeginTransactionAsync(cancellationToken);
+        if (!DataServers.ContainsKey(input.Server))
+        {
+            return NotFound();
+        }
 
         try
         {
-            var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+            using var con = await DB.OpenConnection(CurrentUser.Credential(input.Server), input.Database, cancellationToken);
+            using var tx = await con.BeginTransactionAsync(cancellationToken);
+
+            var batchQueryResult = await QueryAsync(con, tx, input, cancellationToken);
 
             await tx.CommitAsync(cancellationToken);
 
-            return Ok(new
-            {
-                Headers = headers,
-                Results = results,
-            });
+            return Ok(batchQueryResult);
         }
         catch (PostgresException ex)
         {
@@ -95,7 +104,7 @@ public class QueryController : ControllerBase
         }
     }
 
-    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
+    private static async Task<List<QueryResult>>
     QueryAsync(
         NpgsqlConnection con,
         NpgsqlTransaction tx,
@@ -120,7 +129,7 @@ public class QueryController : ControllerBase
 
                 using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
-                if (action.Headers)
+                if (action.Columns)
                 {
                     IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
                     var header = schema.Select(col => new QueryColumn(col)).ToArray();
@@ -168,7 +177,15 @@ public class QueryController : ControllerBase
             }
         }
 
-        return (headers, results);
+        var batch = headers.Zip(results)
+            .Select(x => new QueryResult()
+            {
+                Columns = x.First,
+                Rows = x.Second,
+            })
+            .ToList();
+
+        return batch;
     }
 
     private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
@@ -185,7 +202,7 @@ public class QueryController : ControllerBase
 
         foreach (var action in input.Actions)
         {
-            if (action.Headers)
+            if (action.Columns)
             {
                 IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
                 var header = schema.Select(col => new QueryColumn(col)).ToArray();
@@ -217,6 +234,12 @@ public class QueryController : ControllerBase
 
         return (headers, results);
     }
+}
+
+public class QueryResult
+{
+    public required IReadOnlyCollection<QueryColumn> Columns { get; set; }
+    public required IReadOnlyCollection<object?[]> Rows { get; set; }
 }
 
 public class QueryColumn
@@ -255,6 +278,7 @@ public class QueryColumn
 
 public class QueryInput
 {
+    [Required] public string Server { get; set; } = "Main";
     [Required] public string Database { get; set; } = string.Empty;
     [Required, MinLength(1)] public QueryAction[] Actions { get; set; } = [];
 }
@@ -262,7 +286,7 @@ public class QueryInput
 public class QueryAction
 {
     public QueryActionType Type { get; set; }
-    public bool Headers { get; set; } = false;
+    public bool Columns { get; set; } = false;
     public int? Page { get; set; }
     public int? Range { get; set; }
     public string Sql { get; set; } = null!;
