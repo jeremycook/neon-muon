@@ -69,6 +69,17 @@ public static class Log
     }
 
 
+    public static void SuppressedWarn<T>(Exception ex, string message = "Suppressed {ExceptionType}: {ExceptionMessage}")
+    {
+        SuppressedWarn(typeof(T), ex, message);
+    }
+
+    public static void SuppressedWarn(Type type, Exception ex, string message = "Suppressed {ExceptionType}: {ExceptionMessage}")
+    {
+        Warn(type, ex, message, ex.GetBaseException().GetType(), ex.GetBaseException().Message);
+    }
+
+
     public static void Info<T>(Exception? exception, string message, params object?[] args)
     {
         Info(typeof(T), exception, message, args);

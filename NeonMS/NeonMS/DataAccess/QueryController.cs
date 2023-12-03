@@ -33,22 +33,26 @@ public class QueryController : ControllerBase
         using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
         using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-        List<IReadOnlyCollection<QueryColumn>> headers;
-        List<IReadOnlyCollection<object?[]>> results;
         try
         {
-            (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+            var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+
+            return Ok(new
+            {
+                Headers = headers,
+                Results = results,
+            });
+        }
+        catch (PostgresException ex)
+        {
+            Log.SuppressedWarn<QueryController>(ex);
+            ModelState.AddModelError("", $"PostgreSQL error: {ex.MessageText} ({ex.SqlState})");
+            return ValidationProblem();
         }
         finally
         {
             await tx.RollbackAsync(cancellationToken);
         }
-
-        return Ok(new
-        {
-            Headers = headers,
-            Results = results,
-        });
     }
 
     /// <summary>
@@ -71,15 +75,24 @@ public class QueryController : ControllerBase
         using var con = await DB.OpenConnection(currentUser.Credential, input.Database, cancellationToken);
         using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-        var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
-
-        await tx.CommitAsync(cancellationToken);
-
-        return Ok(new
+        try
         {
-            Headers = headers,
-            Results = results,
-        });
+            var (headers, results) = await QueryAsync(con, tx, input, cancellationToken);
+
+            await tx.CommitAsync(cancellationToken);
+
+            return Ok(new
+            {
+                Headers = headers,
+                Results = results,
+            });
+        }
+        catch (PostgresException ex)
+        {
+            Log.SuppressedWarn<QueryController>(ex);
+            ModelState.AddModelError("", $"PostgreSQL error: {ex.MessageText} ({ex.SqlState})");
+            return ValidationProblem();
+        }
     }
 
     private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
