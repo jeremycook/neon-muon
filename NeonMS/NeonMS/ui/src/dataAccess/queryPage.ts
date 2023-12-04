@@ -6,8 +6,8 @@ import { QueryInput, QueryResult, previewBatch } from "./query";
 export function queryPage() {
 
     const data: QueryInput = {
-        server: 'Main',
-        database: 'family',
+        server: undefined,
+        database: '',
         actions: [
             {
                 columns: true,
@@ -21,7 +21,7 @@ export function queryPage() {
     const queryResults = val<undefined | QueryResult[]>(undefined);
 
     const view = div({ class: 'flex flex-down gap' },
-        h1('Login'),
+        h1('Ad-hoc Query'),
 
         ...when(errorMessage, () => div({ class: 'mb text-error' }, errorMessage.val)),
 
@@ -51,7 +51,7 @@ export function queryPage() {
             ),
             div({ class: 'flex gap' },
                 button({ type: 'submit' }, 'Preview'),
-                button({ type: 'button' }, 'Apply'),
+                button({ type: 'submit' }, 'Apply'),
             ),
 
         ),
@@ -80,6 +80,7 @@ async function onsubmit(
 
     var response = await previewBatch(queryInput);
     if (response.ok) {
+        errorMessage.pub('');
         queryResults.pub(response.result)
         return;
     }
