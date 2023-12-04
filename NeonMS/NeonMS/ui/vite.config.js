@@ -10,8 +10,8 @@ export default defineConfig({
         https: true,
         proxy: {
             '/api': {
-                target: 'http://127.0.0.1:5295',
-                // secure: false,
+                target: 'https://127.0.0.1:42236',
+                secure: false,
             }
         }
     }

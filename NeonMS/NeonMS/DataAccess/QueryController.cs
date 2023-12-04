@@ -187,53 +187,6 @@ public class QueryController(
 
         return batch;
     }
-
-    private static async Task<(List<IReadOnlyCollection<QueryColumn>>, List<IReadOnlyCollection<object?[]>>)>
-    QueryAsync(
-        NpgsqlBatch batch,
-        QueryInput input,
-        CancellationToken cancellationToken
-    )
-    {
-        var headers = new List<IReadOnlyCollection<QueryColumn>>();
-        var results = new List<IReadOnlyCollection<object?[]>>();
-
-        using var reader = await batch.ExecuteReaderAsync(cancellationToken);
-
-        foreach (var action in input.Actions)
-        {
-            if (action.Columns)
-            {
-                IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
-                var header = schema.Select(col => new QueryColumn(col)).ToArray();
-                headers.Add(header);
-            }
-            else
-            {
-                headers.Add(Array.Empty<QueryColumn>());
-            }
-
-            var list = new List<object?[]>();
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                object?[] record = new object?[reader.FieldCount];
-                reader.GetValues(record!);
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    if (record[i] == DBNull.Value)
-                    {
-                        record[i] = null;
-                    }
-                }
-                list.Add(record);
-            }
-            results.Add(list);
-
-            await reader.NextResultAsync(cancellationToken);
-        }
-
-        return (headers, results);
-    }
 }
 
 public class QueryResult
@@ -285,22 +238,14 @@ public class QueryInput
 
 public class QueryAction
 {
-    public QueryActionType Type { get; set; }
+    [Required] public required string Sql { get; set; }
     public bool Columns { get; set; } = false;
     public int? Page { get; set; }
     public int? Range { get; set; }
-    public string Sql { get; set; } = null!;
     public JsonElement[] Parameters { get; set; } = [];
 
     public bool IsSelect()
     {
         return Sql.TrimStart().StartsWith("SELECT ", StringComparison.OrdinalIgnoreCase);
     }
-}
-
-public enum QueryActionType
-{
-    List = 0,
-    Scalar = 1,
-    Execute = 2,
 }
