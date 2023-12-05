@@ -1,7 +1,7 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using System.Collections.Immutable;
 
-namespace NeonMS.Security;
+namespace NeonMuon.Security;
 
 public class Keys
 {

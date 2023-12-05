@@ -1,6 +1,6 @@
 using Npgsql;
 
-namespace NeonMS.DataAccess;
+namespace NeonMuon.DataAccess;
 
 public static class ConnectionHelpers
 {

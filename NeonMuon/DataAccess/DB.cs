@@ -1,8 +1,8 @@
 ﻿using LinqToDB;
-using NeonMS.Configuration;
+using NeonMuon.Configuration;
 using Npgsql;
 
-namespace NeonMS.DataAccess;
+namespace NeonMuon.DataAccess;
 
 [Singleton]
 public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentials)

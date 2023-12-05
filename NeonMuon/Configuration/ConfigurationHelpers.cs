@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace NeonMS.Configuration;
+namespace NeonMuon.Configuration;
 
 public static class ConfigurationHelpers
 {

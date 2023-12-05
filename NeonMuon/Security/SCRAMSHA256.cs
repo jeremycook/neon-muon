@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace NeonMS.Security;
+namespace NeonMuon.Security;
 
 public static class SCRAMSHA256
 {

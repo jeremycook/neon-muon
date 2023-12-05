@@ -1,4 +1,4 @@
-﻿namespace NeonMS.Utils;
+﻿namespace NeonMuon.Utils;
 
 public class ScopedLazy<T> where T : class
 {

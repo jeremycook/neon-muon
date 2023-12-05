@@ -10,7 +10,7 @@ public static class Log
     /// </summary>
     public static ILoggerFactory Factory
     {
-        get => _factory ?? throw new NullReferenceException("The Factory has not be set yet. The calling program should set it.");
+        get => _factory ?? throw new NullReferenceException("Th>e Factory has not be set yet. The calling program should set it.");
         set
         {
             if (_factory is null)

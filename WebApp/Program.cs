@@ -1,3 +1,3 @@
-using NeonMS.Tenancy;
+using NeonMuon.Tenancy;
 
 await MultiTenantHost.RunAsync<Program>(args);

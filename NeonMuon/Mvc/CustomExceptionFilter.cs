@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace NeonMS.Mvc;
+namespace NeonMuon.Mvc;
 
 public class CustomExceptionFilter : IActionFilter, IOrderedFilter
 {

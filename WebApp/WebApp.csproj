@@ -4,11 +4,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>NeonMS</UserSecretsId>
+    <UserSecretsId>NeonMuon</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NeonMS\NeonMS.csproj" />
+    <ProjectReference Include="..\NeonMuon\NeonMuon.csproj" />
   </ItemGroup>
 
 </Project>

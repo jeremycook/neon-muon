@@ -1,4 +1,4 @@
-namespace NeonMS.Mvc;
+namespace NeonMuon.Mvc;
 
 public static class MvcConstants
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
-namespace NeonMS.Authentication;
+namespace NeonMuon.Authentication;
 
 public class ApiAwareCookieAuthenticationEvents : CookieAuthenticationEvents
 {

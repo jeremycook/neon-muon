@@ -1,8 +1,8 @@
-using NeonMS.DataAccess;
-using NeonMS.Security;
+using NeonMuon.DataAccess;
+using NeonMuon.Security;
 using Npgsql;
 
-namespace NeonMS.Authentication;
+namespace NeonMuon.Authentication;
 
 internal class AuthHelpers
 {

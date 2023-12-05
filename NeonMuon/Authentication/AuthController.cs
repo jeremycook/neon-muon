@@ -1,15 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NeonMS.DataAccess;
-using NeonMS.Mvc;
-using NeonMS.Security;
+using NeonMuon.DataAccess;
+using NeonMuon.Mvc;
+using NeonMuon.Security;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace NeonMS.Authentication;
+namespace NeonMuon.Authentication;
 
 [ApiController]
 [Route(MvcConstants.StandardApiRoute)]

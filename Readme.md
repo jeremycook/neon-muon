@@ -1,10 +1,10 @@
-# Neon Management System (NeonMS)
+# Neon Management System (NeonMuon)
 
 # Development
 
 * Copy the contents of `appsettings.Example.json` into the user secrets file and tweak as needed.
-    * Linux: `~/.microsoft/usersecrets/NeonMS/secrets.json`
-    * Windows: `%APPDATA%\Microsoft\UserSecrets\NeonMS\secrets.json`
+    * Linux: `~/.microsoft/usersecrets/NeonMuon/secrets.json`
+    * Windows: `%APPDATA%\Microsoft\UserSecrets\NeonMuon\secrets.json`
 * Generate random base64 encoded secrets with OpenSSL.
     * 128 bits: `openssl rand -base64 16`
     * 256 bits: `openssl rand -base64 32`

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApp", "WebApp\WebApp.csproj", "{4F08C2C0-35B1-4253-A215-DCF51CD98AD1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeonMS", "NeonMS\NeonMS.csproj", "{8BA60424-871F-435D-98A1-CADA8CC56989}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeonMuon", "NeonMuon\NeonMuon.csproj", "{8BA60424-871F-435D-98A1-CADA8CC56989}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

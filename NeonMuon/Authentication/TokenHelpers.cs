@@ -1,8 +1,8 @@
 ﻿using Microsoft.IdentityModel.Tokens;
-using NeonMS.Security;
+using NeonMuon.Security;
 using System.IdentityModel.Tokens.Jwt;
 
-namespace NeonMS.Authentication;
+namespace NeonMuon.Authentication;
 
 public class TokenHelpers
 {

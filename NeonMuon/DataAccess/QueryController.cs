@@ -1,13 +1,13 @@
 ﻿using LinqToDB;
 using Microsoft.AspNetCore.Mvc;
-using NeonMS.Authentication;
-using NeonMS.Mvc;
+using NeonMuon.Authentication;
+using NeonMuon.Mvc;
 using Npgsql;
 using Npgsql.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
-namespace NeonMS.DataAccess.InformationSchema;
+namespace NeonMuon.DataAccess.InformationSchema;
 
 [ApiController]
 [Route(MvcConstants.StandardApiRoute)]

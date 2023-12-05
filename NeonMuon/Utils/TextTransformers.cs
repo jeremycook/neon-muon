@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace NeonMS.Utils;
+namespace NeonMuon.Utils;
 
 public static class TextTransformers
 {

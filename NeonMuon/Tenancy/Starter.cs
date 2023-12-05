@@ -5,14 +5,14 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
-using NeonMS.Authentication;
-using NeonMS.Configuration;
-using NeonMS.Mvc;
-using NeonMS.Utils;
+using NeonMuon.Authentication;
+using NeonMuon.Configuration;
+using NeonMuon.Mvc;
+using NeonMuon.Utils;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace NeonMS.Tenancy;
+namespace NeonMuon.Tenancy;
 
 public static class Starter
 {
@@ -125,7 +125,7 @@ public static class Starter
         app.MapControllers();
 
         app.Map("/api/{*ignore}", () => Results.NotFound());
-        app.MapFallbackToFile("/_content/NeonMS/index.html");
+        app.MapFallbackToFile("/_content/NeonMuon/index.html");
 
         await app.RunAsync(cancellationToken);
     }

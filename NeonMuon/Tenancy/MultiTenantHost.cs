@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace NeonMS.Tenancy;
+namespace NeonMuon.Tenancy;
 
 public static class MultiTenantHost
 {

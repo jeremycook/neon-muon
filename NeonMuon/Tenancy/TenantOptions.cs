@@ -1,4 +1,4 @@
-﻿namespace NeonMS.Tenancy;
+﻿namespace NeonMuon.Tenancy;
 
 public class TenantOptions
 {
