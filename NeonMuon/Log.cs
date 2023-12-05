@@ -1,4 +1,4 @@
-﻿namespace NeonMS;
+﻿namespace NeonMuon;
 
 public static class Log
 {
