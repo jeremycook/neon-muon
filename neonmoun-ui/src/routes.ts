@@ -1,4 +1,5 @@
 import { queryPage } from './dataAccess/queryPage';
+import { browsePage } from './files/browse';
 import { loginPage } from './login/login';
 import { logoutPage } from './login/logout';
 import { homePage } from './site/home';
@@ -9,6 +10,8 @@ export const routes: Record<string, ((params: any) => (Node | Promise<Node>))> =
 
     '/login': loginPage,
     '/logout': logoutPage,
+
+    '/browse': browsePage,
 
     '/query': queryPage,
 }

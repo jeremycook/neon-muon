@@ -127,7 +127,7 @@ public class QueryController(
                     cmd.Parameters.Add(new() { Value = parameter });
                 }
 
-                using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
                 if (action.Columns)
                 {
@@ -140,24 +140,7 @@ public class QueryController(
                     headers.Add(Array.Empty<QueryColumn>());
                 }
 
-                var list = new List<object?[]>();
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    object?[] record = new object?[reader.FieldCount];
-                    reader.GetValues(record!);
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        if (record[i] == DBNull.Value)
-                        {
-                            record[i] = null;
-                        }
-                        else if (record[i] is string text && reader.GetDataTypeName(i) == "json")
-                        {
-                            record[i] = JsonDocument.Parse(text);
-                        }
-                    }
-                    list.Add(record);
-                }
+                var list = await reader.ListAsync(cancellationToken);
                 results.Add(list);
             }
             else

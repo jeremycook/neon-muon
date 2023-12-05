@@ -14,7 +14,7 @@ public class CurrentUser(ClaimsPrincipal principal)
         {
             if (claim.Type.StartsWith("dc:"))
             {
-                yield return Credential(claim.Type);
+                yield return Credential(claim.Type["dc:".Length..]);
             }
         }
     }
@@ -34,6 +34,7 @@ public class CurrentUser(ClaimsPrincipal principal)
             Username = "unknown",
             Password = "unknown",
             Role = "",
+            NotAfter = DateTime.UtcNow.AddHours(-1),
         };
     }
 }

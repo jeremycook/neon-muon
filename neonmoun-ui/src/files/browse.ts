@@ -5,7 +5,7 @@ import { fileApp, folderApp, refreshRoot, root, textApp } from './files';
 
 const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node | Promise<undefined | Node>)))[] = [
     ({ path }: { path?: string; }) => !path && folderApp,
-    ({ path }: { path: string; }) => path.endsWith('.db') && databaseApp,
+    ({ path }: { path: string; }) => !path.includes('/') && databaseApp,
     ({ path }: { path: string; }) => path.includes('.db/') && tableApp,
     ({ path }: { path: string; }) => /\.(md)$/i.test(path) && textApp,
 ];

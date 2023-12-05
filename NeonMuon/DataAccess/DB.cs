@@ -125,6 +125,8 @@ public class DataServer
     public required string Host { get => _Host ?? throw new NullReferenceException("The Host has not been set."); set => _Host = value; }
     public int Port { get; set; } = 5432;
 
+    public required string MaintenanceDatabase { get; set; }
+
     public int CommandTimeout { get; set; } = 10;
     public int Timeout { get; set; } = 5;
     public int MaxAutoPrepare { get; set; } = 0;
