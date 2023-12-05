@@ -80,7 +80,13 @@ public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentia
     {
         if (!Servers.TryGetValue(credential.Server, out DataServer? server))
         {
-            Log.Warn(typeof(DB), "Invalid {DataServer}", credential.Server);
+            Log.Warn(typeof(DB), "DataCredential with invalid {DataServer}", credential.Server);
+            return false;
+        }
+
+        if (credential.NotAfter < DateTime.UtcNow)
+        {
+            Log.Warn<DB>("DataCredential expired {NotAfter}", credential.NotAfter);
             return false;
         }
 
@@ -133,12 +139,13 @@ public class DataServer
     }
 }
 
-public class DataCredential
+public record DataCredential
 {
     public required string Server { get; set; }
     public required string Username { get; set; }
     public required string Password { get; set; }
     public required string Role { get; set; }
+    public required DateTime NotAfter { get; set; }
 }
 
 [Settings]
@@ -146,7 +153,7 @@ public class MaintenanceCredentials : Dictionary<string, MaintenanceCredential>
 {
     public MaintenanceCredentials() : base(StringComparer.OrdinalIgnoreCase) { }
 }
-public class MaintenanceCredential : DataCredential
+public record MaintenanceCredential : DataCredential
 {
     public string? MaintenanceHost { get; set; }
     public required string MaintenanceDatabase { get; set; }

@@ -15,23 +15,23 @@ namespace NeonMuon.Authentication;
 [Route(MvcConstants.StandardApiRoute)]
 public class AuthController(DB DB, DataServers DataServers) : ControllerBase
 {
-    public class AuthInput
+    public class LoginInput
     {
         [Required] public string DataServer { get; set; } = string.Empty;
         [Required] public string Username { get; set; } = string.Empty;
-        [Required, MinLength(10)] public string Password { get; set; } = string.Empty;
+        [Required, MinLength(8)] public string Password { get; set; } = string.Empty;
     }
 
-    public class AuthOutput
+    public class LoginOutput
     {
         public required DateTime NotAfter { get; set; }
     }
 
     [AllowAnonymous]
     [HttpPost]
-    public async Task<ActionResult<AuthOutput>>
+    public async Task<ActionResult<LoginOutput>>
     Login(
-        AuthInput input,
+        LoginInput input,
         CancellationToken cancellationToken
     )
     {
@@ -52,6 +52,7 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             Username = input.Username!,
             Password = input.Password!,
             Role = string.Empty,
+            NotAfter = DateTime.UtcNow.AddMinutes(1),
         };
 
         bool validCredentials = await DB.IsValid(credential, cancellationToken);
@@ -70,6 +71,7 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             Username = $"{credential.Username}:{notAfter:yyyyMMddHHmmss}Z",
             Password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
             Role = credential.Username,
+            NotAfter = notAfter,
         };
         await AuthHelpers.CreateLogin(DB, temporaryCredential, notAfter, cancellationToken);
 
@@ -94,15 +96,20 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             AllowRefresh = true,
             ExpiresUtc = notAfter,
         });
-        return new AuthOutput()
+        return new LoginOutput()
         {
             NotAfter = notAfter,
         };
     }
 
+    public class RenewOutput
+    {
+        public required DateTime NotAfter { get; set; }
+    }
+
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<AuthOutput>>
+    public async Task<ActionResult<RenewOutput>>
     Renew(
         Keys keys,
         CurrentUser currentUser,
@@ -114,26 +121,27 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        DateTime maxNotAfter = DateTime.UtcNow;
+        DateTime maxNotAfter = DateTime.UtcNow.AddHours(-1);
         var temporaryCredentials = new List<DataCredential>();
         foreach (var credential in currentUser.Credentials())
         {
-            if (!DataServers.TryGetValue(credential.Server, out DataServer? dataServer))
+            if (!await DB.IsValid(credential, cancellationToken))
             {
-                ModelState.AddModelError("dataServer", "The Data Server is incorrect.");
                 continue;
             }
 
-            var tokenLifetimeHours = dataServer.TokenLifetimeHours;
+            var dataServer = DataServers[credential.Server];
+            var temporaryCredential = credential with
             {
-                var notAfter = DateTime.UtcNow.AddHours(tokenLifetimeHours);
-                if (notAfter > maxNotAfter)
-                    maxNotAfter = notAfter;
-            }
+                NotAfter = DateTime.UtcNow.AddHours(dataServer.TokenLifetimeHours),
+            };
+
+            if (temporaryCredential.NotAfter > maxNotAfter)
+                maxNotAfter = temporaryCredential.NotAfter;
 
             await AuthHelpers.RenewLogin(DB, credential, maxNotAfter, cancellationToken);
 
-            temporaryCredentials.Add(credential);
+            temporaryCredentials.Add(temporaryCredential);
         }
 
         var identity = new ClaimsIdentity(claims: [
@@ -150,7 +158,7 @@ public class AuthController(DB DB, DataServers DataServers) : ControllerBase
             AllowRefresh = true,
             ExpiresUtc = maxNotAfter,
         });
-        return new AuthOutput()
+        return new RenewOutput()
         {
             NotAfter = maxNotAfter,
         };

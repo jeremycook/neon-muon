@@ -107,6 +107,11 @@ public static class Log
         Warn(typeof(T), exception, message, args);
     }
 
+    public static void Warn<T>(string message, params object?[] args)
+    {
+        Warn(typeof(T), null, message, args);
+    }
+
     public static void Warn(Type type, string message, params object?[] args)
     {
         Warn(type, null, message, args);
