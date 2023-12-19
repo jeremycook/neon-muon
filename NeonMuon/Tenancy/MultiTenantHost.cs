@@ -39,7 +39,7 @@ public static class MultiTenantHost
         // Tenant post configuration
         foreach (var tenant in tenantsOptions)
         {
-            if (tenant.Urls.Length == 0)
+            if (tenant.Urls is null || tenant.Urls.Length == 0)
                 throw new InvalidOperationException($"The {tenant.Id} tenant does not bind to any URLs. It must bind to at least one URL.");
 
             if (string.IsNullOrWhiteSpace(tenant.Id))
