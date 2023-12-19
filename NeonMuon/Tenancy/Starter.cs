@@ -45,6 +45,13 @@ public static class Starter
 
         // TODO? builder.Services.AddScoped(typeof(ScopedLazy<>));
 
+        // OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
+        }
+
         // Database
         {
             builder.BuildFromTypes(typeof(Starter).Assembly.ExportedTypes);
@@ -116,6 +123,8 @@ public static class Starter
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
+            app.UseSwagger();
+            app.UseSwaggerUI();
         }
 
         app.UseAuthentication();
