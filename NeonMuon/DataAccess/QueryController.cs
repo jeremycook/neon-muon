@@ -44,17 +44,12 @@ public class QueryController(
             using var con = await DB.OpenConnection(CurrentUser.Credential(input.Server), input.Database, cancellationToken);
             using var tx = await con.BeginTransactionAsync(cancellationToken);
 
-            try
-            {
-                var batchQueryResult = await QueryAsync(con, tx, input, cancellationToken);
+            var batchQueryResult = await QueryAsync(con, tx, input, cancellationToken);
 
-                return Ok(batchQueryResult);
-            }
-            finally
-            {
-                // Never persist any changes
-                await tx.RollbackAsync(cancellationToken);
-            }
+            // Never persist any changes
+            await tx.RollbackAsync(cancellationToken);
+
+            return Ok(batchQueryResult);
         }
         catch (PostgresException ex)
         {
