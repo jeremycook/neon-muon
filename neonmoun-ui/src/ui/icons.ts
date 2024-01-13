@@ -1,5 +1,5 @@
 import { addMountEventListener } from '../utils/etc';
-import { SubT } from '../utils/pubSub';
+import { SubValue } from '../utils/pubSub';
 import { svg } from '../utils/svg';
 
 const iconLookup = {
@@ -32,7 +32,7 @@ const fallbackDim = 16;
 const initialViewbox = '0 0 16 16';
 
 /** Find more at: https://icon-sets.iconify.design/fluent/ */
-export function icon(type: IconType | SubT<IconType>) {
+export function icon(type: IconType | SubValue<IconType>) {
     const element = svg({ 'viewBox': initialViewbox, 'aria-hidden': '', class: 'icon' });
 
     if (typeof type === 'string') {

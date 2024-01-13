@@ -8,7 +8,7 @@ export function val<TValue>(value: TValue) {
     return new Val(value);
 }
 
-export function computed<TValue>(sub: Sub, computation: () => TValue): SubT<TValue> {
+export function computed<TValue>(sub: Sub, computation: () => TValue): SubValue<TValue> {
     const comp = new Val<TValue>(computation());
     sub.sub(comp, () => {
         comp.value = computation();
@@ -17,7 +17,7 @@ export function computed<TValue>(sub: Sub, computation: () => TValue): SubT<TVal
 }
 
 export function observe(...subs: Sub[]): Sub {
-    const observer = val(null);
+    const observer = sig();
     const subscription = () => observer.pub();
     for (const sub of subs) {
         sub.sub(observer, subscription);
@@ -33,7 +33,7 @@ export interface Sub {
     sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)): void;
 }
 
-export interface SubT<TValue> extends Sub {
+export interface SubValue<TValue> extends Sub {
     get value(): TValue;
 }
 
@@ -51,7 +51,7 @@ export class Sig implements Pub, Sub {
     }
 }
 
-export class Val<TValue = unknown> extends Sig implements SubT<TValue> {
+export class Val<TValue = unknown> extends Sig implements SubValue<TValue> {
     constructor(private _value: TValue) {
         super();
     }

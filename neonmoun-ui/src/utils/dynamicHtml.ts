@@ -1,11 +1,11 @@
 import { Segment, addMountEventListener, createFragment, createSegment, mutateSegment } from './etc';
-import { Sub, SubT } from './pubSub';
+import { Sub, SubValue } from './pubSub';
 
 type DynamicNode =
     (string | Node | (string | Node)[])
     | Promise<string | Node | (string | Node)[]>;
 
-export function dynamic(value: SubT<string | Node>): Segment;
+export function dynamic(value: SubValue<string | Node>): Segment;
 export function dynamic(sub: Sub, renderer: () => DynamicNode): Segment;
 export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
 
@@ -13,9 +13,9 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
     const end = segment[1] as HTMLTemplateElement;
 
     if (typeof renderer === 'undefined') {
-        if ((arg0 as SubT<string | Node>)?.value) {
+        if ((arg0 as SubValue<string | Node>)?.value) {
             // Assuming .val is valid
-            renderer = () => (arg0 as SubT<string | Node>).value;
+            renderer = () => (arg0 as SubValue<string | Node>).value;
         }
         else {
             throw new Error('A renderer was not provided and could not be inferred.');
@@ -65,7 +65,7 @@ export function lazy(renderer: Promise<Node | Node[]> | (() => Promise<Node | No
     return segment;
 }
 
-export function when(condition: SubT<any>,
+export function when(condition: SubValue<any>,
     truthyRenderer: () => (string | Node | Promise<string | Node>),
     elseRenderer?: () => (string | Node | Promise<string | Node>)): Segment {
     return dynamic(condition, async () => {
