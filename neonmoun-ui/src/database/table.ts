@@ -2,7 +2,7 @@ import { FileNode, getParentPath } from '../files/files';
 import { ChangeValues, ColumnProp, DeleteRecords, InsertRecords, spreadsheet } from '../ui/spreadsheet';
 import { lazy, when } from '../utils/dynamicHtml';
 import { button, div, h1 } from '../utils/html';
-import { PubT, val } from '../utils/pubSub';
+import { Val, val } from '../utils/pubSub';
 import { Schema, Table, getDatabase } from './database';
 import { selectRecords } from './records';
 
@@ -44,22 +44,22 @@ async function renderSpreadsheet(
     databasePath: string,
     schema: Schema,
     tableInfo: Table,
-    hasChanges: PubT<boolean>
+    hasChanges: Val<boolean>
 ) {
     return spreadsheet({
         columns,
         records: await getRecords(databasePath, schema, tableInfo),
         onInsertRecords(ev) {
             changes.push(ev.detail);
-            hasChanges.pub(true);
+            hasChanges.val = true;
         },
         onChangeValues(ev) {
             changes.push(ev.detail);
-            hasChanges.pub(true);
+            hasChanges.val = true;
         },
         onDeleteRecords(ev) {
             changes.push(ev.detail);
-            hasChanges.pub(true);
+            hasChanges.val = true;
         }
     });
 }

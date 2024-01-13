@@ -2,7 +2,7 @@ import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
 import { ValueEvent, a, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
-import { PubT, val } from '../utils/pubSub';
+import { Val, val } from '../utils/pubSub';
 import { makeUrl, redirectLocal } from '../utils/url';
 import { guest, setCurrentLogin } from './loginInfo';
 
@@ -41,7 +41,7 @@ export function loginPage({ redirectUrl }: { redirectUrl?: string, requestElevat
 
 async function onsubmit(
     ev: SubmitEvent,
-    errorMessage: PubT<string>,
+    errorMessage: Val<string>,
     data: { username: string; password: string; dataServer: string },
     redirectUrl?: string
 ) {
@@ -60,6 +60,6 @@ async function onsubmit(
     }
     else {
         setCurrentLogin(guest, '');
-        errorMessage.pub(response.errorMessage ?? 'An error occured');
+        errorMessage.val = response.errorMessage || 'An error occured';
     }
 }

@@ -1,8 +1,8 @@
-import { PubSub, _subscribe, _dispatch } from './pubSub';
+import { Pub, SubT, _dispatch, _subscribe } from './pubSub';
 
 /** @deprecated Experimental */
 
-export function proxy<TValue extends object>(value: TValue): TValue & PubSub {
+export function proxy<TValue extends object>(value: TValue): Pub & SubT<TValue> {
 
     const _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
 

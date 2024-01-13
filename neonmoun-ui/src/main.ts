@@ -9,7 +9,7 @@ import { dynamic } from './utils/dynamicHtml.ts';
 import { dispatchMountEvent } from './utils/etc.ts';
 import { div, main } from './utils/html.ts';
 import { log } from './utils/log.ts';
-import { currentLocation } from './utils/routed.ts';
+import { locationChangeSignal } from './utils/routed.ts';
 
 const view = div({ class: 'site' },
     div({ class: 'site-desktop' },
@@ -20,9 +20,9 @@ const view = div({ class: 'site' },
 
             siteMenu(),
 
-            main({ class: 'site-main' }, ...dynamic(currentLocation, async () => {
+            main({ class: 'site-main' }, ...dynamic(locationChangeSignal, async () => {
 
-                const pageFactory = routes[currentLocation.val.pathname.toLowerCase()] ?? notFoundPage;
+                const pageFactory = routes[location.pathname.toLowerCase()] ?? notFoundPage;
                 const params = { location, ...Object.fromEntries(new URLSearchParams(location.search)) };
 
                 try {

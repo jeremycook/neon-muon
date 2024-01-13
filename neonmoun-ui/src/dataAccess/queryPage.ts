@@ -1,6 +1,6 @@
 import { when } from "../utils/dynamicHtml";
 import { ValueEvent, button, div, form, h1, hr, input, label, pre, textarea } from "../utils/html";
-import { PubT, val } from "../utils/pubSub";
+import { Val, val } from "../utils/pubSub";
 import { QueryInput, QueryResult, previewBatch } from "./query";
 
 export function queryPage() {
@@ -72,19 +72,19 @@ export function queryPage() {
 
 async function onsubmit(
     ev: SubmitEvent,
-    errorMessage: PubT<string>,
+    errorMessage: Val<string>,
     queryInput: Readonly<QueryInput>,
-    queryResults: PubT<undefined | QueryResult[]>,
+    queryResults: Val<undefined | QueryResult[]>,
 ) {
     ev.preventDefault();
 
     var response = await previewBatch(queryInput);
     if (response.ok) {
-        errorMessage.pub('');
-        queryResults.pub(response.result)
+        errorMessage.val = '';
+        queryResults.val = response.result;
         return;
     }
     else {
-        errorMessage.pub(response.errorMessage ?? 'An error occured');
+        errorMessage.val = response.errorMessage || 'An error occured';
     }
 }

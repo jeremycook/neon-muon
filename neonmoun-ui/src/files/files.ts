@@ -6,7 +6,7 @@ import { EventT } from '../utils/etc';
 import { a, button, div, h1, input, li, textarea, ul } from '../utils/html';
 import { jsonGet, jsonPost } from '../utils/http';
 import { parseJson } from '../utils/json';
-import { SubT, computed, val } from '../utils/pubSub';
+import { Val, computed, val } from '../utils/pubSub';
 import { makeUrl, redirect } from '../utils/url';
 
 export function folderApp({ fileNode }: { fileNode: FileNode; }) {
@@ -164,7 +164,7 @@ export async function textApp({ fileNode }: { fileNode: FileNode; }) {
                         const file = new File([text], fileNode.path, { type: "text/plain;charset=utf-8" });
                         const response = await uploadContent(file);
                         if (response.ok) {
-                            changed.pub(false);
+                            changed.val = false;
                         }
                         else {
                             alert(await response.text() || 'Unknown error.');
@@ -179,7 +179,7 @@ export async function textApp({ fileNode }: { fileNode: FileNode; }) {
         textarea({ class: 'flex-grow resize-0' }, {
             oninput(ev: EventT<HTMLTextAreaElement>) {
                 text = ev.currentTarget.value;
-                changed.pub(true);
+                changed.val = true;
             }
         },
             text
@@ -225,7 +225,7 @@ export class FileNode {
 
 // TODO? let _lastGetRootFromServer = 0;
 const _root = val(_getRootFromStorage());
-export const root: SubT<FileNode> = _root;
+export const root: Readonly<Val<FileNode>> = _root;
 
 refreshRoot();
 
@@ -235,7 +235,7 @@ computed(currentLogin, () => refreshRoot());
 /** Last refresh in UNIX epoch ms. */
 export async function refreshRoot() {
     const fileNode = await _getRootFromServer();
-    await _root.pub(fileNode);
+    _root.val = fileNode;
     sessionStorage.setItem(_rootStorageKey(), JSON.stringify(fileNode));
 };
 

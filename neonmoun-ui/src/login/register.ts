@@ -42,7 +42,7 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
             return;
         }
         else {
-            errorMessage.pub(response.errorMessage ?? 'An error occurred.');
+            errorMessage.val = response.errorMessage || 'An error occurred.';
         }
     }
 

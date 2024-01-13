@@ -3,7 +3,7 @@ import { modalConfirm } from '../ui/modals';
 import { dynamic } from '../utils/dynamicHtml';
 import { EventT } from '../utils/etc';
 import { button, div, h2, input, label, table, tbody, td, textarea, th, thead, tr } from '../utils/html';
-import { PubT, val } from '../utils/pubSub';
+import { Val, val } from '../utils/pubSub';
 import { Unreachable } from '../utils/exceptions';
 import { Column, Schema, StoreType, Table, TableIndexType } from './database';
 import { Primitive } from '../utils/types';
@@ -49,13 +49,13 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                     const response = await insertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
                     if (response.result) {
                         // Insert the returned records
-                        rows.pub([
+                        rows.val = [
                             ...response.result.map(record => ({
                                 selected: val(true),
                                 record
                             })),
                             ...rows.val,
-                        ]);
+                        ];
                     }
                     else {
                         alert(response.errorMessage || 'Something went wrong.');
@@ -83,7 +83,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                     const response = await deleteRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(column => column.name), selectedRecords);
                     if (response.ok) {
                         // Remove the deleted records
-                        rows.pub(rows.val.filter(row => !selectedRecords.includes(row.record)));
+                        rows.val = rows.val.filter(row => !selectedRecords.includes(row.record));
                     }
                     else {
                         alert(response.errorMessage || 'Something went wrong.');
@@ -101,7 +101,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                         input({ type: 'checkbox' }, {
                             onchange(ev: EventT<HTMLInputElement>) {
                                 for (const row of rows.val) {
-                                    row.selected.pub(ev.currentTarget.checked);
+                                    row.selected.val = ev.currentTarget.checked;
                                 }
                             }
                         })
@@ -121,7 +121,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                             });
                         },
                         onchange(ev: EventT<HTMLInputElement>) {
-                            selected.pub(ev.currentTarget.checked);
+                            selected.val = ev.currentTarget.checked;
                         }
                     })
                 ),
@@ -139,10 +139,10 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                         if (typeof newValue !== 'undefined') {
                             const response = await updateRecords(databasePath, schema.name, tableInfo, pkColumns, i, record, newValue);
                             if (response.ok) {
-                                value.pub(newValue);
+                                value.val = newValue;
                             }
                             else {
-                                alert(response.errorMessage ?? 'Something went wrong.');
+                                alert(response.errorMessage || 'Something went wrong.');
                             }
                         }
 
@@ -269,7 +269,7 @@ export function createNewRecord(columns: Column[]) {
         .map(column => stringToStoreType('', column.storeType, column.isNullable));
 }
 
-export function valueEditor(column: Column, value: PubT<Primitive | null>) {
+export function valueEditor(column: Column, value: Val<Primitive | null>) {
     switch (column.storeType) {
         case StoreType.Blob:
             throw new Error('Not implemented: ' + column.storeType);
@@ -277,7 +277,7 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
         case StoreType.General:
         case StoreType.Text:
             return textarea({ class: 'value-editor-' + column.storeType }, {
-                onchange(ev: EventT<HTMLTextAreaElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+                onchange(ev: EventT<HTMLTextAreaElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             },
                 storeTypeToString(value.val, column.storeType)
             );
@@ -288,7 +288,7 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
                     input({ type: 'radio' }, {
                         value: 'true',
                         checked: value.val === true,
-                        onchange() { value.pub(true); }
+                        onchange() { value.val = true; }
                     }),
                     'Yes'
                 ),
@@ -296,7 +296,7 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
                     input({ type: 'radio' }, {
                         value: 'false',
                         checked: value.val !== true,
-                        onchange() { value.pub(false); }
+                        onchange() { value.val = false; }
                     }),
                     'No'
                 )
@@ -307,7 +307,7 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
         case StoreType.Real:
             return input({ class: 'value-editor-' + column.storeType }, {
                 value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         case StoreType.Date:
@@ -315,13 +315,13 @@ export function valueEditor(column: Column, value: PubT<Primitive | null>) {
         case StoreType.Timestamp:
             return input({ class: 'value-editor-' + column.storeType }, {
                 value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         case StoreType.Uuid:
             return input({ class: 'value-editor-' + column.storeType }, {
                 value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.pub(stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable)); }
+                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         default:

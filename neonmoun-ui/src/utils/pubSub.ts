@@ -8,13 +8,15 @@ export function val<TValue>(value: TValue) {
     return new Val(value);
 }
 
-export function computed<TInput, TValue>(value: PubSubT<TInput>, computation: () => TValue) {
+export function computed<TValue>(sub: Sub, computation: () => TValue): SubT<TValue> {
     const comp = new Val<TValue>(computation());
-    value.sub(comp, () => comp.pub(computation()));
+    sub.sub(comp, () => {
+        comp.val = computation();
+    });
     return comp;
 }
 
-export function observe(...subs: Sub[]): PubSub {
+export function observe(...subs: Sub[]): Sub {
     const observer = val(null);
     const subscription = () => observer.pub();
     for (const sub of subs) {
@@ -27,11 +29,6 @@ export interface Pub {
     pub(): Promise<void>;
 }
 
-export interface PubT<TValue> extends Pub {
-    pub(newValue?: TValue, options?: { force: boolean }): Promise<void>;
-    get val(): TValue;
-}
-
 export interface Sub {
     sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)): void;
 }
@@ -40,11 +37,7 @@ export interface SubT<TValue> extends Sub {
     get val(): TValue;
 }
 
-export interface PubSub extends Pub, Sub { }
-
-export interface PubSubT<TValue> extends PubT<TValue>, SubT<TValue> { }
-
-export class Signal implements PubSub {
+export class Signal implements Pub, Sub {
     private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
 
     constructor() { }
@@ -58,26 +51,18 @@ export class Signal implements PubSub {
     }
 }
 
-export class Val<TValue = unknown> implements PubSubT<TValue> {
-    private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
+export class Val<TValue = unknown> extends Signal implements SubT<TValue> {
+    constructor(private _val: TValue) {
+        super();
+    }
 
-    constructor(private _val: TValue) { }
-
-    public get val(): TValue {
+    get val() {
         return this._val;
     }
-
-    public sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
-        _subscribe(this._subscriptions, lifetimeOwner, subscription, 'val subscription');
-    }
-
-    public async pub(newValue?: TValue, options?: { force: boolean }) {
-        if (typeof newValue === 'undefined') {
-            await _dispatch(this._subscriptions);
-        }
-        else if (options?.force || newValue !== this._val) {
-            this._val = newValue;
-            await _dispatch(this._subscriptions);
+    set val(value: TValue) {
+        if (value !== this._val) {
+            this._val = value;
+            this.pub();
         }
     }
 }

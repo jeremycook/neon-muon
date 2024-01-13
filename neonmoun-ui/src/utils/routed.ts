@@ -1,8 +1,8 @@
+import { Sub, signal } from './pubSub.ts';
 import { isLocalUrl, redirect } from './url.ts';
-import { SubT, val } from './pubSub.ts';
 
-const _currentLocation = val(location);
-export const currentLocation: SubT<Location> = _currentLocation;
+const _locationSignal = signal();
+export const locationChangeSignal: Sub = _locationSignal;
 
 ((oldPushState, oldReplaceState) => { // Dispatch 'locationchange' events
     history.pushState = function pushState() {
@@ -25,7 +25,7 @@ export const currentLocation: SubT<Location> = _currentLocation;
 })(history.pushState, history.replaceState);
 
 window.addEventListener('locationchange', () => { // Publish locationchange events that effect the pathname
-    _currentLocation.pub(location, { force: true });
+    _locationSignal.pub();
 });
 
 document.addEventListener('click', e => { // Handle clicking local links

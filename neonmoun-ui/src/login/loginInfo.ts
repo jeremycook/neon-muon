@@ -1,5 +1,5 @@
 import { jsonPut, setBearerToken } from '../utils/http';
-import { PubSubT, computed, val } from '../utils/pubSub';
+import { Val, computed, val } from '../utils/pubSub';
 
 export type Login = {
     auth: boolean;
@@ -9,7 +9,7 @@ export type Login = {
 };
 
 export type CurrentLogin =
-    PubSubT<Readonly<Login>>
+    Val<Readonly<Login>>
 
 const currentLoginKey = 'currentLogin';
 const loginInfoUrl = '/api/auth/current';
@@ -27,10 +27,10 @@ export function setCurrentLogin(login: Readonly<Login>, token: string) {
     setBearerToken(token);
 
     if (login.auth === true) {
-        currentLogin.pub(Object.freeze(login));
+        currentLogin.val = Object.freeze(login);
     }
-    else if (currentLogin.val !== guest) {
-        currentLogin.pub(guest);
+    else {
+        currentLogin.val = guest;
     }
 
     sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
@@ -39,10 +39,10 @@ export function setCurrentLogin(login: Readonly<Login>, token: string) {
 export const refreshCurrentLogin = async () => {
     const response = await jsonPut<Login>(loginInfoUrl);
     if (response.result?.auth === true) {
-        currentLogin.pub(Object.freeze(response.result));
+        currentLogin.val = Object.freeze(response.result);
     }
-    else if (currentLogin.val !== guest) {
-        currentLogin.pub(guest);
+    else {
+        currentLogin.val = guest;
     }
 
     sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));

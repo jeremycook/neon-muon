@@ -125,7 +125,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
     const result = await getDatabase(path);
     if (result) {
-        database.pub(result);
+        database.val = result;
     }
 
     return view;

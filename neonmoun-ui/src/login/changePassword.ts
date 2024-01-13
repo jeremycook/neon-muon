@@ -2,7 +2,7 @@ import { siteCard } from '../site/siteCard';
 import { when } from '../utils/dynamicHtml';
 import { ValueEvent, button, div, form, h1, input, label, p } from '../utils/html';
 import { jsonPost } from '../utils/http';
-import { PubT, val } from '../utils/pubSub';
+import { Val, val } from '../utils/pubSub';
 import { redirectLocal } from '../utils/url';
 import { refreshCurrentLogin } from './loginInfo';
 
@@ -43,7 +43,7 @@ export function changePasswordPage({ redirectUrl }: { redirectUrl?: string }) {
 
 async function onsubmit(
     ev: SubmitEvent,
-    errorMessage: PubT<string>,
+    errorMessage: Val<string>,
     data: { username: string, password: string },
     redirectUrl?: string
 ) {
@@ -56,6 +56,6 @@ async function onsubmit(
         return;
     }
     else {
-        errorMessage.pub(response.errorMessage || 'An error occured.');
+        errorMessage.val = response.errorMessage || 'An error occured.';
     }
 }
