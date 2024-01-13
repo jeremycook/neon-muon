@@ -11,12 +11,12 @@ const appMatchers: ((props: any) => (false | ((props: any) => undefined | Node |
 ];
 
 export async function browsePage(props: { path: string; }) {
-    let fileNode = root.val.get(props.path ?? '');
+    let fileNode = root.value.get(props.path ?? '');
 
     if (!fileNode) {
         // Make sure the tree is up-to-date
         await refreshRoot();
-        fileNode = root.val.get(props.path ?? '');
+        fileNode = root.value.get(props.path ?? '');
     }
 
     const appProps = { fileNode, path: props.path };

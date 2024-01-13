@@ -11,7 +11,7 @@ export function val<TValue>(value: TValue) {
 export function computed<TValue>(sub: Sub, computation: () => TValue): SubT<TValue> {
     const comp = new Val<TValue>(computation());
     sub.sub(comp, () => {
-        comp.val = computation();
+        comp.value = computation();
     });
     return comp;
 }
@@ -34,7 +34,7 @@ export interface Sub {
 }
 
 export interface SubT<TValue> extends Sub {
-    get val(): TValue;
+    get value(): TValue;
 }
 
 export class Signal implements Pub, Sub {
@@ -52,16 +52,16 @@ export class Signal implements Pub, Sub {
 }
 
 export class Val<TValue = unknown> extends Signal implements SubT<TValue> {
-    constructor(private _val: TValue) {
+    constructor(private _value: TValue) {
         super();
     }
 
-    get val() {
-        return this._val;
+    get value() {
+        return this._value;
     }
-    set val(value: TValue) {
-        if (value !== this._val) {
-            this._val = value;
+    set value(value: TValue) {
+        if (value !== this._value) {
+            this._value = value;
             this.pub();
         }
     }

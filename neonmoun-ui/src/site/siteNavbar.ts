@@ -4,8 +4,8 @@ import { dynamic } from '../utils/dynamicHtml';
 import { a, button, div, small, span } from '../utils/html';
 
 export function siteNavbar(login: CurrentLogin) {
-    return dynamic(login, () => login.val.auth
-        ? AuthenticatedNavbar(login.val)
+    return dynamic(login, () => login.value.auth
+        ? AuthenticatedNavbar(login.value)
         : AnonymousNavbar()
     )
 }

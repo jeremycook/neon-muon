@@ -18,7 +18,7 @@ export function changePasswordPage({ redirectUrl }: { redirectUrl?: string }) {
 
     const view = siteCard(
         h1('Change Password'),
-        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.val)),
+        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.value)),
         form({ async onsubmit(ev: SubmitEvent) { await onsubmit(ev, errorMessage, data, redirectUrl); } },
             label(
                 div('Username'),
@@ -56,6 +56,6 @@ async function onsubmit(
         return;
     }
     else {
-        errorMessage.val = response.errorMessage || 'An error occured.';
+        errorMessage.value = response.errorMessage || 'An error occured.';
     }
 }

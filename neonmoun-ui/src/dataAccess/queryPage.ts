@@ -23,7 +23,7 @@ export function queryPage() {
     const view = div({ class: 'flex flex-down gap' },
         h1('Ad-hoc Query'),
 
-        ...when(errorMessage, () => div({ class: 'mb text-error' }, errorMessage.val)),
+        ...when(errorMessage, () => div({ class: 'mb text-error' }, errorMessage.value)),
 
         form({
             class: 'flex flex-down gap',
@@ -61,7 +61,7 @@ export function queryPage() {
             hr(),
 
             pre(
-                JSON.stringify(queryResults.val, undefined, 4)
+                JSON.stringify(queryResults.value, undefined, 4)
             )
 
         ))
@@ -80,11 +80,11 @@ async function onsubmit(
 
     var response = await previewBatch(queryInput);
     if (response.ok) {
-        errorMessage.val = '';
-        queryResults.val = response.result;
+        errorMessage.value = '';
+        queryResults.value = response.result;
         return;
     }
     else {
-        errorMessage.val = response.errorMessage || 'An error occured';
+        errorMessage.value = response.errorMessage || 'An error occured';
     }
 }

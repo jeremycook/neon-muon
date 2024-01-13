@@ -16,7 +16,7 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
 
     const view = siteCard(
         h1('Register'),
-        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.val)),
+        ...when(errorMessage, () => p({ class: 'text-error' }, errorMessage.value)),
         form({ onsubmit },
             div(
                 label({ for: 'username' }, 'Username'),
@@ -42,7 +42,7 @@ export function registerPage({ username, redirectUrl }: { username?: string, red
             return;
         }
         else {
-            errorMessage.val = response.errorMessage || 'An error occurred.';
+            errorMessage.value = response.errorMessage || 'An error occurred.';
         }
     }
 

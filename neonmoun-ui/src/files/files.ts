@@ -164,7 +164,7 @@ export async function textApp({ fileNode }: { fileNode: FileNode; }) {
                         const file = new File([text], fileNode.path, { type: "text/plain;charset=utf-8" });
                         const response = await uploadContent(file);
                         if (response.ok) {
-                            changed.val = false;
+                            changed.value = false;
                         }
                         else {
                             alert(await response.text() || 'Unknown error.');
@@ -179,7 +179,7 @@ export async function textApp({ fileNode }: { fileNode: FileNode; }) {
         textarea({ class: 'flex-grow resize-0' }, {
             oninput(ev: EventT<HTMLTextAreaElement>) {
                 text = ev.currentTarget.value;
-                changed.val = true;
+                changed.value = true;
             }
         },
             text
@@ -188,7 +188,7 @@ export async function textApp({ fileNode }: { fileNode: FileNode; }) {
 }
 
 function _rootStorageKey() {
-    return 'root:' + currentLogin.val.sub;
+    return 'root:' + currentLogin.value.sub;
 };
 
 export class FileNode {
@@ -235,7 +235,7 @@ computed(currentLogin, () => refreshRoot());
 /** Last refresh in UNIX epoch ms. */
 export async function refreshRoot() {
     const fileNode = await _getRootFromServer();
-    _root.val = fileNode;
+    _root.value = fileNode;
     sessionStorage.setItem(_rootStorageKey(), JSON.stringify(fileNode));
 };
 

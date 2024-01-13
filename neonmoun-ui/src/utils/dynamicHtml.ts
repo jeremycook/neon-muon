@@ -13,9 +13,9 @@ export function dynamic(arg0: Sub, renderer?: () => DynamicNode): Segment {
     const end = segment[1] as HTMLTemplateElement;
 
     if (typeof renderer === 'undefined') {
-        if ((arg0 as SubT<string | Node>)?.val) {
+        if ((arg0 as SubT<string | Node>)?.value) {
             // Assuming .val is valid
-            renderer = () => (arg0 as SubT<string | Node>).val;
+            renderer = () => (arg0 as SubT<string | Node>).value;
         }
         else {
             throw new Error('A renderer was not provided and could not be inferred.');
@@ -69,7 +69,7 @@ export function when(condition: SubT<any>,
     truthyRenderer: () => (string | Node | Promise<string | Node>),
     elseRenderer?: () => (string | Node | Promise<string | Node>)): Segment {
     return dynamic(condition, async () => {
-        if (condition.val) {
+        if (condition.value) {
             return await truthyRenderer();
         }
         else if (elseRenderer) {

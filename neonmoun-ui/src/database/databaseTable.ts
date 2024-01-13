@@ -46,15 +46,15 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                         return;
                     }
 
-                    const response = await insertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.val)]);
+                    const response = await insertRecords(databasePath, schema.name, tableInfo.name, newRecordColumns.map(x => x.name), tableInfo.columns.map(column => column.name), [newRecord.map(x => x.value)]);
                     if (response.result) {
                         // Insert the returned records
-                        rows.val = [
+                        rows.value = [
                             ...response.result.map(record => ({
                                 selected: val(true),
                                 record
                             })),
-                            ...rows.val,
+                            ...rows.value,
                         ];
                     }
                     else {
@@ -66,8 +66,8 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
             ),
             button({ class: 'button' }, {
                 async onclick() {
-                    const selectedRecords = rows.val
-                        .filter(row => row.selected.val)
+                    const selectedRecords = rows.value
+                        .filter(row => row.selected.value)
                         .map(row => row.record);
 
                     if (selectedRecords.length === 0) {
@@ -83,7 +83,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                     const response = await deleteRecords(databasePath, schema.name, tableInfo.name, tableInfo.columns.map(column => column.name), selectedRecords);
                     if (response.ok) {
                         // Remove the deleted records
-                        rows.val = rows.val.filter(row => !selectedRecords.includes(row.record));
+                        rows.value = rows.value.filter(row => !selectedRecords.includes(row.record));
                     }
                     else {
                         alert(response.errorMessage || 'Something went wrong.');
@@ -100,8 +100,8 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                     th(
                         input({ type: 'checkbox' }, {
                             onchange(ev: EventT<HTMLInputElement>) {
-                                for (const row of rows.val) {
-                                    row.selected.val = ev.currentTarget.checked;
+                                for (const row of rows.value) {
+                                    row.selected.value = ev.currentTarget.checked;
                                 }
                             }
                         })
@@ -110,18 +110,18 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                     )
                 )
             ),
-            tbody(dynamic(rows, () => rows.val.map(({ selected, record }) => tr(
+            tbody(dynamic(rows, () => rows.value.map(({ selected, record }) => tr(
                 td(
                     input({ type: 'checkbox' }, {
-                        checked: selected.val,
+                        checked: selected.value,
                         onmount(ev: EventT<HTMLInputElement>) {
                             const currentTarget = ev.currentTarget;
                             selected.sub(currentTarget, () => {
-                                currentTarget.checked = selected.val;
+                                currentTarget.checked = selected.value;
                             });
                         },
                         onchange(ev: EventT<HTMLInputElement>) {
-                            selected.val = ev.currentTarget.checked;
+                            selected.value = ev.currentTarget.checked;
                         }
                     })
                 ),
@@ -130,7 +130,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
 
                     value.sub(record, async () => {
                         // Update state
-                        record[i] = value.val;
+                        record[i] = value.value;
                     });
 
                     async function editValue(ev: Event): Promise<void> {
@@ -139,7 +139,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                         if (typeof newValue !== 'undefined') {
                             const response = await updateRecords(databasePath, schema.name, tableInfo, pkColumns, i, record, newValue);
                             if (response.ok) {
-                                value.val = newValue;
+                                value.value = newValue;
                             }
                             else {
                                 alert(response.errorMessage || 'Something went wrong.');
@@ -161,7 +161,7 @@ export async function databaseTable(tableInfo: Table, schema: Schema, databasePa
                                 }
                             }
                         },
-                        dynamic(value, () => storeTypeToString(value.val, tableInfo.columns[i].storeType))
+                        dynamic(value, () => storeTypeToString(value.value, tableInfo.columns[i].storeType))
                     );
                 })
             )
@@ -179,7 +179,7 @@ export async function modalCell<TValue extends Primitive | null>(column: Column,
         valueEditor(column, newValue),
     );
 
-    return confirmed ? newValue.val : undefined;
+    return confirmed ? newValue.value : undefined;
 }
 
 export function storeTypeToString(value: Primitive | null, storeType: StoreType): string {
@@ -277,9 +277,9 @@ export function valueEditor(column: Column, value: Val<Primitive | null>) {
         case StoreType.General:
         case StoreType.Text:
             return textarea({ class: 'value-editor-' + column.storeType }, {
-                onchange(ev: EventT<HTMLTextAreaElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
+                onchange(ev: EventT<HTMLTextAreaElement>) { value.value = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             },
-                storeTypeToString(value.val, column.storeType)
+                storeTypeToString(value.value, column.storeType)
             );
 
         case StoreType.Boolean:
@@ -287,16 +287,16 @@ export function valueEditor(column: Column, value: Val<Primitive | null>) {
                 label(
                     input({ type: 'radio' }, {
                         value: 'true',
-                        checked: value.val === true,
-                        onchange() { value.val = true; }
+                        checked: value.value === true,
+                        onchange() { value.value = true; }
                     }),
                     'Yes'
                 ),
                 label(
                     input({ type: 'radio' }, {
                         value: 'false',
-                        checked: value.val !== true,
-                        onchange() { value.val = false; }
+                        checked: value.value !== true,
+                        onchange() { value.value = false; }
                     }),
                     'No'
                 )
@@ -306,22 +306,22 @@ export function valueEditor(column: Column, value: Val<Primitive | null>) {
         case StoreType.Numeric:
         case StoreType.Real:
             return input({ class: 'value-editor-' + column.storeType }, {
-                value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
+                value: storeTypeToString(value.value, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.value = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         case StoreType.Date:
         case StoreType.Time:
         case StoreType.Timestamp:
             return input({ class: 'value-editor-' + column.storeType }, {
-                value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
+                value: storeTypeToString(value.value, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.value = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         case StoreType.Uuid:
             return input({ class: 'value-editor-' + column.storeType }, {
-                value: storeTypeToString(value.val, column.storeType),
-                onchange(ev: EventT<HTMLInputElement>) { value.val = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
+                value: storeTypeToString(value.value, column.storeType),
+                onchange(ev: EventT<HTMLInputElement>) { value.value = stringToStoreType(ev.currentTarget.value, column.storeType, column.isNullable); }
             });
 
         default:

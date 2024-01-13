@@ -51,15 +51,15 @@ async function renderSpreadsheet(
         records: await getRecords(databasePath, schema, tableInfo),
         onInsertRecords(ev) {
             changes.push(ev.detail);
-            hasChanges.val = true;
+            hasChanges.value = true;
         },
         onChangeValues(ev) {
             changes.push(ev.detail);
-            hasChanges.val = true;
+            hasChanges.value = true;
         },
         onDeleteRecords(ev) {
             changes.push(ev.detail);
-            hasChanges.val = true;
+            hasChanges.value = true;
         }
     });
 }

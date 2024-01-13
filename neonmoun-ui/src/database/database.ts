@@ -44,7 +44,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
             ),
         ),
 
-        dynamic(database, () => database.val.schemas.map(schema =>
+        dynamic(database, () => database.value.schemas.map(schema =>
             div({ class: 'card' }, {
                 ondragover(ev: DragEvent) { ev.preventDefault(); },
                 async ondrop(ev: DragEvent) {
@@ -71,7 +71,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
                     // }
                 }
             },
-                (database.val.schemas.length > 1 && h2(schema.name)),
+                (database.value.schemas.length > 1 && h2(schema.name)),
                 p(
                     button({ onclick: async () => await createTable(schema, database, path) },
                         icon("sparkle-regular"),
@@ -125,7 +125,7 @@ export async function databaseApp({ fileNode }: { fileNode: FileNode }) {
 
     const result = await getDatabase(path);
     if (result) {
-        database.val = result;
+        database.value = result;
     }
 
     return view;

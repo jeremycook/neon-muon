@@ -21,31 +21,31 @@ export const guest = Object.freeze({
 });
 
 export const currentLogin: CurrentLogin = val(getCurrentLoginFromSession());
-export const isAuthenticated = computed(currentLogin, () => currentLogin.val.auth);
+export const isAuthenticated = computed(currentLogin, () => currentLogin.value.auth);
 
 export function setCurrentLogin(login: Readonly<Login>, token: string) {
     setBearerToken(token);
 
     if (login.auth === true) {
-        currentLogin.val = Object.freeze(login);
+        currentLogin.value = Object.freeze(login);
     }
     else {
-        currentLogin.val = guest;
+        currentLogin.value = guest;
     }
 
-    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
+    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.value));
 }
 
 export const refreshCurrentLogin = async () => {
     const response = await jsonPut<Login>(loginInfoUrl);
     if (response.result?.auth === true) {
-        currentLogin.val = Object.freeze(response.result);
+        currentLogin.value = Object.freeze(response.result);
     }
     else {
-        currentLogin.val = guest;
+        currentLogin.value = guest;
     }
 
-    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.val));
+    sessionStorage.setItem(currentLoginKey, JSON.stringify(currentLogin.value));
 };
 // TODO? refreshCurrentLogin()
 

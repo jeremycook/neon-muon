@@ -46,7 +46,7 @@ export function icon(type: IconType | SubT<IconType>) {
     else {
         // Dynamic icon
         const subscription = async () => {
-            const module = await iconLookup[type.val]();
+            const module = await iconLookup[type.value]();
             const data = module.default;
             element.setAttribute('viewBox', `0 0 ${data.width ?? fallbackDim} ${data.height ?? fallbackDim}`);
             element.innerHTML = data.body; // The contents will be filled as soon as it is available.

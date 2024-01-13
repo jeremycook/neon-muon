@@ -29,7 +29,7 @@ export function siteMenu() {
             ul(
                 li(
                     a({ href: makeUrl('/browse', { path: '' }) }, 'Root'),
-                    ...dynamic(root, () => nestedListUI(root.val.children!, _fileNodeRender))
+                    ...dynamic(root, () => nestedListUI(root.value.children!, _fileNodeRender))
                 ),
             ),
         )
