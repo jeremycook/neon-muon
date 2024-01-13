@@ -1,7 +1,7 @@
-import { Sub, signal } from './pubSub.ts';
+import { Sub, sig } from './pubSub.ts';
 import { isLocalUrl, redirect } from './url.ts';
 
-const _locationSignal = signal();
+const _locationSignal = sig();
 export const locationChangeSignal: Sub = _locationSignal;
 
 ((oldPushState, oldReplaceState) => { // Dispatch 'locationchange' events

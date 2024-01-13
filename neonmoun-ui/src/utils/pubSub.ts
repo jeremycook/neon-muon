@@ -1,7 +1,7 @@
 const SignalSubscriptionDescription = 'Signal subscription';
 
-export function signal() {
-    return new Signal();
+export function sig() {
+    return new Sig();
 }
 
 export function val<TValue>(value: TValue) {
@@ -37,7 +37,7 @@ export interface SubT<TValue> extends Sub {
     get value(): TValue;
 }
 
-export class Signal implements Pub, Sub {
+export class Sig implements Pub, Sub {
     private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
 
     constructor() { }
@@ -51,7 +51,7 @@ export class Signal implements Pub, Sub {
     }
 }
 
-export class Val<TValue = unknown> extends Signal implements SubT<TValue> {
+export class Val<TValue = unknown> extends Sig implements SubT<TValue> {
     constructor(private _value: TValue) {
         super();
     }
