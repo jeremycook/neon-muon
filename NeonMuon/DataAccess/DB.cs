@@ -27,6 +27,22 @@ public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentia
         return connection;
     }
 
+    public (NpgsqlDataSource dataSource, string? role) DataSource(DataCredential credential, string database)
+    {
+        return DataSource(Servers[credential.Server], credential, database);
+    }
+
+    private static (NpgsqlDataSource dataSource, string? role) DataSource(DataServer server, DataCredential credential, string database)
+    {
+        var connectionString = GetConnectionStringBuilder(server, credential, database);
+
+        var connection = NpgsqlDataSource.Create(connectionString);
+        var role = !string.IsNullOrEmpty(credential.Role)
+            ? credential.Role
+            : connectionString.Username;
+        return (connection, role);
+    }
+
     public async Task<NpgsqlConnection> OpenConnection(DataCredential credential, string database, CancellationToken cancellationToken = default)
     {
         return await OpenConnection(Servers[credential.Server], credential, database, cancellationToken);
@@ -48,6 +64,32 @@ public class DB(DataServers Servers, MaintenanceCredentials MaintenanceCredentia
     public string GetConnectionString(DataCredential credential, string database)
     {
         return GetConnectionString(Servers[credential.Server], credential, database);
+    }
+
+    private static NpgsqlConnectionStringBuilder GetConnectionStringBuilder(DataServer server, DataCredential credential, string database)
+    {
+        // TODO: LRU cache
+
+        var maintenanceCredential = credential as MaintenanceCredential;
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = maintenanceCredential?.MaintenanceHost ?? server.Host,
+            Port = server.Port,
+
+            MaxAutoPrepare = server.MaxAutoPrepare,
+            IncludeErrorDetail = server.IncludeErrorDetail,
+            CommandTimeout = server.CommandTimeout,
+            Timeout = server.Timeout,
+            Timezone = server.Timezone,
+
+            Username = credential.Username,
+            Password = credential.Password,
+
+            Database = database,
+        };
+
+        return builder;
     }
 
     private static string GetConnectionString(DataServer server, DataCredential credential, string database)
