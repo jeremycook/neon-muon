@@ -1,3 +1,9 @@
+const SignalSubscriptionDescription = 'Signal subscription';
+
+export function signal() {
+    return new Signal();
+}
+
 export function val<TValue>(value: TValue) {
     return new Val(value);
 }
@@ -37,6 +43,20 @@ export interface SubT<TValue> extends Sub {
 export interface PubSub extends Pub, Sub { }
 
 export interface PubSubT<TValue> extends PubT<TValue>, SubT<TValue> { }
+
+export class Signal implements PubSub {
+    private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
+
+    constructor() { }
+
+    public sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
+        _subscribe(this._subscriptions, lifetimeOwner, subscription, SignalSubscriptionDescription);
+    }
+
+    public async pub(): Promise<void> {
+        await _dispatch(this._subscriptions);
+    }
+}
 
 export class Val<TValue = unknown> implements PubSubT<TValue> {
     private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
