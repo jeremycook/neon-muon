@@ -1,4 +1,4 @@
-const SignalSubscriptionDescription = 'Signal subscription';
+const SigSubscriptionDescription = 'Sig';
 
 export function sig() {
     return new Sig();
@@ -43,7 +43,7 @@ export class Sig implements Pub, Sub {
     constructor() { }
 
     public sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
-        _subscribe(this._subscriptions, lifetimeOwner, subscription, SignalSubscriptionDescription);
+        _subscribe(this._subscriptions, lifetimeOwner, subscription, SigSubscriptionDescription);
     }
 
     public async pub(): Promise<void> {
@@ -67,7 +67,11 @@ export class Val<TValue = unknown> extends Sig implements SubValue<TValue> {
     }
 }
 
-export function _subscribe(subscriptions: WeakRef<() => (void | Promise<void>)>[], lifetimeOwner: object, subscription: () => (void | Promise<void>), description: string) {
+export function _subscribe(
+    subscriptions: WeakRef<() => (void | Promise<void>)>[],
+    lifetimeOwner: object, subscription: () => (void | Promise<void>),
+    description: string
+) {
     const sym = Symbol(description);
     (lifetimeOwner as any)[sym] = subscription;
     subscriptions.push(new WeakRef(subscription));
