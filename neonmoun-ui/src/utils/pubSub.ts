@@ -26,11 +26,11 @@ export function observe(...subs: Sub[]): Sub {
 }
 
 export interface Pub {
-    pub(): Promise<void>;
+    pub(): void;
 }
 
 export interface Sub {
-    sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)): void;
+    sub(lifetimeOwner: object, subscription: () => void): void;
 }
 
 export interface SubValue<TValue> extends Sub {
@@ -38,16 +38,16 @@ export interface SubValue<TValue> extends Sub {
 }
 
 export class Sig implements Pub, Sub {
-    private _subscriptions: WeakRef<() => (void | Promise<void>)>[] = [];
+    private _subscriptions: WeakRef<() => void>[] = [];
 
     constructor() { }
 
-    public sub(lifetimeOwner: object, subscription: () => (void | Promise<void>)) {
+    public sub(lifetimeOwner: object, subscription: () => void) {
         _subscribe(this._subscriptions, lifetimeOwner, subscription, SigSubscriptionDescription);
     }
 
-    public async pub(): Promise<void> {
-        await _dispatch(this._subscriptions);
+    public pub(): void {
+        _dispatch(this._subscriptions);
     }
 }
 
@@ -67,9 +67,9 @@ export class Val<TValue = unknown> extends Sig implements SubValue<TValue> {
     }
 }
 
-export function _subscribe(
-    subscriptions: WeakRef<() => (void | Promise<void>)>[],
-    lifetimeOwner: object, subscription: () => (void | Promise<void>),
+function _subscribe(
+    subscriptions: WeakRef<() => void>[],
+    lifetimeOwner: object, subscription: () => void,
     description: string
 ) {
     const sym = Symbol(description);
@@ -77,7 +77,7 @@ export function _subscribe(
     subscriptions.push(new WeakRef(subscription));
 }
 
-export async function _dispatch(subscriptions: WeakRef<() => (void | Promise<void>)>[]) {
+async function _dispatch(subscriptions: WeakRef<() => void>[]) {
     const gone: number[] = [];
     let i = -1;
     for (const ref of subscriptions) {
@@ -85,7 +85,7 @@ export async function _dispatch(subscriptions: WeakRef<() => (void | Promise<voi
 
         const sub = ref.deref();
         if (sub) {
-            await sub();
+            sub();
         }
         else {
             gone.push(i);
