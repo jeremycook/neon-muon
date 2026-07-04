@@ -2,49 +2,49 @@
 
 ## Critical
 
-- [ ] `IS NULL` / `IS NOT NULL` — null comparisons generate `= NULL` instead of `IS NULL`
-- [ ] Chained `.Where()` fails — `.Where(A).Where(B)` throws
-- [ ] `Select` discards ORDER BY — `.OrderBy(x).Select(x)` loses ordering
-- [ ] Nullable materialization crash — `Convert.ChangeType(null, ...)` throws
-- [ ] `ExpressionNotSupportedException` precedence bug — mangled messages
-- [ ] `Constant` only handles primitives/strings — Guid, DateTime, etc. fail
-- [ ] Wrong aggregate return types — Count always long, Sum/Average always double
-- [ ] Input params hardcoded to `true`
+- [x] `IS NULL` / `IS NOT NULL` — null comparisons generate `= NULL` instead of `IS NULL`
+- [x] Chained `.Where()` fails — `.Where(A).Where(B)` throws
+- [x] `Select` discards ORDER BY — `.OrderBy(x).Select(x)` loses ordering
+- [x] Nullable materialization crash — `Convert.ChangeType(null, ...)` throws
+- [x] `ExpressionNotSupportedException` precedence bug — mangled messages
+- [x] `Constant` only handles primitives/strings — Guid, DateTime, etc. fail
+- [x] Wrong aggregate return types — Count always long, Sum/Average always double
+- [x] Input params hardcoded to `true`
 
 ## Missing LINQ Methods
 
-- [ ] `Distinct()`
-- [ ] `ThenBy()` / `ThenByDescending()`
+- [x] `Distinct()`
+- [x] `ThenBy()` / `ThenByDescending()`
 - [ ] `GroupBy()`
-- [ ] `FirstOrDefault()` / `Any()` / `Single()` / `Last()`
-- [ ] `Concat()` / `Union()` / `Intersect()` / `Except()`
+- [x] `FirstOrDefault()` / `Any()` / `Single()` / `Last()`
+- [x] `Concat()` / `Union()` / `Intersect()` / `Except()`
 - [ ] `ValueTuple.Create` in SELECT
-- [ ] Aggregate 1-argument forms
+- [x] Aggregate 1-argument forms
 
 ## Missing SQL Features
 
-- [ ] `CASE WHEN ... THEN ... END`
-- [ ] `IN (subquery)` / `IN (value_list)`
-- [ ] `COALESCE` / null-coalescing `??`
-- [ ] `CAST(expr AS type)`
-- [ ] `BETWEEN`
+- [x] `CASE WHEN ... THEN ... END`
+- [x] `IN (subquery)` / `IN (value_list)` (AST + composer only)
+- [x] `COALESCE` / null-coalescing `??`
+- [x] `CAST(expr AS type)` (AST + composer only)
+- [x] `BETWEEN` (AST + composer only)
 - [ ] `RETURNING` clause for DML
 - [ ] `INSERT ... ON CONFLICT` (upsert)
 - [ ] Modulo `%`, bitwise operators
 
 ## Test Coverage
 
-- [ ] NULL comparison tests
-- [ ] Sum/Average tests
+- [x] NULL comparison tests
+- [x] Sum/Average tests
 - [ ] Subquery tests
-- [ ] GroupJoin tests
-- [ ] SelectAnonymous tests
-- [ ] ThenBy tests
-- [ ] Arithmetic tests
-- [ ] Extract shared test helpers
+- [x] GroupJoin tests
+- [x] SelectAnonymous tests
+- [x] ThenBy tests
+- [x] Arithmetic tests
+- [x] Extract shared test helpers
 
 ## Cleanup
 
-- [ ] Make `SqliteComposer` static in `DbConnectionExtensions`
-- [ ] Extract duplicate materialization logic
+- [x] Make `SqliteComposer` static in `DbConnectionExtensions`
+- [x] Extract duplicate materialization logic
 - [ ] Remove dead `Sqlil` project code
