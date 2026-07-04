@@ -18,7 +18,7 @@
 - [x] `GroupBy()`
 - [x] `FirstOrDefault()` / `Any()` / `Single()` / `Last()`
 - [x] `Concat()` / `Union()` / `Intersect()` / `Except()`
-- [ ] `ValueTuple.Create` in SELECT
+- [x] `ValueTuple.Create` in SELECT
 - [x] Aggregate 1-argument forms
 
 ## Missing SQL Features
@@ -30,17 +30,19 @@
 - [x] `BETWEEN` (AST + composer only)
 - [ ] `RETURNING` clause for DML
 - [ ] `INSERT ... ON CONFLICT` (upsert)
-- [ ] Modulo `%`, bitwise operators
+- [x] Modulo `%`
+- [x] Bitwise operators (`&`, `|`, `~`, `<<`, `>>`)
+- [ ] Correlated subqueries (outer parameter in inner predicate)
 
 ## Test Coverage
 
 - [x] NULL comparison tests
 - [x] Sum/Average tests
-- [ ] Subquery tests
+- [x] Subquery tests (basic EXISTS, correlated subqueries documented as limitation)
 - [x] GroupJoin tests
 - [x] SelectAnonymous tests
 - [x] ThenBy tests
-- [x] Arithmetic tests
+- [x] Arithmetic tests (modulo, CASE WHEN)
 - [x] Extract shared test helpers
 
 ## Cleanup
