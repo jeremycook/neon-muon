@@ -21,43 +21,35 @@ public static class DbConnectionExtensions {
         };
     }
 
-    public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
-        var (cmd, sqlColumns) = dbConnection.CreateCommand(query);
+    private static object? ConvertValue(object? val, Type targetType) {
+        if (val == DBNull.Value || val == null) {
+            return null;
+        }
 
-        dbConnection.Open();
-        using var reader = cmd.ExecuteReader();
+        if (val is string text) {
+            if (targetType.IsAssignableTo(typeof(Guid?))) {
+                return Guid.Parse(text);
+            }
+            else if (targetType.IsAssignableTo(typeof(DateOnly?))) {
+                return DateOnly.Parse(text);
+            }
+            else if (targetType.IsAssignableTo(typeof(DateTime?))) {
+                var dt = DateTime.Parse(text);
+                return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            }
+        }
 
+        return Convert.ChangeType(val, targetType);
+    }
+
+    private static List<T> Materialize<T>(DbDataReader reader, StableList<SqlColumn> sqlColumns) {
         var records = new List<object?[]>();
         while (reader.Read()) {
-
             var values = new object?[sqlColumns.Count];
             reader.GetValues(values!);
 
             for (int i = 0; i < values.Length; i++) {
-                object? val = values[i];
-                var sqlOutput = sqlColumns[i];
-                if (val == DBNull.Value) {
-                    val = null;
-                }
-                else if (val is string text) {
-                    if (sqlOutput.Type.IsAssignableTo(typeof(Guid?))) {
-                        val = Guid.Parse(text);
-                    }
-                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateOnly?))) {
-                        val = DateOnly.Parse(text);
-                    }
-                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateTime?))) {
-                        var dt = DateTime.Parse(text);
-                        val = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                    }
-                    else {
-                        // No change needed
-                    }
-                }
-                else if (val != null) {
-                    val = Convert.ChangeType(val, sqlColumns[i].Type);
-                }
-                values[i] = val;
+                values[i] = ConvertValue(values[i], sqlColumns[i].Type);
             }
             records.Add(values);
         }
@@ -68,6 +60,14 @@ public static class DbConnectionExtensions {
         var items = new List<T>(records.Count);
         items.AddRange(records.Select(x => (T)ctor.Invoke(x)));
         return items;
+    }
+
+    public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
+        var (cmd, sqlColumns) = dbConnection.CreateCommand(query);
+
+        dbConnection.Open();
+        using var reader = cmd.ExecuteReader();
+        return Materialize<T>(reader, sqlColumns);
     }
 
     public static async Task<List<T>> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query, CancellationToken cancellationToken) {
@@ -88,35 +88,11 @@ public static class DbConnectionExtensions {
 
         var records = new List<object?[]>();
         while (await reader.ReadAsync(cancellationToken)) {
-
             var values = new object?[sqlColumns.Count];
             reader.GetValues(values!);
 
             for (int i = 0; i < values.Length; i++) {
-                object? val = values[i];
-                var sqlOutput = sqlColumns[i];
-                if (val == DBNull.Value) {
-                    val = null;
-                }
-                else if (val is string text) {
-                    if (sqlOutput.Type.IsAssignableTo(typeof(Guid?))) {
-                        val = Guid.Parse(text);
-                    }
-                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateOnly?))) {
-                        val = DateOnly.Parse(text);
-                    }
-                    else if (sqlOutput.Type.IsAssignableTo(typeof(DateTime?))) {
-                        var dt = DateTime.Parse(text);
-                        val = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                    }
-                    else {
-                        // No change needed
-                    }
-                }
-                else if (val != null) {
-                    val = Convert.ChangeType(val, sqlColumns[i].Type);
-                }
-                values[i] = val;
+                values[i] = ConvertValue(values[i], sqlColumns[i].Type);
             }
             records.Add(values);
         }
@@ -199,7 +175,6 @@ public static class DbConnectionExtensions {
             .Select(x => {
                 x.Param.ParameterName = "p" + parameterNumber++;
                 x.Param.Value = x.Constant.Value ?? DBNull.Value;
-                // TODO? Set DbType based on x.Constant.Type
                 return x.Param;
             })
             .ToArray());
@@ -209,7 +184,6 @@ public static class DbConnectionExtensions {
             .Select(x => {
                 x.Param.ParameterName = (x.Input.SuggestedName != string.Empty ? x.Input.SuggestedName : "p") + parameterNumber++;
                 x.Param.Value = true;
-                // TODO? Set DbType based on x.Input.Type
                 return x.Param;
             })
             .ToArray());
