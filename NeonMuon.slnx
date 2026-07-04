@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="NeonMuon/NeonMuon.csproj" />
+  <Project Path="Sqlil.Core/Sqlil.Core.csproj" />
+  <Project Path="Sqlil.Scratch/Sqlil.Scratch.csproj" />
+  <Project Path="Sqlil.Tests/Sqlil.Tests.csproj" />
+  <Project Path="Sqlil/Sqlil.csproj" />
+  <Project Path="WebApp/WebApp.csproj" />
+</Solution>

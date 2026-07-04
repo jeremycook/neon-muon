@@ -8,7 +8,7 @@ NeonMuon is a multi-tenant PostgreSQL database management tool. .NET 8 backend +
 
 ```bash
 # Backend (from repo root)
-dotnet build NeonMuon.sln
+dotnet build NeonMuon.slnx
 dotnet run --project WebApp        # starts all tenants
 
 # Frontend (from neonmoun-ui/)
