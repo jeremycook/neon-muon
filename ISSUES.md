@@ -32,13 +32,13 @@
 - [x] `INSERT ... ON CONFLICT` (upsert)
 - [x] Modulo `%`
 - [x] Bitwise operators (`&`, `|`, `~`, `<<`, `>>`)
-- [ ] Correlated subqueries (outer parameter in inner predicate)
+- [x] Correlated subqueries (outer parameter in inner predicate)
 
 ## Test Coverage
 
 - [x] NULL comparison tests
 - [x] Sum/Average tests
-- [x] Subquery tests (basic EXISTS, correlated subqueries documented as limitation)
+- [x] Subquery tests (basic EXISTS, correlated subqueries)
 - [x] GroupJoin tests
 - [x] SelectAnonymous tests
 - [x] ThenBy tests

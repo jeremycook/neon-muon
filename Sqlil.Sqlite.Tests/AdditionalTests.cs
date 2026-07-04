@@ -193,15 +193,32 @@ public class AdditionalTests {
 
     #region Subquery Tests
 
-    [Fact(Skip = "Correlated subqueries with outer parameter references are not yet supported")]
+    [Fact]
     public void WhereWithSubqueryAny_GeneratesExistsSql() {
-        // This test documents a known limitation:
-        // Correlated subqueries like .Where(u => table.Any(ur => ur.Id == u.Id))
-        // are not yet supported because the Any handler doesn't handle
-        // outer parameter references in the inner predicate.
         var stmt = TestHelpers.Translate(TestExpressions.WhereWithSubqueryAny());
         var sql = TestHelpers.Compose(stmt);
         Assert.Contains("EXISTS", sql);
+        Assert.Contains("UserRole", sql);
+        Assert.Contains("User", sql);
+        Assert.Contains("UserId", sql);
+    }
+
+    [Fact]
+    public void SelectWithSubqueryAny_GeneratesExistsInSelectList() {
+        var stmt = TestHelpers.Translate(TestExpressions.SelectWithSubquery());
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("EXISTS", sql);
+        Assert.Contains("UserRole", sql);
+        Assert.Contains("User", sql);
+        Assert.Contains("UserId", sql);
+    }
+
+    [Fact]
+    public void WhereWithSubqueryAny_CorrectSqlStructure() {
+        var stmt = TestHelpers.Translate(TestExpressions.WhereWithSubqueryAny());
+        var sql = TestHelpers.Compose(stmt);
+        // Should be: SELECT ... FROM "User" ... WHERE EXISTS (SELECT ... FROM "UserRole" WHERE ... = "User"."UserId")
+        Assert.Matches(@"(?s)SELECT.*FROM\s+""User""[\s""\w]*WHERE\s+EXISTS\s*\(\s*SELECT.*FROM\s+""UserRole""", sql);
     }
 
     #endregion

@@ -7,12 +7,14 @@ public partial class SelectStmtTranslator {
     public virtual object New(NewExpression expression, TranslationContext context) {
         var result = StableList.Create<ResultColumn>(
             expression.Arguments
-                .Select((arg, i) => ResultColumnExpr.Create(
-                    Expr: (Expr)Translate(arg, context),
-                    ColumnAlias: ColumnName.Create(expression.Members![i].Name, GetMemberType(expression.Members[i]))
-                // AnExpression.GetColumnName(arg)
-                // Identifier.Create(expression.Members![i].Name, expression.Members![i].Type)
-                ))
+                .Select((arg, i) => {
+                    var translated = Translate(arg, context);
+                    var expr = ExtractExpr(translated) ?? (Expr)translated;
+                    return ResultColumnExpr.Create(
+                        Expr: expr,
+                        ColumnAlias: ColumnName.Create(expression.Members![i].Name, GetMemberType(expression.Members[i]))
+                    );
+                })
                 .ToArray()
         );
         return result;

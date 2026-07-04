@@ -127,6 +127,30 @@ public partial class SelectStmtTranslator {
         };
     }
 
+    protected static ParameterExpression? FindOuterParameterExpression(Expression expression) {
+        return expression switch {
+            LambdaExpression lambda => lambda.Parameters[0],
+            MethodCallExpression call => FindOuterParameterExpression(call.Arguments[0]),
+            UnaryExpression unary => FindOuterParameterExpression(unary.Operand),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Extracts an Expr from various result types.
+    /// Handles: Expr directly, SelectStmt wrapping EXISTS(...), SelectCoreNormal wrapping EXISTS(...).
+    /// </summary>
+    protected static Expr? ExtractExpr(object result) {
+        return result switch {
+            Expr expr => expr,
+            SelectStmt { SelectCores.Count: 1 } selectStmt
+                when selectStmt.SelectCores[0] is SelectCoreNormal { ResultColumns.Count: 1 } core
+                && core.ResultColumns[0] is ResultColumnExpr { Expr: ExprExists existsExpr }
+                => existsExpr,
+            _ => null,
+        };
+    }
+
     protected static Expr StripTableQualifiers(Expr expr) {
         return expr switch {
             ExprColumn col => ExprColumn.Create(col.ColumnName),

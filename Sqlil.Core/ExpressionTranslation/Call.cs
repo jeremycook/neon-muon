@@ -103,8 +103,9 @@ public partial class SelectStmtTranslator {
             // IQueryable<TSource> Where<TSource>(this IQueryable<TSource> source, Expression<Func<TSource, bool>> predicate)
             var source = Translate(expression.Arguments[0], context);
             var predicate = Translate(expression.Arguments[1], context);
+            var expr = ExtractExpr(predicate);
 
-            if (predicate is Expr expr) {
+            if (expr is not null) {
 
                 if (source is TableOrSubquery tableOrSubquery) {
                     return SelectCoreNormal.Create(tableOrSubquery, Where: expr);
@@ -708,7 +709,28 @@ public partial class SelectStmtTranslator {
         }
         if (expression.Arguments.Count == 2) {
             var source = Translate(expression.Arguments[0], context);
-            var predicate = Translate(expression.Arguments[1], context);
+
+            // Build inner context with outer parameter scope for correlated subqueries
+            var innerLambda = UnwrapLambda(expression.Arguments[1]);
+            var innerParam = innerLambda?.Parameters[0];
+            var innerContext = context;
+
+            if (innerParam is not null && context.ParameterName is not null) {
+                var outerParam = FindOuterParameterExpression(expression.Arguments[0]);
+                if (outerParam is not null) {
+                    var outerParams = context.OuterParameters is not null
+                        ? new Dictionary<ParameterExpression, TableName>(context.OuterParameters)
+                        : new Dictionary<ParameterExpression, TableName>();
+                    outerParams[outerParam] = context.ParameterName;
+
+                    innerContext = new TranslationContext(
+                        ParameterName: GetTableName(innerParam),
+                        OuterParameters: outerParams
+                    );
+                }
+            }
+
+            var predicate = Translate(expression.Arguments[1], innerContext);
 
             if (predicate is Expr expr) {
                 // Apply predicate as WHERE then wrap in EXISTS
@@ -751,7 +773,28 @@ public partial class SelectStmtTranslator {
         }
         if (expression.Arguments.Count == 2) {
             var source = Translate(expression.Arguments[0], context);
-            var predicate = Translate(expression.Arguments[1], context);
+
+            // Build inner context with outer parameter scope for correlated subqueries
+            var innerLambda = UnwrapLambda(expression.Arguments[1]);
+            var innerParam = innerLambda?.Parameters[0];
+            var innerContext = context;
+
+            if (innerParam is not null && context.ParameterName is not null) {
+                var outerParam = FindOuterParameterExpression(expression.Arguments[0]);
+                if (outerParam is not null) {
+                    var outerParams = context.OuterParameters is not null
+                        ? new Dictionary<ParameterExpression, TableName>(context.OuterParameters)
+                        : new Dictionary<ParameterExpression, TableName>();
+                    outerParams[outerParam] = context.ParameterName;
+
+                    innerContext = new TranslationContext(
+                        ParameterName: GetTableName(innerParam),
+                        OuterParameters: outerParams
+                    );
+                }
+            }
+
+            var predicate = Translate(expression.Arguments[1], innerContext);
 
             if (predicate is Expr expr) {
                 if (source is TableOrSubquery tableOrSubquery) {
