@@ -104,6 +104,20 @@ public record class SelectCoreNormal(
             Having: null,
             Windows: StableList<(string, WindowDefn)>.Empty
         );
+
+    public static SelectCoreNormal Create(
+        StableList<ResultColumn>? ResultColumns = null
+    ) =>
+        new(
+            Distinct: false,
+            ResultColumns: ResultColumns ?? StableList.Create<ResultColumn>(ResultColumnAsterisk.Create()),
+            TableOrSubqueries: StableList<TableOrSubquery>.Empty,
+            JoinClause: null,
+            Where: null,
+            GroupBys: StableList<Expr>.Empty,
+            Having: null,
+            Windows: StableList<(string, WindowDefn)>.Empty
+        );
 }
 
 public record class SelectCoreValues(
@@ -311,6 +325,15 @@ public record class ExprIsNull(
 
     public static ExprIsNull Create(Expr Operand, bool IsNot = false)
         => new(Operand, IsNot);
+}
+
+public record class ExprExists(
+    SelectStmt SelectStmt
+) : Expr {
+    public Type Type => typeof(bool);
+
+    public static ExprExists Create(SelectStmt SelectStmt)
+        => new(SelectStmt);
 }
 
 public enum ExprFunctionName {

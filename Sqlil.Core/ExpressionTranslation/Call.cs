@@ -12,12 +12,20 @@ public partial class SelectStmtTranslator {
                 nameof(Queryable.Join) => Join(expression, context),
                 nameof(Queryable.GroupJoin) => GroupJoin(expression, context),
                 nameof(Queryable.Where) => Where(expression, context),
+                nameof(Queryable.Distinct) => Distinct(expression, context),
                 nameof(Queryable.OrderBy) => OrderBy(expression, context),
                 nameof(Queryable.OrderByDescending) => OrderByDescending(expression, context),
+                nameof(Queryable.ThenBy) => ThenBy(expression, context),
+                nameof(Queryable.ThenByDescending) => ThenByDescending(expression, context),
                 nameof(Queryable.Skip) => Skip(expression, context),
                 nameof(Queryable.Take) => Take(expression, context),
                 nameof(Queryable.Count) => Count(expression, context),
                 nameof(Queryable.LongCount) => Count(expression, context),
+                nameof(Queryable.Any) => Any(expression, context),
+                nameof(Queryable.First) => First(expression, context),
+                nameof(Queryable.FirstOrDefault) => First(expression, context),
+                nameof(Queryable.Single) => Single(expression, context),
+                nameof(Queryable.SingleOrDefault) => Single(expression, context),
                 nameof(Queryable.Sum) => Aggregate(expression, context, ExprFunctionName.Sum),
                 nameof(Queryable.Average) => Aggregate(expression, context, ExprFunctionName.Average),
                 nameof(Queryable.Min) => Aggregate(expression, context, ExprFunctionName.Min),
@@ -590,5 +598,138 @@ public partial class SelectStmtTranslator {
             throw new ExpressionNotSupportedException(expression);
         }
         throw new ExpressionNotSupportedException(expression);
+    }
+
+    protected virtual SelectStmt Distinct(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 1) {
+            var source = Translate(expression.Arguments[0], context);
+
+            if (source is SelectCoreNormal core) {
+                return SelectStmt.Create(core with { Distinct = true });
+            }
+
+            if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                return selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with { Distinct = true })
+                };
+            }
+
+            if (source is TableOrSubquery tableOrSubquery) {
+                return SelectStmt.Create(SelectCoreNormal.Create(tableOrSubquery) with { Distinct = true });
+            }
+        }
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    protected virtual SelectStmt ThenBy(MethodCallExpression expression, TranslationContext context) {
+        return AppendOrdering(expression, context, Desc: false);
+    }
+
+    protected virtual SelectStmt ThenByDescending(MethodCallExpression expression, TranslationContext context) {
+        return AppendOrdering(expression, context, Desc: true);
+    }
+
+    private SelectStmt AppendOrdering(MethodCallExpression expression, TranslationContext context, bool Desc) {
+        if (expression.Arguments.Count == 2) {
+            var source = Translate(expression.Arguments[0], context);
+            var keySelector = Translate(expression.Arguments[1], context);
+
+            if (keySelector is Expr expr) {
+                var orderingTerm = Desc
+                    ? OrderingTerm.Create(expr, Desc: true)
+                    : OrderingTerm.Create(expr);
+
+                if (source is SelectStmt selectStmt) {
+                    var newOrderingTerms = selectStmt.OrderingTerms.Append(orderingTerm).ToStableList();
+                    return selectStmt with { OrderingTerms = newOrderingTerms };
+                }
+            }
+        }
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    protected virtual SelectStmt Any(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 1) {
+            var source = Translate(expression.Arguments[0], context);
+            return WrapInExists(source, expression);
+        }
+        if (expression.Arguments.Count == 2) {
+            var source = Translate(expression.Arguments[0], context);
+            var predicate = Translate(expression.Arguments[1], context);
+
+            if (predicate is Expr expr) {
+                // Apply predicate as WHERE then wrap in EXISTS
+                if (source is TableOrSubquery tableOrSubquery) {
+                    var core = SelectCoreNormal.Create(tableOrSubquery, Where: expr);
+                    return WrapInExists(SelectStmt.Create(core), expression);
+                }
+                if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                    var mergedWhere = selectCoreNormal.Where != null
+                        ? ExprBinary.Create(BinaryOperator.AndAlso, selectCoreNormal.Where, expr)
+                        : expr;
+                    return WrapInExists(selectStmt with {
+                        SelectCores = StableList.Create<SelectCore>(selectCoreNormal with { Where = mergedWhere })
+                    }, expression);
+                }
+            }
+        }
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    private SelectStmt WrapInExists(object source, MethodCallExpression expression) {
+        SelectStmt innerStmt = source switch {
+            SelectStmt s => s,
+            SelectCoreNormal core => SelectStmt.Create(core),
+            TableOrSubquery table => SelectStmt.Create(SelectCoreNormal.Create(table)),
+            _ => throw new ExpressionNotSupportedException(expression)
+        };
+
+        var existsExpr = ExprExists.Create(innerStmt);
+        var selectCore = SelectCoreNormal.Create(
+            ResultColumns: StableList.Create<ResultColumn>(ResultColumnExpr.Create(existsExpr))
+        );
+        return SelectStmt.Create(selectCore);
+    }
+
+    protected virtual SelectStmt First(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 1) {
+            var source = Translate(expression.Arguments[0], context);
+            return ApplyLimit(source, 1, expression);
+        }
+        if (expression.Arguments.Count == 2) {
+            var source = Translate(expression.Arguments[0], context);
+            var predicate = Translate(expression.Arguments[1], context);
+
+            if (predicate is Expr expr) {
+                if (source is TableOrSubquery tableOrSubquery) {
+                    var core = SelectCoreNormal.Create(tableOrSubquery, Where: expr);
+                    return ApplyLimit(SelectStmt.Create(core), 1, expression);
+                }
+                if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                    var mergedWhere = selectCoreNormal.Where != null
+                        ? ExprBinary.Create(BinaryOperator.AndAlso, selectCoreNormal.Where, expr)
+                        : expr;
+                    return ApplyLimit(selectStmt with {
+                        SelectCores = StableList.Create<SelectCore>(selectCoreNormal with { Where = mergedWhere })
+                    }, 1, expression);
+                }
+            }
+        }
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    protected virtual SelectStmt Single(MethodCallExpression expression, TranslationContext context) {
+        // Single is like First but will throw at runtime if more than one row (SQL limitation: no runtime check)
+        return First(expression, context);
+    }
+
+    private SelectStmt ApplyLimit(object source, int limit, MethodCallExpression expression) {
+        SelectStmt selectStmt = source switch {
+            SelectStmt s => s with { Limit = ExprBindConstant.Create(typeof(int), limit) },
+            SelectCoreNormal core => SelectStmt.Create(core, Limit: ExprBindConstant.Create(typeof(int), limit)),
+            TableOrSubquery table => SelectStmt.Create(SelectCoreNormal.Create(table), Limit: ExprBindConstant.Create(typeof(int), limit)),
+            _ => throw new ExpressionNotSupportedException(expression)
+        };
+        return selectStmt;
     }
 }

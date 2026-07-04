@@ -412,6 +412,7 @@ public class SqliteComposer {
             ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
             ExprColumn exprColumn => ExprColumn(exprColumn),
+            ExprExists exprExists => ExprExists(exprExists),
             ExprFunction exprFunction => ExprFunction(exprFunction),
             ExprIsNull exprIsNull => ExprIsNull(exprIsNull),
             ExprLiteralString exprLiteral => ExprLiteral(exprLiteral),
@@ -419,6 +420,11 @@ public class SqliteComposer {
             _ => throw new NotImplementedException(expr.ToString()),
         };
         return result;
+    }
+
+    private ParameterizedSql ExprExists(ExprExists exprExists) {
+        var innerSql = SelectStmt(exprExists.SelectStmt, false);
+        return Join("", "EXISTS (", innerSql, ")");
     }
 
     private ParameterizedSql ExprIsNull(ExprIsNull exprIsNull) {
