@@ -27,7 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sqlil\Sqlil.csproj" />
     <ProjectReference Include="..\Sqlil.Core\Sqlil.Core.csproj" />
   </ItemGroup>
 

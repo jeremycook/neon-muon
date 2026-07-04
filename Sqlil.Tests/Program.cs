@@ -1,6 +1,7 @@
 ﻿using Spectre.Console;
 using Spectre.Console.Json;
-using Sqlil;
+using Sqlil.Core.ExpressionTranslation;
+using Sqlil.Core.Syntax;
 using Sqlil.Tests;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
@@ -9,7 +10,8 @@ using System.Text.Json;
 internal class Program {
     private static void Main(string[] args) {
 
-        var builder = new SqlilBuilder();
+        var translator = new SelectStmtTranslator();
+        var composer = new SqliteComposer();
 
         var expressions = typeof(Shared).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
             .Select(f => new { f.Name, Lambda = (LambdaExpression)f.GetValue(null)! })
@@ -19,8 +21,27 @@ internal class Program {
         table.AddColumns(new[] { "Name", "SQL" });
 
         foreach (var item in expressions) {
-            var sqlil = builder.Build(item.Lambda);
-            table.AddRow(new[] { item.Name, string.Join(" ", sqlil) });
+            try {
+                object translation = translator.Translate(item.Lambda, default);
+                var stmt = translation switch {
+                    SelectStmt selectStmt => selectStmt,
+                    SelectCore selectCore => SelectStmt.Create(selectCore),
+                    _ => throw new Exception(translation.GetType().ToString())
+                };
+                var psql = composer.Compose(stmt);
+                var pnum = 1;
+                var sql = string.Concat(psql.Segments.Select(x => x switch {
+                    SqlRaw raw => raw.Text,
+                    SqlConstantParameter constant => "@p" + pnum++,
+                    SqlInputParameter input => "@" + (input.SuggestedName != string.Empty ? input.SuggestedName : "p") + pnum++,
+                    SqlColumn output => string.Empty,
+                    _ => throw new NotSupportedException(x?.GetType().ToString())
+                }));
+                table.AddRow(new[] { item.Name, sql });
+            }
+            catch (Exception ex) {
+                table.AddRow(new[] { item.Name, $"ERROR: {ex.Message}" });
+            }
         }
 
         AnsiConsole.Write(table);
@@ -36,7 +57,6 @@ internal class Program {
 
         var tests = new TestResultSummary[0];
         var dc = new { };
-        //if (!quietly) dc.Dump(collapseTo: 1, repeatHeadersAt: 0);
 
         runner.OnTestFailed = info => AddTestResult(info);
         runner.OnTestPassed = info => AddTestResult(info);
@@ -96,10 +116,5 @@ internal class Program {
             "";
 
         public Xunit.Runners.TestFailedInfo? FailureInfo => _testInfo as Xunit.Runners.TestFailedInfo;
-
-        //public object Location => Util.VerticalRun(
-        //    from match in Regex.Matches(FailureInfo?.ExceptionStackTrace ?? "", @"(at .+?)\s+in\s+.+?:line\s+(\d+)")
-        //    let line = int.Parse(match.Groups[2].Value)
-        //    select Util.HorizontalRun(true, match.Groups[1].Value, new Hyperlinq(line - 1, 0, $"line {line}")));
     }
 }

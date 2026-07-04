@@ -10,6 +10,5 @@
   <Project Path="Sqlil.Sqlite/Sqlil.Sqlite.csproj" />
   <Project Path="Sqlil.Sqlite.Tests/Sqlil.Sqlite.Tests.csproj" />
   <Project Path="Sqlil.Tests/Sqlil.Tests.csproj" />
-  <Project Path="Sqlil/Sqlil.csproj" />
   <Project Path="WebApp/WebApp.csproj" />
 </Solution>
