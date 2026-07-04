@@ -27,6 +27,16 @@ public partial class SelectStmtTranslator {
             return result;
         }
 
+        else if (expression.Method.DeclaringType == typeof(Core.QueryableExtensions)) {
+            object result = expression.Method.Name switch {
+                nameof(Core.QueryableExtensions.Insert) => Insert(expression, context),
+                nameof(Core.QueryableExtensions.Update) => Update(expression, context),
+                nameof(Core.QueryableExtensions.Delete) => Delete(expression, context),
+                _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
+            };
+            return result;
+        }
+
         else if (expression.Method.DeclaringType == typeof(ValueTuple)) {
             var result = expression.Method.Name switch {
                 nameof(ValueTuple.Create) => CreateTuple(expression, context),

@@ -125,4 +125,14 @@ public partial class SelectStmtTranslator {
             _ => null,
         };
     }
+
+    protected static Expr StripTableQualifiers(Expr expr) {
+        return expr switch {
+            ExprColumn col => ExprColumn.Create(col.ColumnName),
+            ExprBinary bin => ExprBinary.Create(bin.Operator, StripTableQualifiers(bin.Left), StripTableQualifiers(bin.Right)),
+            ExprUnary unary => ExprUnary.Create(unary.Operator, StripTableQualifiers(unary.Operand)),
+            ExprFunction func => ExprFunction.Create(func.FunctionName, func.Exprs.Select(StripTableQualifiers).ToArray()),
+            _ => expr,
+        };
+    }
 }

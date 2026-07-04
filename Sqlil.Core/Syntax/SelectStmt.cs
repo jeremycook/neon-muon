@@ -520,3 +520,48 @@ public record FunctionName(
 ) : Identifier {
     public static FunctionName Create(string Name) => new(Name);
 }
+
+public interface SqlStatement { }
+
+/// <summary>
+/// https://www.sqlite.org/lang_insert.html
+/// </summary>
+public record class InsertStmt(
+    TableName TableName,
+    StableList<ColumnName> ColumnNames,
+    StableList<StableList<Expr>> Values
+) : SqlStatement {
+    public static InsertStmt Create(
+        TableName TableName,
+        StableList<ColumnName> ColumnNames,
+        StableList<StableList<Expr>> Values
+    ) => new(TableName, ColumnNames, Values);
+}
+
+/// <summary>
+/// https://www.sqlite.org/lang_update.html
+/// </summary>
+public record class UpdateStmt(
+    TableName TableName,
+    StableList<(ColumnName ColumnName, Expr Value)> SetClauses,
+    Expr? Where
+) : SqlStatement {
+    public static UpdateStmt Create(
+        TableName TableName,
+        StableList<(ColumnName ColumnName, Expr Value)> SetClauses,
+        Expr? Where = null
+    ) => new(TableName, SetClauses, Where);
+}
+
+/// <summary>
+/// https://www.sqlite.org/lang_delete.html
+/// </summary>
+public record class DeleteStmt(
+    TableName TableName,
+    Expr? Where
+) : SqlStatement {
+    public static DeleteStmt Create(
+        TableName TableName,
+        Expr? Where = null
+    ) => new(TableName, Where);
+}

@@ -12,4 +12,7 @@ public class ExpressionNotSupportedException : Exception {
 
     public ExpressionNotSupportedException(Expression expression)
     : this(null, expression, null) { }
+
+    public ExpressionNotSupportedException(string message)
+    : base(message) { }
 }

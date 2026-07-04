@@ -105,7 +105,10 @@ public class SqliteComposer {
     public virtual ParameterizedSql Compose(object input) {
         ParameterizedSql composition = input switch {
             SelectStmt selectStmt => SelectStmt(selectStmt, true),
-            _ => throw new NotImplementedException(),
+            InsertStmt insertStmt => InsertStmt(insertStmt),
+            UpdateStmt updateStmt => UpdateStmt(updateStmt),
+            DeleteStmt deleteStmt => DeleteStmt(deleteStmt),
+            _ => throw new NotImplementedException(input?.GetType().ToString()),
         };
         return composition;
     }
@@ -468,5 +471,50 @@ public class SqliteComposer {
     private ParameterizedSql ExprUnary(ExprUnary exprUnary) {
         var operand = Expr(exprUnary.Operand);
         return Join(" ", UnaryConstants.OperatorToString[exprUnary.Operator], operand);
+    }
+
+    protected virtual ParameterizedSql InsertStmt(InsertStmt insertStmt) {
+        var columnsSql = insertStmt.ColumnNames.Select(Identifier).Join(", ");
+        var valuesSql = insertStmt.Values.Select(row =>
+            row.Select(Expr).Join(", ")
+        ).Join("), (");
+
+        var result = Join(" ",
+            "INSERT INTO", Identifier(insertStmt.TableName),
+            "(", columnsSql, ")",
+            "VALUES", "(", valuesSql, ")"
+        );
+        return result;
+    }
+
+    protected virtual ParameterizedSql UpdateStmt(UpdateStmt updateStmt) {
+        var setClausesSql = updateStmt.SetClauses.Select(set =>
+            Join(" ", Identifier(set.ColumnName), "=", Expr(set.Value))
+        ).Join(", ");
+
+        var results = new List<ParameterizedSql>();
+        results.Add(Join(" ",
+            "UPDATE", Identifier(updateStmt.TableName),
+            "SET", setClausesSql
+        ));
+
+        if (updateStmt.Where != null) {
+            var whereSql = Expr(updateStmt.Where);
+            results.Add(Join(" ", "WHERE", whereSql));
+        }
+
+        return results.Join("\n");
+    }
+
+    protected virtual ParameterizedSql DeleteStmt(DeleteStmt deleteStmt) {
+        var results = new List<ParameterizedSql>();
+        results.Add(Join(" ", "DELETE FROM", Identifier(deleteStmt.TableName)));
+
+        if (deleteStmt.Where != null) {
+            var whereSql = Expr(deleteStmt.Where);
+            results.Add(Join(" ", "WHERE", whereSql));
+        }
+
+        return results.Join("\n");
     }
 }

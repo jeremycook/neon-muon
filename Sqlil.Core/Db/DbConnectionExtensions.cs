@@ -10,14 +10,14 @@ public static class DbConnectionExtensions {
 
     private static SelectStmtTranslator SelectStmtTranslator { get; } = new();
 
-    private static SelectStmt TranslateToSelectStmt(LambdaExpression expression) {
+    private static object TranslateToStatement(LambdaExpression expression) {
         object translation = SelectStmtTranslator.Translate(expression, default);
-        var result = translation switch {
-            SelectStmt selectStmt => selectStmt,
+        return translation switch {
+            SelectStmt selectStmt => (object)selectStmt,
             SelectCore selectCore => SelectStmt.Create(selectCore),
+            SqlStatement stmt => stmt,
             _ => throw new NotImplementedException(translation.GetType().ToString()),
         };
-        return result;
     }
 
     public static List<T> List<T>(this DbConnection dbConnection, Expression<Func<IQueryable<T>>> query) {
@@ -171,7 +171,7 @@ public static class DbConnectionExtensions {
     }
 
     public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand(this DbConnection dbConnection, LambdaExpression expression) {
-        var translation = TranslateToSelectStmt(expression);
+        var translation = TranslateToStatement(expression);
 
         SqliteComposer sqliteComposer = new();
         var parameterizedSql = sqliteComposer.Compose(translation);
@@ -198,7 +198,7 @@ public static class DbConnectionExtensions {
             .Select(Constant => new { Constant, Param = cmd.CreateParameter() })
             .Select(x => {
                 x.Param.ParameterName = "p" + parameterNumber++;
-                x.Param.Value = x.Constant.Value;
+                x.Param.Value = x.Constant.Value ?? DBNull.Value;
                 // TODO? Set DbType based on x.Constant.Type
                 return x.Param;
             })
