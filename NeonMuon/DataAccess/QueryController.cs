@@ -126,7 +126,7 @@ public class QueryController(
 
                 if (action.Columns)
                 {
-                    IReadOnlyCollection<NpgsqlDbColumn> schema = await reader.GetColumnSchemaAsync(cancellationToken);
+                    var schema = (IReadOnlyCollection<NpgsqlDbColumn>)await reader.GetColumnSchemaAsync(cancellationToken);
                     var header = schema.Select(col => new QueryColumn(col)).ToArray();
                     headers.Add(header);
                 }
