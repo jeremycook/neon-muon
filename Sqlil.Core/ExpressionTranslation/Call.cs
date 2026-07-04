@@ -50,17 +50,17 @@ public partial class SelectStmtTranslator {
 
             nameof(string.Contains) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), ExprBinary.Create(ExpressionType.Add, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%")))
+                ExprBinary.Create(BinaryOperator.Concat, ExprLiteralString.Create("%"), ExprBinary.Create(BinaryOperator.Concat, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%")))
             ),
 
             nameof(string.StartsWith) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%"))
+                ExprBinary.Create(BinaryOperator.Concat, (Expr)Translate(expression.Arguments[0], context), ExprLiteralString.Create("%"))
             ),
 
             nameof(string.EndsWith) => ExprBinary.Create(BinaryOperator.Like,
                 (Expr)Translate(expression.Object!, context),
-                ExprBinary.Create(ExpressionType.Add, ExprLiteralString.Create("%"), (Expr)Translate(expression.Arguments[0], context))
+                ExprBinary.Create(BinaryOperator.Concat, ExprLiteralString.Create("%"), (Expr)Translate(expression.Arguments[0], context))
             ),
 
             nameof(string.ToLower) => ExprFunction.Create(ExprFunctionName.Lower, (Expr)Translate(expression.Object!, context)),
@@ -194,11 +194,39 @@ public partial class SelectStmtTranslator {
     /// </summary>
     protected virtual SelectStmt Join(MethodCallExpression expression, TranslationContext context) {
         if (expression.Arguments.Count == 5) {
+            // IQueryable<TResult> Join<TOuter, TInner, TKey, TResult>(...)
+            // The lambda parameter names (e.g., u, ur) serve as table aliases
+            var outerKeyLambda = UnwrapLambda(expression.Arguments[2]);
+            var innerKeyLambda = UnwrapLambda(expression.Arguments[3]);
+            var resultLambda = UnwrapLambda(expression.Arguments[4]);
+
+            var outerAlias = outerKeyLambda?.Parameters.Count == 1
+                ? TableName.Create(outerKeyLambda.Parameters[0].Name ?? string.Empty, outerKeyLambda.Parameters[0].Type)
+                : null;
+            var innerAlias = innerKeyLambda?.Parameters.Count == 1
+                ? TableName.Create(innerKeyLambda.Parameters[0].Name ?? string.Empty, innerKeyLambda.Parameters[0].Type)
+                : null;
+
             var outer = Translate(expression.Arguments[0], context);
             var inner = Translate(expression.Arguments[1], context);
-            var outerKeySelector = Translate(expression.Arguments[2], context);
-            var innerKeySelector = Translate(expression.Arguments[3], context);
-            var resultSelector = Translate(expression.Arguments[4], context);
+
+            // Apply table aliases from the key selector lambda parameters
+            if (outer is TableOrSubqueryTable outerTableRaw && outerAlias != null) {
+                outer = outerTableRaw with { TableAlias = outerAlias };
+            }
+            if (inner is TableOrSubqueryTable innerTableRaw && innerAlias != null) {
+                inner = innerTableRaw with { TableAlias = innerAlias };
+            }
+
+            var outerCtx = context with { ParameterName = outerAlias };
+            var outerKeySelector = Translate(expression.Arguments[2], outerCtx);
+            var innerKeySelector = Translate(expression.Arguments[3], context with { ParameterName = innerAlias });
+            var resultCtx = resultLambda?.Parameters.Count == 1
+                ? context with {
+                    ParameterName = TableName.Create(resultLambda.Parameters[0].Name ?? string.Empty, resultLambda.Parameters[0].Type)
+                }
+                : context;
+            var resultSelector = Translate(expression.Arguments[4], resultCtx);
 
             if (outer is TableOrSubquery outerTable &&
                 inner is TableOrSubquery innerTable &&
@@ -500,8 +528,11 @@ public partial class SelectStmtTranslator {
     protected virtual SelectStmt Aggregate(MethodCallExpression expression, TranslationContext context, ExprFunctionName functionName) {
         if (expression.Arguments.Count == 2) {
             // IQueryable<TResult> Sum<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, TResult>> selector)
-            var source = Translate(expression.Arguments[0], context);
-            var selector = Translate(expression.Arguments[1], context);
+            var currentContext = context with {
+                ParameterName = GetTableName(expression.Arguments[1]),
+            };
+            var source = Translate(expression.Arguments[0], currentContext);
+            var selector = Translate(expression.Arguments[1], currentContext);
 
             Expr aggregateExpr;
             if (selector is Expr expr) {

@@ -117,4 +117,12 @@ public partial class SelectStmtTranslator {
         };
         return result;
     }
+
+    protected static LambdaExpression? UnwrapLambda(Expression expression) {
+        return expression switch {
+            LambdaExpression lambda => lambda,
+            UnaryExpression unary => UnwrapLambda(unary.Operand),
+            _ => null,
+        };
+    }
 }

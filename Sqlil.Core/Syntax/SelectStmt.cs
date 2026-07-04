@@ -209,6 +209,7 @@ public static class BinaryConstants {
         {BinaryOperator.Subtract, "-"},
         {BinaryOperator.Multiply, "*"},
         {BinaryOperator.Divide, "/"},
+        {BinaryOperator.Concat, "||"},
 
         {BinaryOperator.Like, "LIKE"},
     };
@@ -246,6 +247,7 @@ public enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    Concat,
 
     Like,
 }
