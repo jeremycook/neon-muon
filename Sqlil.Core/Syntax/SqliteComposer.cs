@@ -143,7 +143,7 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql CommonTableExpression(CommonTableExpression commonTableExpression) {
+    protected virtual ParameterizedSql CommonTableExpression(CommonTableExpression commonTableExpression) {
         var result = Join(" ",
             Identifier(commonTableExpression.TableName),
             commonTableExpression.ColumnNames.Select(Identifier).Join(", "),
@@ -153,17 +153,17 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql Identifier(Identifier identifier) {
+    protected virtual ParameterizedSql Identifier(Identifier identifier) {
         ParameterizedSql result = new("\"" + identifier.Name.Replace("\"\"", "\"") + "\"");
         return result;
     }
 
-    private ParameterizedSql SqlOutput(TypedIdentifier typedIdentifier) {
+    protected virtual ParameterizedSql SqlOutput(TypedIdentifier typedIdentifier) {
         ParameterizedSql result = new ParameterizedSql(new SqlColumn(typedIdentifier.Type, typedIdentifier.Name));
         return result;
     }
 
-    private ParameterizedSql SelectCore(SelectCore selectCore, bool topLevel) {
+    protected virtual ParameterizedSql SelectCore(SelectCore selectCore, bool topLevel) {
         ParameterizedSql result = selectCore switch {
             SelectCoreNormal selectCoreNormal => SelectCoreNormal(selectCoreNormal, topLevel),
             _ => throw new NotImplementedException(selectCore?.ToString()),
@@ -219,7 +219,7 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql ResultColumn(ResultColumn resultColumn, bool topLevel) {
+    protected virtual ParameterizedSql ResultColumn(ResultColumn resultColumn, bool topLevel) {
         ParameterizedSql result = resultColumn switch {
             ResultColumnAsterisk resultColumnAsterisk => ResultColumnAsterisk(resultColumnAsterisk),
             ResultColumnExpr resultColumnExpr => ResultColumnExpr(resultColumnExpr, topLevel),
@@ -281,7 +281,7 @@ public class SqliteComposer {
         return Join(".", Identifier(resultColumnTable.TableName), "*");
     }
 
-    private ParameterizedSql TableOrSubquery(TableOrSubquery tableOrSubquery) {
+    protected virtual ParameterizedSql TableOrSubquery(TableOrSubquery tableOrSubquery) {
         ParameterizedSql result = tableOrSubquery switch {
             TableOrSubqueryFunction tableOrSubqueryFunction => TableOrSubqueryFunction(tableOrSubqueryFunction),
             TableOrSubqueryJoin tableOrSubqueryJoin => TableOrSubqueryJoin(tableOrSubqueryJoin),
@@ -335,7 +335,7 @@ public class SqliteComposer {
         throw new NotImplementedException();
     }
 
-    private ParameterizedSql JoinClause(JoinClause joinClause) {
+    protected virtual ParameterizedSql JoinClause(JoinClause joinClause) {
         var results = new List<ParameterizedSql>();
 
         results.Add(TableOrSubquery(joinClause.TableOrSubquery));
@@ -368,11 +368,11 @@ public class SqliteComposer {
         return results.Join("\n");
     }
 
-    private ParameterizedSql GroupBy(Expr groupBy) {
+    protected virtual ParameterizedSql GroupBy(Expr groupBy) {
         return Expr(groupBy);
     }
 
-    private ParameterizedSql OrderBy(StableList<OrderingTerm> orderingTerms, Expr? limit, Expr? offset) {
+    protected virtual ParameterizedSql OrderBy(StableList<OrderingTerm> orderingTerms, Expr? limit, Expr? offset) {
         var results = new List<ParameterizedSql>();
 
         if (orderingTerms.Any()) {
@@ -396,7 +396,7 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql OrderingTerm(OrderingTerm orderingTerm) {
+    protected virtual ParameterizedSql OrderingTerm(OrderingTerm orderingTerm) {
         var exprSql = Expr(orderingTerm.Expr);
         var result = Join(" ",
             exprSql,
@@ -407,7 +407,7 @@ public class SqliteComposer {
         return result;
     }
 
-    private ParameterizedSql Expr(Expr expr) {
+    protected virtual ParameterizedSql Expr(Expr expr) {
         ParameterizedSql result = expr switch {
             ExprBinary exprBinary => ExprBinary(exprBinary),
             ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
@@ -470,7 +470,7 @@ public class SqliteComposer {
         return Join("", "CAST(", exprSql, " AS ", typeName, ")");
     }
 
-    private static string GetSqlTypeName(Type type) {
+    protected static string GetSqlTypeName(Type type) {
         return type switch {
             _ when type == typeof(long) => "INTEGER",
             _ when type == typeof(int) => "INTEGER",
