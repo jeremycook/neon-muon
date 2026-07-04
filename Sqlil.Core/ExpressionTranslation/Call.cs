@@ -1,5 +1,7 @@
 using Sqlil.Core.Syntax;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Sqlil.Core.ExpressionTranslation;
 
@@ -34,6 +36,7 @@ public partial class SelectStmtTranslator {
                 nameof(Queryable.Concat) => Compound(expression, context, CompoundOperator.UnionAll),
                 nameof(Queryable.Intersect) => Compound(expression, context, CompoundOperator.Intersect),
                 nameof(Queryable.Except) => Compound(expression, context, CompoundOperator.Except),
+                nameof(Queryable.GroupBy) => GroupBy(expression, context),
                 _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
             };
             return result;
@@ -145,6 +148,18 @@ public partial class SelectStmtTranslator {
                 ParameterName = GetTableName(expression.Arguments[1]),
             };
             var source = Translate(expression.Arguments[0], currentContext);
+
+            // Check if source is grouped (has non-empty GroupBys)
+            var groupedCore = GetGroupedCore(source);
+            if (groupedCore != null && groupedCore.GroupBys.Any()) {
+                // Translate selector in grouping context
+                var selectorLambda = UnwrapLambda(expression.Arguments[1]);
+                if (selectorLambda == null) {
+                    throw new ExpressionNotSupportedException("Select selector must be a lambda.", expression);
+                }
+                return TranslateGroupByResultSelector(source, selectorLambda, groupedCore.GroupBys, expression);
+            }
+
             var selector = Translate(expression.Arguments[1], currentContext);
 
             if (source is SelectStmt selectStmt) {
@@ -789,4 +804,244 @@ public partial class SelectStmtTranslator {
         }
         throw new ExpressionNotSupportedException(expression);
     }
+
+    #region GroupBy
+
+    /// <summary>
+    /// Translates Queryable.GroupBy with various overloads.
+    /// </summary>
+    protected virtual SelectStmt GroupBy(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 2) {
+            // GroupBy(source, keySelector) → IQueryable<IGrouping<TKey, TSource>>
+            var source = Translate(expression.Arguments[0], context);
+            var keyLambda = UnwrapLambda(expression.Arguments[1]);
+
+            if (keyLambda == null) {
+                throw new ExpressionNotSupportedException("GroupBy key selector must be a lambda.", expression);
+            }
+
+            var keyExpr = TranslateGroupByKey(keyLambda, context);
+            var groupBys = StableList.Create(keyExpr);
+
+            return ApplyGroupBy(source, groupBys, expression);
+        }
+
+        if (expression.Arguments.Count == 3) {
+            // Check if 3rd arg is element selector or result selector
+            var thirdArg = expression.Arguments[2];
+            if (IsLambdaReturningGrouping(thirdArg)) {
+                // GroupBy(source, keySelector, elementSelector) → IQueryable<IGrouping<TKey, TElement>>
+                var source = Translate(expression.Arguments[0], context);
+                var keyLambda = UnwrapLambda(expression.Arguments[1]);
+                if (keyLambda == null) {
+                    throw new ExpressionNotSupportedException("GroupBy key selector must be a lambda.", expression);
+                }
+                var keyExpr = TranslateGroupByKey(keyLambda, context);
+                var groupBys = StableList.Create(keyExpr);
+                return ApplyGroupBy(source, groupBys, expression);
+            }
+            else {
+                // GroupBy(source, keySelector, resultSelector) → IQueryable<TResult>
+                var source = Translate(expression.Arguments[0], context);
+                var keyLambda = UnwrapLambda(expression.Arguments[1]);
+                var resultLambda = UnwrapLambda(thirdArg);
+
+                if (keyLambda == null || resultLambda == null) {
+                    throw new ExpressionNotSupportedException("GroupBy selectors must be lambdas.", expression);
+                }
+
+                var keyExpr = TranslateGroupByKey(keyLambda, context);
+                var groupBys = StableList.Create(keyExpr);
+                var groupedSource = ApplyGroupBy(source, groupBys, expression);
+
+                // Translate the result selector in grouping context
+                return TranslateGroupByResultSelector(groupedSource, resultLambda, groupBys, expression);
+            }
+        }
+
+        if (expression.Arguments.Count == 4) {
+            // GroupBy(source, keySelector, elementSelector, resultSelector) → IQueryable<TResult>
+            var source = Translate(expression.Arguments[0], context);
+            var keyLambda = UnwrapLambda(expression.Arguments[1]);
+            // elementSelector is arguments[2] - we'll use it for future element filtering
+            var resultLambda = UnwrapLambda(expression.Arguments[3]);
+
+            if (keyLambda == null || resultLambda == null) {
+                throw new ExpressionNotSupportedException("GroupBy selectors must be lambdas.", expression);
+            }
+
+            var keyExpr = TranslateGroupByKey(keyLambda, context);
+            var groupBys = StableList.Create(keyExpr);
+            var groupedSource = ApplyGroupBy(source, groupBys, expression);
+
+            return TranslateGroupByResultSelector(groupedSource, resultLambda, groupBys, expression);
+        }
+
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    private static Expr TranslateGroupByKey(LambdaExpression keyLambda, TranslationContext context) {
+        // The key lambda body could be a simple member access (u => u.IsActive)
+        // or an anonymous type (u => new { u.Department, u.IsActive })
+        var body = keyLambda.Body;
+
+        if (body is MemberExpression member && member.Expression is ParameterExpression) {
+            // Simple key: u => u.IsActive
+            return ExprColumn.Create(
+                TableName.Create(context.ParameterName?.Name ?? string.Empty, context.ParameterName?.Type ?? typeof(object)),
+                ColumnName.Create(member.Member.Name, member.Member is PropertyInfo prop ? prop.PropertyType : typeof(object))
+            );
+        }
+
+        // For complex keys, evaluate the expression to get the key value
+        // This is a simplification - in production, you'd want to decompose anonymous types
+        throw new ExpressionNotSupportedException("Complex group-by keys (anonymous types) are not yet supported.");
+    }
+
+    private SelectStmt ApplyGroupBy(object source, StableList<Expr> groupBys, MethodCallExpression expression) {
+        return source switch {
+            SelectCoreNormal core => SelectStmt.Create(core with { GroupBys = groupBys }),
+            SelectStmt selectStmt when selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal =>
+                selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with { GroupBys = groupBys })
+                },
+            TableOrSubquery table => SelectStmt.Create(SelectCoreNormal.Create(table) with { GroupBys = groupBys }),
+            _ => throw new ExpressionNotSupportedException($"GroupBy source not supported: {source.GetType()}.", expression)
+        };
+    }
+
+    private SelectStmt TranslateGroupByResultSelector(object source, LambdaExpression resultLambda, StableList<Expr> groupBys, MethodCallExpression expression) {
+        // The result selector is (key, elements) => new { Key = key, Count = elements.Count() }
+        // In expression tree form, the parameters represent the key and the IGrouping
+
+        // For now, handle the common pattern: resultSelector body is a New expression
+        // with g.Key and aggregate calls
+        if (resultLambda.Body is NewExpression newExpr) {
+            var resultColumns = new List<ResultColumn>();
+
+            foreach (var arg in newExpr.Arguments) {
+                var translated = TranslateGroupByExpression(arg, groupBys, expression);
+                resultColumns.Add(ResultColumnExpr.Create(translated));
+            }
+
+            return CreateGroupedSelectStmt(source, resultColumns, groupBys, expression);
+        }
+
+        throw new ExpressionNotSupportedException("GroupBy result selector must be an anonymous type expression.", expression);
+    }
+
+    private Expr TranslateGroupByExpression(Expression expr, StableList<Expr> groupBys, MethodCallExpression expression) {
+        // Handle g.Key → map to GROUP BY expression
+        if (expr is MemberExpression member && member.Member.Name == "Key") {
+            // g.Key maps to the first (and typically only) GROUP BY expression
+            if (groupBys.Count == 1) {
+                return groupBys[0];
+            }
+            // For multi-column keys, g.Key would be a tuple/anonymous type
+            // For now, handle single-column case
+            throw new ExpressionNotSupportedException("Multi-column group-by keys with g.Key are not yet supported.", expression);
+        }
+
+        // Handle g.Count() → COUNT(*)
+        if (expr is MethodCallExpression methodCall) {
+            if (methodCall.Method.Name == nameof(Enumerable.Count) && methodCall.Arguments.Count == 0) {
+                return ExprFunction.Create(ExprFunctionName.Count, typeof(int));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Count) && methodCall.Arguments.Count == 1) {
+                // g.Count() is Enumerable.Count(g) with 1 arg; Count(pred) is Enumerable.Count(g, pred) with 2 args
+                return ExprFunction.Create(ExprFunctionName.Count, typeof(int));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Sum) && methodCall.Arguments.Count == 1) {
+                // g.Sum(u => u.UserId) → Enumerable.Sum(g, u => u.UserId) with 2 args
+                // Or g.Sum() with 1 arg (no selector)
+                return ExprFunction.Create(ExprFunctionName.Sum, typeof(double));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Sum) && methodCall.Arguments.Count == 2) {
+                var selector = UnwrapLambda(methodCall.Arguments[1]);
+                if (selector != null && selector.Body is MemberExpression sumMember && sumMember.Expression is ParameterExpression) {
+                    return ExprFunction.Create(ExprFunctionName.Sum,
+                        ExprColumn.Create(ColumnName.Create(sumMember.Member.Name, sumMember.Member is PropertyInfo sumProp ? sumProp.PropertyType : typeof(object))));
+                }
+                return ExprFunction.Create(ExprFunctionName.Sum, typeof(double));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Average) && methodCall.Arguments.Count == 1) {
+                return ExprFunction.Create(ExprFunctionName.Average, typeof(double));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Average) && methodCall.Arguments.Count == 2) {
+                var selector = UnwrapLambda(methodCall.Arguments[1]);
+                if (selector != null && selector.Body is MemberExpression avgMember && avgMember.Expression is ParameterExpression) {
+                    return ExprFunction.Create(ExprFunctionName.Average,
+                        ExprColumn.Create(ColumnName.Create(avgMember.Member.Name, avgMember.Member is PropertyInfo avgProp ? avgProp.PropertyType : typeof(object))));
+                }
+                return ExprFunction.Create(ExprFunctionName.Average, typeof(double));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Min) && methodCall.Arguments.Count == 1) {
+                return ExprFunction.Create(ExprFunctionName.Min, typeof(object));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Min) && methodCall.Arguments.Count == 2) {
+                var selector = UnwrapLambda(methodCall.Arguments[1]);
+                if (selector != null && selector.Body is MemberExpression minMember && minMember.Expression is ParameterExpression) {
+                    return ExprFunction.Create(ExprFunctionName.Min,
+                        ExprColumn.Create(ColumnName.Create(minMember.Member.Name, minMember.Member is PropertyInfo minProp ? minProp.PropertyType : typeof(object))));
+                }
+                return ExprFunction.Create(ExprFunctionName.Min, typeof(object));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Max) && methodCall.Arguments.Count == 1) {
+                return ExprFunction.Create(ExprFunctionName.Max, typeof(object));
+            }
+            if (methodCall.Method.Name == nameof(Enumerable.Max) && methodCall.Arguments.Count == 2) {
+                var selector = UnwrapLambda(methodCall.Arguments[1]);
+                if (selector != null && selector.Body is MemberExpression maxMember && maxMember.Expression is ParameterExpression) {
+                    return ExprFunction.Create(ExprFunctionName.Max,
+                        ExprColumn.Create(ColumnName.Create(maxMember.Member.Name, maxMember.Member is PropertyInfo maxProp ? maxProp.PropertyType : typeof(object))));
+                }
+                return ExprFunction.Create(ExprFunctionName.Max, typeof(object));
+            }
+        }
+
+        throw new ExpressionNotSupportedException($"GroupBy expression not supported: {expr.GetType()}.", expression);
+    }
+
+    private SelectStmt CreateGroupedSelectStmt(object source, List<ResultColumn> resultColumns, StableList<Expr> groupBys, MethodCallExpression expression) {
+        var cols = resultColumns.ToStableList();
+
+        return source switch {
+            SelectCoreNormal core => SelectStmt.Create(core with {
+                ResultColumns = cols,
+                GroupBys = groupBys,
+            }),
+            SelectStmt selectStmt when selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal =>
+                selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
+                        ResultColumns = cols,
+                        GroupBys = groupBys,
+                    })
+                },
+            _ => throw new ExpressionNotSupportedException($"Grouped select source not supported: {source.GetType()}.", expression)
+        };
+    }
+
+    private static bool IsLambdaReturningGrouping(Expression expr) {
+        var lambda = UnwrapLambda(expr);
+        if (lambda == null) return false;
+        // Check if the return type implements IGrouping<,>
+        var returnType = lambda.ReturnType;
+        return returnType.GetInterfaces().Any(i =>
+            i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IGrouping<,>));
+    }
+
+    private static SelectCoreNormal? GetGroupedCore(object source) {
+        if (source is SelectCoreNormal core && core.GroupBys.Any()) {
+            return core;
+        }
+        if (source is SelectStmt selectStmt &&
+            selectStmt.SelectCores.Count == 1 &&
+            selectStmt.SelectCores[0] is SelectCoreNormal sc &&
+            sc.GroupBys.Any()) {
+            return sc;
+        }
+        return null;
+    }
+
+    #endregion
 }

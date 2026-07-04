@@ -134,4 +134,60 @@ public class AdditionalTests {
     }
 
     #endregion
+
+    #region GroupBy Tests
+
+    [Fact]
+    public void GroupBy_GeneratesCorrectSql() {
+        var stmt = TestHelpers.Translate(TestExpressions.GroupByIsActive());
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("GROUP BY", sql);
+        Assert.Contains("COUNT(*)", sql);
+    }
+
+    [Fact]
+    public void GroupBy_ReturnsCorrectResults() {
+        using var connection = DbSetup.CreateSeeded();
+        var (commandText, cmd) = TestHelpers.PrepareCommand(connection, TestExpressions.GroupByIsActive());
+        connection.Open();
+        using var reader = cmd.ExecuteReader();
+        var results = new List<(bool Key, int Count)>();
+        while (reader.Read()) {
+            results.Add((reader.GetInt64(0) != 0, reader.GetInt32(1)));
+        }
+        connection.Close();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, r => r.Key == true && r.Count == 2);  // Alice, Bob are active
+        Assert.Contains(results, r => r.Key == false && r.Count == 1); // Charlie is inactive
+    }
+
+    [Fact]
+    public void GroupByWithSum_GeneratesCorrectSql() {
+        var stmt = TestHelpers.Translate(TestExpressions.GroupByWithSum());
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("GROUP BY", sql);
+        Assert.Contains("SUM(", sql);
+    }
+
+    [Fact]
+    public void GroupByWithSum_ReturnsCorrectResults() {
+        using var connection = DbSetup.CreateSeeded();
+        var (commandText, cmd) = TestHelpers.PrepareCommand(connection, TestExpressions.GroupByWithSum());
+        connection.Open();
+        using var reader = cmd.ExecuteReader();
+        var results = new List<(bool Key, long Total)>();
+        while (reader.Read()) {
+            results.Add((reader.GetInt64(0) != 0, reader.GetInt64(1)));
+        }
+        connection.Close();
+
+        Assert.Equal(2, results.Count);
+        // Active users: Alice(1) + Bob(2) = 3
+        Assert.Contains(results, r => r.Key == true && r.Total == 3);
+        // Inactive users: Charlie(3) = 3
+        Assert.Contains(results, r => r.Key == false && r.Total == 3);
+    }
+
+    #endregion
 }

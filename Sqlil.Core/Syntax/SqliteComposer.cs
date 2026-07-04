@@ -81,6 +81,7 @@ public static class ParameterizedSqlHelpers {
                 string text => text == string.Empty ? Empty : new ParameterizedSql(text),
                 ParameterizedSql sql => sql,
                 IEnumerable<object> sqls => sqls.Join(separator),
+                IEnumerable<ParameterizedSql> sqls => sqls.Join(separator),
                 _ => throw new NotSupportedException(item?.ToString())
             })
             .Where(item => item != Empty);
@@ -200,7 +201,7 @@ public class SqliteComposer {
         }
 
         if (selectCoreNormal.GroupBys.Any()) {
-            var groupBysSql = selectCoreNormal.GroupBys.Select(groupBy => GroupBy(groupBy));
+            var groupBysSql = selectCoreNormal.GroupBys.Select(groupBy => GroupBy(groupBy)).ToList();
             results.Add(Join(" ", "GROUP BY", groupBysSql));
         }
 

@@ -120,6 +120,17 @@ public static class TestExpressions {
     public static Expression<Func<IQueryable<string>>> UnionUsernames() =>
         () => TestUserContext.Users.Where(u => u.Username == "Alice").Select(u => u.Username)
             .Union(TestUserContext.Users.Where(u => u.Username == "Bob").Select(u => u.Username));
+
+    // GroupBy expressions
+    public static Expression<Func<IQueryable<object>>> GroupByIsActive() =>
+        () => TestUserContext.Users
+            .GroupBy(u => u.IsActive)
+            .Select(g => new { Key = g.Key, Count = g.Count() });
+
+    public static Expression<Func<IQueryable<object>>> GroupByWithSum() =>
+        () => TestUserContext.Users
+            .GroupBy(u => u.IsActive)
+            .Select(g => new { Key = g.Key, Total = g.Sum(u => u.UserId) });
 }
 
 public readonly record struct User(long UserId, string Username, bool IsActive, DateTime Created, DateOnly? Birthday);
