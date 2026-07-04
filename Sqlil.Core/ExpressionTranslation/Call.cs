@@ -10,11 +10,18 @@ public partial class SelectStmtTranslator {
             object result = expression.Method.Name switch {
                 nameof(Queryable.Select) => Select(expression, context),
                 nameof(Queryable.Join) => Join(expression, context),
+                nameof(Queryable.GroupJoin) => GroupJoin(expression, context),
                 nameof(Queryable.Where) => Where(expression, context),
                 nameof(Queryable.OrderBy) => OrderBy(expression, context),
                 nameof(Queryable.OrderByDescending) => OrderByDescending(expression, context),
                 nameof(Queryable.Skip) => Skip(expression, context),
                 nameof(Queryable.Take) => Take(expression, context),
+                nameof(Queryable.Count) => Count(expression, context),
+                nameof(Queryable.LongCount) => Count(expression, context),
+                nameof(Queryable.Sum) => Aggregate(expression, context, ExprFunctionName.Sum),
+                nameof(Queryable.Average) => Aggregate(expression, context, ExprFunctionName.Average),
+                nameof(Queryable.Min) => Aggregate(expression, context, ExprFunctionName.Min),
+                nameof(Queryable.Max) => Aggregate(expression, context, ExprFunctionName.Max),
                 _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
             };
             return result;
@@ -163,6 +170,7 @@ public partial class SelectStmtTranslator {
 
             else if (source is TableOrSubquery tableOrSubquery) {
                 var result = selector switch {
+                    Expr expr => SelectStmt.Create(SelectCoreNormal.Create(StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr)), tableOrSubquery)),
                     ResultColumn resultColumn => SelectStmt.Create(SelectCoreNormal.Create(StableList.Create(resultColumn), tableOrSubquery)),
                     StableList<ResultColumn> resultColumnList => SelectStmt.Create(SelectCoreNormal.Create(resultColumnList, tableOrSubquery)),
                     _ => throw new ExpressionNotSupportedException($"Selector not supported {selector.GetType()}: {selector}.", expression),
@@ -176,8 +184,155 @@ public partial class SelectStmtTranslator {
         throw new ExpressionNotSupportedException(expression);
     }
 
+    /// <summary>
+    /// IQueryable&lt;TResult&gt; Join&lt;TOuter, TInner, TKey, TResult&gt;(
+    ///     this IQueryable&lt;TOuter&gt; outer,
+    ///     IEnumerable&lt;TInner&gt; inner,
+    ///     Expression&lt;Func&lt;TOuter, TKey&gt;&gt; outerKeySelector,
+    ///     Expression&lt;Func&lt;TInner, TKey&gt;&gt; innerKeySelector,
+    ///     Expression&lt;Func&lt;TOuter, TInner, TResult&gt;&gt; resultSelector)
+    /// </summary>
     protected virtual SelectStmt Join(MethodCallExpression expression, TranslationContext context) {
-        throw new NotImplementedException();
+        if (expression.Arguments.Count == 5) {
+            var outer = Translate(expression.Arguments[0], context);
+            var inner = Translate(expression.Arguments[1], context);
+            var outerKeySelector = Translate(expression.Arguments[2], context);
+            var innerKeySelector = Translate(expression.Arguments[3], context);
+            var resultSelector = Translate(expression.Arguments[4], context);
+
+            if (outer is TableOrSubquery outerTable &&
+                inner is TableOrSubquery innerTable &&
+                outerKeySelector is Expr outerKey &&
+                innerKeySelector is Expr innerKey) {
+
+                var joinConstraint = JoinConstraintOn.Create(
+                    ExprBinary.Create(BinaryOperator.Equal, outerKey, innerKey)
+                );
+
+                var joinClause = JoinClause.Create(
+                    outerTable,
+                    (JoinOperator.Inner, innerTable, (JoinConstraint)joinConstraint)
+                );
+
+                var resultColumns = resultSelector switch {
+                    StableList<ResultColumn> resultColumnList => resultColumnList,
+                    Expr expr => StableList.Create<ResultColumn>(ResultColumnExpr.Create(expr)),
+                    _ => throw new ExpressionNotSupportedException($"Join result selector not supported: {resultSelector.GetType()}.", expression)
+                };
+
+                var selectCore = new SelectCoreNormal(
+                    Distinct: false,
+                    ResultColumns: resultColumns,
+                    TableOrSubqueries: StableList<TableOrSubquery>.Empty,
+                    JoinClause: joinClause,
+                    Where: null,
+                    GroupBys: StableList<Expr>.Empty,
+                    Having: null,
+                    Windows: StableList<(string, WindowDefn)>.Empty
+                );
+
+                return SelectStmt.Create(selectCore);
+            }
+
+            throw new ExpressionNotSupportedException(expression);
+        }
+
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    /// <summary>
+    /// IQueryable&lt;TResult&gt; GroupJoin&lt;TOuter, TInner, TKey, TResult&gt;(
+    ///     this IQueryable&lt;TOuter&gt; outer,
+    ///     IEnumerable&lt;TInner&gt; inner,
+    ///     Expression&lt;Func&lt;TOuter, TKey&gt;&gt; outerKeySelector,
+    ///     Expression&lt;Func&lt;TInner, TKey&gt;&gt; innerKeySelector,
+    ///     Expression&lt;Func&lt;TOuter, IEnumerable&lt;TInner&gt;, TResult&gt;&gt; resultSelector)
+    /// 
+    /// Translates to a LEFT JOIN with the inner table as a subquery, producing a correlated subquery for the group.
+    /// </summary>
+    protected virtual SelectStmt GroupJoin(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 5) {
+            var outer = Translate(expression.Arguments[0], context);
+            var inner = Translate(expression.Arguments[1], context);
+            var outerKeySelector = Translate(expression.Arguments[2], context);
+            var innerKeySelector = Translate(expression.Arguments[3], context);
+            var resultSelector = Translate(expression.Arguments[4], context);
+
+            if (outer is TableOrSubquery outerTable &&
+                inner is TableOrSubquery innerTable &&
+                outerKeySelector is Expr outerKey &&
+                innerKeySelector is Expr innerKey) {
+
+                // For GroupJoin, the result selector is: (outer, innerGroup) => result
+                // We need to produce: SELECT resultColumns FROM outer LEFT JOIN (
+                //   SELECT inner.* FROM inner GROUP BY inner.*
+                // ) ON outerKey = innerKey
+
+                // Build a subquery for the inner table
+                var innerSubquery = SelectStmt.Create(
+                    SelectCoreNormal.Create(innerTable)
+                );
+
+                var joinConstraint = JoinConstraintOn.Create(
+                    ExprBinary.Create(BinaryOperator.Equal, outerKey, innerKey)
+                );
+
+                var innerType = expression.Method.GetGenericArguments()[1];
+                var subqueryTable = TableOrSubquerySelectStmts.Create(
+                    StableList.Create(innerSubquery),
+                    TableAlias: TableName.Create("innerGroup", innerType)
+                );
+
+                var joinClause = JoinClause.Create(
+                    outerTable,
+                    (JoinOperator.Left, subqueryTable, (JoinConstraint)joinConstraint)
+                );
+
+                // Build result columns from the result selector
+                StableList<ResultColumn> resultColumns;
+                if (resultSelector is LambdaExpression lambda &&
+                    lambda.Body is NewExpression newExpr) {
+                    resultColumns = StableList.Create<ResultColumn>(
+                        newExpr.Arguments
+                            .Select((arg, i) => {
+                                var translated = Translate(arg, context);
+                                return translated switch {
+                                    Expr expr => ResultColumnExpr.Create(expr, ColumnName.Create(newExpr.Members![i].Name, GetMemberType(newExpr.Members[i]))),
+                                    StableList<ResultColumn> cols => cols[0],
+                                    _ => throw new ExpressionNotSupportedException($"GroupJoin result selector element not supported: {translated.GetType()}.", expression)
+                                };
+                            })
+                            .ToArray()
+                    );
+                }
+                else if (resultSelector is StableList<ResultColumn> resultColumnList) {
+                    resultColumns = resultColumnList;
+                }
+                else if (resultSelector is Expr resultExpr) {
+                    resultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(resultExpr));
+                }
+                else {
+                    throw new ExpressionNotSupportedException($"GroupJoin result selector not supported: {resultSelector.GetType()}.", expression);
+                }
+
+                var selectCore = new SelectCoreNormal(
+                    Distinct: false,
+                    ResultColumns: resultColumns,
+                    TableOrSubqueries: StableList<TableOrSubquery>.Empty,
+                    JoinClause: joinClause,
+                    Where: null,
+                    GroupBys: StableList<Expr>.Empty,
+                    Having: null,
+                    Windows: StableList<(string, WindowDefn)>.Empty
+                );
+
+                return SelectStmt.Create(selectCore);
+            }
+
+            throw new ExpressionNotSupportedException(expression);
+        }
+
+        throw new ExpressionNotSupportedException(expression);
     }
 
     /// <summary>
@@ -292,6 +447,87 @@ public partial class SelectStmtTranslator {
     }
 
     protected virtual object CreateTuple(MethodCallExpression expression, TranslationContext context) {
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    /// <summary>
+    /// Translates Queryable.Count() or Queryable.Count(predicate).
+    /// </summary>
+    protected virtual SelectStmt Count(MethodCallExpression expression, TranslationContext context) {
+        if (expression.Arguments.Count == 1) {
+            // IQueryable<int> Count<TSource>(this IQueryable<TSource> source)
+            var source = Translate(expression.Arguments[0], context);
+            if (source is TableOrSubquery tableOrSubquery) {
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var selectCore = SelectCoreNormal.Create(tableOrSubquery);
+                var result = selectCore with {
+                    ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate))
+                };
+                return SelectStmt.Create(result);
+            }
+            if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var result = selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
+                        ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate)),
+                    })
+                };
+                return result;
+            }
+            throw new ExpressionNotSupportedException(expression);
+        }
+        else if (expression.Arguments.Count == 2) {
+            // IQueryable<int> Count<TSource>(this IQueryable<TSource> source, Expression<Func<TSource, bool>> predicate)
+            var source = Translate(expression.Arguments[0], context);
+            var predicate = Translate(expression.Arguments[1], context);
+
+            if (source is TableOrSubquery tableOrSubquery && predicate is Expr expr) {
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var selectCore = SelectCoreNormal.Create(tableOrSubquery, Where: expr);
+                var result = selectCore with {
+                    ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate))
+                };
+                return SelectStmt.Create(result);
+            }
+            throw new ExpressionNotSupportedException(expression);
+        }
+        throw new ExpressionNotSupportedException(expression);
+    }
+
+    /// <summary>
+    /// Translates Queryable.Sum/Average/Min/Max with a selector.
+    /// </summary>
+    protected virtual SelectStmt Aggregate(MethodCallExpression expression, TranslationContext context, ExprFunctionName functionName) {
+        if (expression.Arguments.Count == 2) {
+            // IQueryable<TResult> Sum<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, TResult>> selector)
+            var source = Translate(expression.Arguments[0], context);
+            var selector = Translate(expression.Arguments[1], context);
+
+            Expr aggregateExpr;
+            if (selector is Expr expr) {
+                aggregateExpr = ExprFunction.Create(functionName, expr);
+            }
+            else {
+                throw new ExpressionNotSupportedException($"Aggregate selector not supported: {selector.GetType()}.", expression);
+            }
+
+            if (source is TableOrSubquery tableOrSubquery) {
+                var selectCore = SelectCoreNormal.Create(tableOrSubquery);
+                var result = selectCore with {
+                    ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregateExpr))
+                };
+                return SelectStmt.Create(result);
+            }
+            if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                var result = selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
+                        ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregateExpr)),
+                    })
+                };
+                return result;
+            }
+            throw new ExpressionNotSupportedException(expression);
+        }
         throw new ExpressionNotSupportedException(expression);
     }
 }

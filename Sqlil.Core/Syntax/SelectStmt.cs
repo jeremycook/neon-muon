@@ -217,7 +217,7 @@ public static class BinaryConstants {
         {ExpressionType.AndAlso, BinaryOperator.AndAlso},
         {ExpressionType.OrElse, BinaryOperator.OrElse},
 
-        {ExpressionType.NotEqual, BinaryOperator.AndAlso},
+        {ExpressionType.NotEqual, BinaryOperator.NotEqual},
         {ExpressionType.Equal, BinaryOperator.Equal},
         {ExpressionType.LessThan, BinaryOperator.LessThan},
         {ExpressionType.LessThanOrEqual, BinaryOperator.LessThanOrEqual},
@@ -287,7 +287,11 @@ public record class ExprFunction(
     ExprFunctionName FunctionName,
     StableList<Expr> Exprs
 ) : Expr {
-    public Type Type => typeof(bool);
+    public Type Type => FunctionName switch {
+        ExprFunctionName.Count => typeof(long),
+        ExprFunctionName.Sum or ExprFunctionName.Average or ExprFunctionName.Min or ExprFunctionName.Max => typeof(double),
+        _ => typeof(bool),
+    };
 
     public static ExprFunction Create(ExprFunctionName FunctionName, params Expr[] Exprs)
         => new(FunctionName, StableList.Create(Exprs));
@@ -296,6 +300,11 @@ public record class ExprFunction(
 public enum ExprFunctionName {
     Lower,
     Upper,
+    Count,
+    Sum,
+    Average,
+    Min,
+    Max,
 }
 
 public record class ExprLiteralString(
@@ -411,7 +420,12 @@ public record class TableOrSubqueryFunction(
 public record class TableOrSubquerySelectStmts(
     StableList<SelectStmt> SelectStmts,
     TableName? TableAlias = null
-) : TableOrSubquery { }
+) : TableOrSubquery {
+    public static TableOrSubquerySelectStmts Create(
+        StableList<SelectStmt> SelectStmts,
+        TableName? TableAlias = null
+    ) => new(SelectStmts, TableAlias);
+}
 
 public record class TableOrSubqueryTableOrSubqueries(
     StableList<TableOrSubquery> TableOrSubqueries
@@ -428,7 +442,15 @@ public record class JoinClause(
         TableOrSubquery TableOrSubquery,
         JoinConstraint JoinConstraint
     )> Joins
-) { }
+) {
+    public static JoinClause Create(
+        TableOrSubquery TableOrSubquery,
+        params (JoinOperator JoinOperator, TableOrSubquery TableOrSubquery, JoinConstraint JoinConstraint)[] Joins
+    ) => new(
+        TableOrSubquery: TableOrSubquery,
+        Joins: StableList.Create(Joins)
+    );
+}
 
 public enum JoinOperator {
     Comma = 0,
@@ -441,12 +463,19 @@ public enum JoinOperator {
 
 public interface JoinConstraint { }
 
-public record class JoinConstraintNone() : JoinConstraint { }
+public record class JoinConstraintNone() : JoinConstraint {
+    public static JoinConstraintNone Create() => new();
+}
 
-public record class JoinConstraintOn(Expr Expr) : JoinConstraint { }
+public record class JoinConstraintOn(Expr Expr) : JoinConstraint {
+    public static JoinConstraintOn Create(Expr Expr) => new(Expr);
+}
 
 public record class JoinConstraintUsing(StableList<ColumnName> ColumnNames)
-    : JoinConstraint { }
+    : JoinConstraint {
+    public static JoinConstraintUsing Create(params ColumnName[] ColumnNames)
+        => new(StableList.Create(ColumnNames));
+}
 
 public record class WindowDefn { }
 

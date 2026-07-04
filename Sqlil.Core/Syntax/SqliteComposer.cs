@@ -294,11 +294,25 @@ public class SqliteComposer {
     }
 
     private ParameterizedSql TableOrSubqueryJoin(TableOrSubqueryJoin tableOrSubqueryJoin) {
-        throw new NotImplementedException();
+        return JoinClause(tableOrSubqueryJoin.JoinClause);
     }
 
     private ParameterizedSql TableOrSubquerySelectStmts(TableOrSubquerySelectStmts tableOrSubquerySelectStmts) {
-        throw new NotImplementedException();
+        var results = new List<ParameterizedSql>();
+
+        if (tableOrSubquerySelectStmts.SelectStmts.Count == 1) {
+            results.Add(Join("", "(", SelectStmt(tableOrSubquerySelectStmts.SelectStmts[0], false), ")"));
+        }
+        else {
+            var selectStmtsSql = tableOrSubquerySelectStmts.SelectStmts.Select(s => SelectStmt(s, false)).Join("\nUNION ALL ");
+            results.Add(Join("", "(", selectStmtsSql, ")"));
+        }
+
+        if (tableOrSubquerySelectStmts.TableAlias != null) {
+            results.Add(Identifier(tableOrSubquerySelectStmts.TableAlias));
+        }
+
+        return results.Join(" ");
     }
 
     private ParameterizedSql TableOrSubqueryTable(TableOrSubqueryTable tableOrSubqueryTable) {
@@ -318,11 +332,40 @@ public class SqliteComposer {
     }
 
     private ParameterizedSql JoinClause(JoinClause joinClause) {
-        throw new NotImplementedException();
+        var results = new List<ParameterizedSql>();
+
+        results.Add(TableOrSubquery(joinClause.TableOrSubquery));
+
+        foreach (var (joinOperator, tableOrSubquery, joinConstraint) in joinClause.Joins) {
+            var joinOpSql = joinOperator switch {
+                JoinOperator.Comma => ",",
+                JoinOperator.Left => "LEFT JOIN",
+                JoinOperator.Right => "RIGHT JOIN",
+                JoinOperator.Full => "FULL JOIN",
+                JoinOperator.Inner => "JOIN",
+                JoinOperator.Cross => "CROSS JOIN",
+                _ => throw new NotImplementedException(joinOperator.ToString()),
+            };
+
+            var constraintSql = joinConstraint switch {
+                JoinConstraintOn on => Join(" ", "ON", Expr(on.Expr)),
+                JoinConstraintUsing usingClause => Join(" ", "USING", "(", usingClause.ColumnNames.Select(Identifier).Join(", "), ")"),
+                JoinConstraintNone => ParameterizedSql.Empty,
+                _ => throw new NotImplementedException(joinConstraint?.ToString()),
+            };
+
+            results.Add(Join(" ",
+                joinOpSql,
+                TableOrSubquery(tableOrSubquery),
+                constraintSql
+            ));
+        }
+
+        return results.Join("\n");
     }
 
     private ParameterizedSql GroupBy(Expr groupBy) {
-        throw new NotImplementedException();
+        return Expr(groupBy);
     }
 
     private ParameterizedSql OrderBy(StableList<OrderingTerm> orderingTerms, Expr? limit, Expr? offset) {
@@ -379,6 +422,13 @@ public class SqliteComposer {
         var result = exprFunction.FunctionName switch {
             ExprFunctionName.Lower => Join("", "LOWER", "(", exprsSql.Join(", "), ")"),
             ExprFunctionName.Upper => Join("", "UPPER", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Count => exprFunction.Exprs.Count == 0
+                ? new ParameterizedSql("COUNT(*)")
+                : Join("", "COUNT", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Sum => Join("", "SUM", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Average => Join("", "AVG", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Min => Join("", "MIN", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Max => Join("", "MAX", "(", exprsSql.Join(", "), ")"),
             _ => throw new NotImplementedException(exprFunction.FunctionName.ToString()),
         };
         return result;

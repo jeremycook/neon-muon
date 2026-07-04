@@ -29,6 +29,12 @@ public partial class SelectStmtTranslator {
                 }
             }
 
+            else if (expression.Expression is null) {
+                // Static property access (e.g., Guid.Empty)
+                var value = property.GetValue(null);
+                return ExprBindConstant.Create(property.PropertyType, value);
+            }
+
             else {
                 throw new ExpressionNotSupportedException(expression);
             }
@@ -62,6 +68,12 @@ public partial class SelectStmtTranslator {
                 var value = fieldInfo.GetValue(constant.Value);
                 var result = ExprBindConstant.Create(fieldInfo.FieldType, value);
                 return result;
+            }
+
+            else if (expression.Expression is null) {
+                // Static field access (e.g., Guid.Empty)
+                var value = fieldInfo.GetValue(null);
+                return ExprBindConstant.Create(fieldInfo.FieldType, value);
             }
 
             else {
