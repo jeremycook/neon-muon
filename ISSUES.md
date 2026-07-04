@@ -15,7 +15,7 @@
 
 - [x] `Distinct()`
 - [x] `ThenBy()` / `ThenByDescending()`
-- [ ] `GroupBy()`
+- [x] `GroupBy()`
 - [x] `FirstOrDefault()` / `Any()` / `Single()` / `Last()`
 - [x] `Concat()` / `Union()` / `Intersect()` / `Except()`
 - [ ] `ValueTuple.Create` in SELECT
