@@ -9,6 +9,7 @@ namespace Sqlil.Core.Db;
 public static class DbConnectionExtensions {
 
     private static SelectStmtTranslator SelectStmtTranslator { get; } = new();
+    private static SqliteComposer SqliteComposer { get; } = new();
 
     private static object TranslateToStatement(LambdaExpression expression) {
         object translation = SelectStmtTranslator.Translate(expression, default);
@@ -173,8 +174,7 @@ public static class DbConnectionExtensions {
     public static (DbCommand Command, StableList<SqlColumn> SqlColumns) CreateCommand(this DbConnection dbConnection, LambdaExpression expression) {
         var translation = TranslateToStatement(expression);
 
-        SqliteComposer sqliteComposer = new();
-        var parameterizedSql = sqliteComposer.Compose(translation);
+        var parameterizedSql = SqliteComposer.Compose(translation);
 
         var sqlColumns = parameterizedSql.Segments.OfType<SqlColumn>().ToStableList();
         var constantParameters = parameterizedSql.Segments.OfType<SqlConstantParameter>().ToArray();
