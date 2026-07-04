@@ -9,6 +9,11 @@ public partial class SelectStmtTranslator {
         var left = (Expr)Translate(expression.Left, context);
         var right = (Expr)Translate(expression.Right, context);
 
+        // Handle null-coalescing ?? as COALESCE(left, right)
+        if (expression.NodeType == ExpressionType.Coalesce) {
+            return ExprFunction.Create(ExprFunctionName.Coalesce, left, right);
+        }
+
         // Detect null comparisons and convert to IS NULL / IS NOT NULL
         if (expression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual) {
             var leftConst = expression.Left as ConstantExpression;

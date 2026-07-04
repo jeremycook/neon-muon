@@ -336,6 +336,16 @@ public record class ExprExists(
         => new(SelectStmt);
 }
 
+public record class ExprCase(
+    StableList<(Expr When, Expr Then)> WhenClauses,
+    Expr? Else = null
+) : Expr {
+    public Type Type => Else?.Type ?? typeof(object);
+
+    public static ExprCase Create(StableList<(Expr When, Expr Then)> WhenClauses, Expr? Else = null)
+        => new(WhenClauses, Else);
+}
+
 public enum ExprFunctionName {
     Lower,
     Upper,
@@ -344,6 +354,7 @@ public enum ExprFunctionName {
     Average,
     Min,
     Max,
+    Coalesce,
 }
 
 public record class ExprLiteralString(

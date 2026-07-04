@@ -15,6 +15,7 @@ public partial class SelectStmtTranslator {
             ExpressionType.MemberAccess => MemberAccess((MemberExpression)expression, context),
             ExpressionType.Quote => Quote((UnaryExpression)expression, context),
             ExpressionType.New => New((NewExpression)expression, context),
+            ExpressionType.Conditional => Conditional((ConditionalExpression)expression, context),
             _ => expression switch {
                 BinaryExpression binary => Binary(binary, context),
                 UnaryExpression unary => Unary(unary, context),

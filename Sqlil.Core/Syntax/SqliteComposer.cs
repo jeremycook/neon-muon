@@ -411,6 +411,7 @@ public class SqliteComposer {
             ExprBinary exprBinary => ExprBinary(exprBinary),
             ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
+            ExprCase exprCase => ExprCase(exprCase),
             ExprColumn exprColumn => ExprColumn(exprColumn),
             ExprExists exprExists => ExprExists(exprExists),
             ExprFunction exprFunction => ExprFunction(exprFunction),
@@ -420,6 +421,18 @@ public class SqliteComposer {
             _ => throw new NotImplementedException(expr.ToString()),
         };
         return result;
+    }
+
+    private ParameterizedSql ExprCase(ExprCase exprCase) {
+        var parts = new List<ParameterizedSql> { new("CASE") };
+        foreach (var (when, then) in exprCase.WhenClauses) {
+            parts.Add(Join(" ", "WHEN", Expr(when), "THEN", Expr(then)));
+        }
+        if (exprCase.Else != null) {
+            parts.Add(Join(" ", "ELSE", Expr(exprCase.Else)));
+        }
+        parts.Add(new("END"));
+        return Join(" ", parts.ToArray());
     }
 
     private ParameterizedSql ExprExists(ExprExists exprExists) {
@@ -445,6 +458,7 @@ public class SqliteComposer {
             ExprFunctionName.Average => Join("", "AVG", "(", exprsSql.Join(", "), ")"),
             ExprFunctionName.Min => Join("", "MIN", "(", exprsSql.Join(", "), ")"),
             ExprFunctionName.Max => Join("", "MAX", "(", exprsSql.Join(", "), ")"),
+            ExprFunctionName.Coalesce => Join("", "COALESCE", "(", exprsSql.Join(", "), ")"),
             _ => throw new NotImplementedException(exprFunction.FunctionName.ToString()),
         };
         return result;
