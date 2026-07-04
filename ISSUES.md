@@ -28,8 +28,8 @@
 - [x] `COALESCE` / null-coalescing `??`
 - [x] `CAST(expr AS type)` (AST + composer only)
 - [x] `BETWEEN` (AST + composer only)
-- [ ] `RETURNING` clause for DML
-- [ ] `INSERT ... ON CONFLICT` (upsert)
+- [x] `RETURNING` clause for DML
+- [x] `INSERT ... ON CONFLICT` (upsert)
 - [x] Modulo `%`
 - [x] Bitwise operators (`&`, `|`, `~`, `<<`, `>>`)
 - [ ] Correlated subqueries (outer parameter in inner predicate)
@@ -49,4 +49,4 @@
 
 - [x] Make `SqliteComposer` static in `DbConnectionExtensions`
 - [x] Extract duplicate materialization logic
-- [ ] Remove dead `Sqlil` project code
+- [x] Remove dead `Sqlil` project code
