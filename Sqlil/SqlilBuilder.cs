@@ -67,7 +67,7 @@ public class SqlilBuilder {
     static IEnumerable<ISqlil> Lambda(LambdaExpression expression, Expression? context) {
         if (expression.Parameters.Count == 1 && expression.Body == expression.Parameters[0]) {
             // Expand o => o
-            var prefix = expression.Parameters[0].Name;
+            var prefix = expression.Parameters[0].Name ?? string.Empty;
             var elements = GetResultColumn(expression.ReturnType);
             foreach (var element in elements) {
                 yield return SqlIdentifier.Create(prefix, element);
@@ -130,7 +130,7 @@ public class SqlilBuilder {
                     var source = (MemberExpression)expression.Arguments[0];
                     var selector = (UnaryExpression)expression.Arguments[1];
                     var selectorOperand = (LambdaExpression)selector.Operand;
-                    var alias = selectorOperand.Parameters[0].Name;
+                    var alias = selectorOperand.Parameters[0].Name ?? string.Empty;
 
                     // Expand o => [something]
                     var selectElements = Process(selector, expression);
@@ -232,14 +232,16 @@ public class SqlilBuilder {
         IEnumerable<ISqlil> results = expression switch {
 
             ParameterExpression parameter => GetResultColumn(parameter.Type)
-                .Select(p => SqlIdentifier.Create(parameter.Name, p) as ISqlil)
+                .Select(p => SqlIdentifier.Create(parameter.Name ?? string.Empty, p) as ISqlil)
                 .ToImmutableArray(),
 
             MemberExpression member => member.Expression is ParameterExpression innerParameter
-                ? ImmutableArray.Create(SqlIdentifier.Create(innerParameter.Name, member.Member.Name) as ISqlil)
-                : Process(member.Expression, member)
-                    .Select(p => SqlAlias.Create(p, member.Member.Name) as ISqlil)
-                    .ToImmutableArray(), // TODO: Need member.Name?
+                ? ImmutableArray.Create(SqlIdentifier.Create(innerParameter.Name ?? string.Empty, member.Member.Name) as ISqlil)
+                : member.Expression is not null
+                    ? Process(member.Expression, member)
+                        .Select(p => SqlAlias.Create(p, member.Member.Name) as ISqlil)
+                        .ToImmutableArray()
+                    : throw new NotImplementedException($"{nameof(GetSelectors)}: {expression.NodeType} expression is null."),
 
             _ => throw new NotImplementedException($"{nameof(GetSelectors)}: {expression.NodeType} {expression.GetType().Name} support has not been implemented."),
         };

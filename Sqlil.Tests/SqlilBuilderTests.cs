@@ -8,11 +8,11 @@ public class SqlilBuilderTests {
 
     [Theory]
     [MemberData(nameof(Shared))]
-    public void Test(string name, LambdaExpression expression) {
+    public void Test(LambdaExpression expression) {
         var sqlil = builder.Build(expression);
     }
 
     public static ImmutableArray<object[]> Shared { get; } = typeof(Shared).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
-        .Select(f => new object[] { f.Name, f.GetValue(null)! })
+        .Select(f => new object[] { f.GetValue(null)! })
         .ToImmutableArray();
 }
