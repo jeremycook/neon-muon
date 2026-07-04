@@ -346,6 +346,41 @@ public record class ExprCase(
         => new(WhenClauses, Else);
 }
 
+public record class ExprIn(
+    Expr Operand,
+    StableList<Expr>? Values = null,
+    SelectStmt? Subquery = null
+) : Expr {
+    public Type Type => typeof(bool);
+
+    public static ExprIn CreateList(Expr Operand, StableList<Expr> Values)
+        => new(Operand, Values: Values);
+
+    public static ExprIn CreateSubquery(Expr Operand, SelectStmt Subquery)
+        => new(Operand, Subquery: Subquery);
+}
+
+public record class ExprBetween(
+    Expr Expr,
+    Expr Low,
+    Expr High
+) : Expr {
+    public Type Type => typeof(bool);
+
+    public static ExprBetween Create(Expr Expr, Expr Low, Expr High)
+        => new(Expr, Low, High);
+}
+
+public record class ExprCast(
+    Expr Expr,
+    Type TargetType
+) : Expr {
+    public Type Type => TargetType;
+
+    public static ExprCast Create(Expr Expr, Type TargetType)
+        => new(Expr, TargetType);
+}
+
 public enum ExprFunctionName {
     Lower,
     Upper,

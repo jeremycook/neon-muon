@@ -411,10 +411,13 @@ public class SqliteComposer {
             ExprBinary exprBinary => ExprBinary(exprBinary),
             ExprBindConstant exprBindConstant => ExprBindConstant(exprBindConstant),
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
+            ExprBetween exprBetween => ExprBetween(exprBetween),
             ExprCase exprCase => ExprCase(exprCase),
+            ExprCast exprCast => ExprCast(exprCast),
             ExprColumn exprColumn => ExprColumn(exprColumn),
             ExprExists exprExists => ExprExists(exprExists),
             ExprFunction exprFunction => ExprFunction(exprFunction),
+            ExprIn exprIn => ExprIn(exprIn),
             ExprIsNull exprIsNull => ExprIsNull(exprIsNull),
             ExprLiteralString exprLiteral => ExprLiteral(exprLiteral),
             ExprUnary exprUnary => ExprUnary(exprUnary),
@@ -438,6 +441,51 @@ public class SqliteComposer {
     private ParameterizedSql ExprExists(ExprExists exprExists) {
         var innerSql = SelectStmt(exprExists.SelectStmt, false);
         return Join("", "EXISTS (", innerSql, ")");
+    }
+
+    private ParameterizedSql ExprIn(ExprIn exprIn) {
+        var operandSql = Expr(exprIn.Operand);
+        if (exprIn.Values != null) {
+            var valuesSql = exprIn.Values.Select(Expr).Join(", ");
+            return Join("", operandSql, " IN (", valuesSql, ")");
+        }
+        if (exprIn.Subquery != null) {
+            var subquerySql = SelectStmt(exprIn.Subquery, false);
+            return Join("", operandSql, " IN (", subquerySql, ")");
+        }
+        throw new NotImplementedException("ExprIn has neither Values nor Subquery");
+    }
+
+    private ParameterizedSql ExprBetween(ExprBetween exprBetween) {
+        var exprSql = Expr(exprBetween.Expr);
+        var lowSql = Expr(exprBetween.Low);
+        var highSql = Expr(exprBetween.High);
+        return Join(" ", exprSql, "BETWEEN", lowSql, "AND", highSql);
+    }
+
+    private ParameterizedSql ExprCast(ExprCast exprCast) {
+        var exprSql = Expr(exprCast.Expr);
+        var typeName = GetSqlTypeName(exprCast.TargetType);
+        return Join("", "CAST(", exprSql, " AS ", typeName, ")");
+    }
+
+    private static string GetSqlTypeName(Type type) {
+        return type switch {
+            _ when type == typeof(long) => "INTEGER",
+            _ when type == typeof(int) => "INTEGER",
+            _ when type == typeof(short) => "INTEGER",
+            _ when type == typeof(byte) => "INTEGER",
+            _ when type == typeof(double) => "REAL",
+            _ when type == typeof(float) => "REAL",
+            _ when type == typeof(decimal) => "REAL",
+            _ when type == typeof(string) => "TEXT",
+            _ when type == typeof(bool) => "INTEGER",
+            _ when type == typeof(Guid) => "TEXT",
+            _ when type == typeof(DateTime) => "TEXT",
+            _ when type == typeof(DateOnly) => "TEXT",
+            _ when type == typeof(byte[]) => "BLOB",
+            _ => "TEXT",
+        };
     }
 
     private ParameterizedSql ExprIsNull(ExprIsNull exprIsNull) {

@@ -87,6 +87,39 @@ public static class TestExpressions {
 
     public static Expression<Func<IQueryable<User>>> DeleteAll() =>
         () => TestUserContext.Users.Delete();
+
+    // NULL comparison expressions
+    public static Expression<Func<IQueryable<string>>> WhereBirthdayIsNull() =>
+        () => TestUserContext.Users.Where(u => u.Birthday == null).Select(u => u.Username);
+
+    public static Expression<Func<IQueryable<string>>> WhereBirthdayIsNotNull() =>
+        () => TestUserContext.Users.Where(u => u.Birthday != null).Select(u => u.Username);
+
+    // ThenBy expressions
+    public static Expression<Func<IQueryable<string>>> OrderByUsernameThenByCreated() =>
+        () => TestUserContext.Users.OrderBy(u => u.Username).ThenBy(u => u.Created).Select(u => u.Username);
+
+    // Aggregate 1-argument forms
+    public static Expression<Func<int>> CountNoSelector() =>
+        () => TestUserContext.Users.Count();
+
+    // Arithmetic expressions
+    public static Expression<Func<IQueryable<long>>> SelectUserIdTimesTwo() =>
+        () => TestUserContext.Users.Select(u => u.UserId * 2);
+
+    // SelectAnonymous expressions
+    public static Expression<Func<IQueryable<object>>> SelectAnonymousUsed() =>
+        () => TestUserContext.Users.Select(u => new { u.Username, u.IsActive });
+
+    // GroupJoin expressions
+    public static Expression<Func<IQueryable<object>>> GroupJoinUsersRoles() =>
+        () => TestUserContext.Users
+            .GroupJoin(TestUserContext.UserRoles, u => u.UserId, ur => ur.UserId, (u, urs) => new { u.Username, Roles = urs });
+
+    // Union expressions
+    public static Expression<Func<IQueryable<string>>> UnionUsernames() =>
+        () => TestUserContext.Users.Where(u => u.Username == "Alice").Select(u => u.Username)
+            .Union(TestUserContext.Users.Where(u => u.Username == "Bob").Select(u => u.Username));
 }
 
 public readonly record struct User(long UserId, string Username, bool IsActive, DateTime Created, DateOnly? Birthday);

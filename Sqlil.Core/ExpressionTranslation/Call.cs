@@ -30,6 +30,10 @@ public partial class SelectStmtTranslator {
                 nameof(Queryable.Average) => Aggregate(expression, context, ExprFunctionName.Average),
                 nameof(Queryable.Min) => Aggregate(expression, context, ExprFunctionName.Min),
                 nameof(Queryable.Max) => Aggregate(expression, context, ExprFunctionName.Max),
+                nameof(Queryable.Union) => Compound(expression, context, CompoundOperator.Union),
+                nameof(Queryable.Concat) => Compound(expression, context, CompoundOperator.UnionAll),
+                nameof(Queryable.Intersect) => Compound(expression, context, CompoundOperator.Intersect),
+                nameof(Queryable.Except) => Compound(expression, context, CompoundOperator.Except),
                 _ => throw new ExpressionNotSupportedException($"Method not supported {expression.Method}.", expression),
             };
             return result;
@@ -564,6 +568,30 @@ public partial class SelectStmtTranslator {
     /// Translates Queryable.Sum/Average/Min/Max with a selector.
     /// </summary>
     protected virtual SelectStmt Aggregate(MethodCallExpression expression, TranslationContext context, ExprFunctionName functionName) {
+        // 1-argument form: Sum(source) without selector
+        if (expression.Arguments.Count == 1) {
+            var source = Translate(expression.Arguments[0], context);
+            var aggregateExpr = ExprFunction.Create(functionName);
+
+            if (source is TableOrSubquery tableOrSubquery) {
+                var selectCore = SelectCoreNormal.Create(tableOrSubquery);
+                var result = selectCore with {
+                    ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregateExpr))
+                };
+                return SelectStmt.Create(result);
+            }
+            if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
+                var result = selectStmt with {
+                    SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
+                        ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregateExpr)),
+                    })
+                };
+                return result;
+            }
+            throw new ExpressionNotSupportedException(expression);
+        }
+
+        // 2-argument form: Sum(source, selector)
         if (expression.Arguments.Count == 2) {
             // IQueryable<TResult> Sum<TSource, TResult>(this IQueryable<TSource> source, Expression<Func<TSource, TResult>> selector)
             var currentContext = context with {
@@ -731,5 +759,34 @@ public partial class SelectStmtTranslator {
             _ => throw new ExpressionNotSupportedException(expression)
         };
         return selectStmt;
+    }
+
+    protected virtual SelectStmt Compound(MethodCallExpression expression, TranslationContext context, CompoundOperator op) {
+        if (expression.Arguments.Count == 2) {
+            var source = Translate(expression.Arguments[0], context);
+            var other = Translate(expression.Arguments[1], context);
+
+            SelectStmt left = source switch {
+                SelectStmt s => s,
+                SelectCoreNormal core => SelectStmt.Create(core),
+                TableOrSubquery table => SelectStmt.Create(SelectCoreNormal.Create(table)),
+                _ => throw new ExpressionNotSupportedException(expression)
+            };
+
+            SelectStmt right = other switch {
+                SelectStmt s => s,
+                SelectCoreNormal core => SelectStmt.Create(core),
+                TableOrSubquery table => SelectStmt.Create(SelectCoreNormal.Create(table)),
+                _ => throw new ExpressionNotSupportedException(expression)
+            };
+
+            // Merge: take left's structure, add right's SelectCores
+            var allCores = left.SelectCores.Concat(right.SelectCores).ToStableList();
+            return left with {
+                SelectCores = allCores,
+                CompoundOperator = op,
+            };
+        }
+        throw new ExpressionNotSupportedException(expression);
     }
 }
