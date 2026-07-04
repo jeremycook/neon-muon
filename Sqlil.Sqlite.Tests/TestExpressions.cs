@@ -131,6 +131,27 @@ public static class TestExpressions {
         () => TestUserContext.Users
             .GroupBy(u => u.IsActive)
             .Select(g => new { Key = g.Key, Total = g.Sum(u => u.UserId) });
+
+    // Subquery expressions
+    public static Expression<Func<IQueryable<string>>> WhereWithSubqueryAny() =>
+        () => TestUserContext.Users
+            .Where(u => TestUserContext.UserRoles.Any(ur => ur.UserId == u.UserId))
+            .Select(u => u.Username);
+
+    public static Expression<Func<IQueryable<object>>> SelectWithSubquery() =>
+        () => TestUserContext.Users
+            .Select(u => new {
+                u.Username,
+                HasRole = TestUserContext.UserRoles.Any(ur => ur.UserId == u.UserId)
+            });
+
+    // Arithmetic expressions
+    public static Expression<Func<IQueryable<long>>> SelectUserIdModulo() =>
+        () => TestUserContext.Users.Select(u => u.UserId % 2);
+
+    public static Expression<Func<IQueryable<object>>> SelectWithCaseWhen() =>
+        () => TestUserContext.Users
+            .Select(u => new { u.Username, Status = u.IsActive ? "Active" : "Inactive" });
 }
 
 public readonly record struct User(long UserId, string Username, bool IsActive, DateTime Created, DateOnly? Birthday);

@@ -223,7 +223,14 @@ public static class BinaryConstants {
         {BinaryOperator.Subtract, "-"},
         {BinaryOperator.Multiply, "*"},
         {BinaryOperator.Divide, "/"},
+        {BinaryOperator.Modulo, "%"},
         {BinaryOperator.Concat, "||"},
+
+        {BinaryOperator.And, "&"},
+        {BinaryOperator.Or, "|"},
+        {BinaryOperator.Xor, "~"},
+        {BinaryOperator.LeftShift, "<<"},
+        {BinaryOperator.RightShift, ">>"},
 
         {BinaryOperator.Like, "LIKE"},
     };
@@ -243,6 +250,12 @@ public static class BinaryConstants {
         {ExpressionType.Subtract, BinaryOperator.Subtract},
         {ExpressionType.Multiply, BinaryOperator.Multiply},
         {ExpressionType.Divide, BinaryOperator.Divide},
+        {ExpressionType.Modulo, BinaryOperator.Modulo},
+        {ExpressionType.And, BinaryOperator.And},
+        {ExpressionType.Or, BinaryOperator.Or},
+        {ExpressionType.ExclusiveOr, BinaryOperator.Xor},
+        {ExpressionType.LeftShift, BinaryOperator.LeftShift},
+        {ExpressionType.RightShift, BinaryOperator.RightShift},
     };
 }
 
@@ -261,7 +274,14 @@ public enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
     Concat,
+
+    And,
+    Or,
+    Xor,
+    LeftShift,
+    RightShift,
 
     Like,
 }

@@ -528,7 +528,17 @@ public partial class SelectStmtTranslator {
     }
 
     protected virtual object CreateTuple(MethodCallExpression expression, TranslationContext context) {
-        throw new ExpressionNotSupportedException(expression);
+        // ValueTuple.Create(arg1, arg2, ...) → list of result columns
+        var args = expression.Arguments.Select(arg => {
+            var translated = Translate(arg, context);
+            return translated switch {
+                Expr expr => ResultColumnExpr.Create(expr),
+                StableList<ResultColumn> cols => cols[0],
+                _ => throw new ExpressionNotSupportedException($"Tuple element not supported: {translated.GetType()}.", expression)
+            };
+        }).ToArray();
+
+        return StableList.Create(args);
     }
 
     /// <summary>

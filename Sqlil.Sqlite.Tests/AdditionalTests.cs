@@ -190,4 +190,77 @@ public class AdditionalTests {
     }
 
     #endregion
+
+    #region Subquery Tests
+
+    [Fact(Skip = "Correlated subqueries with outer parameter references are not yet supported")]
+    public void WhereWithSubqueryAny_GeneratesExistsSql() {
+        // This test documents a known limitation:
+        // Correlated subqueries like .Where(u => table.Any(ur => ur.Id == u.Id))
+        // are not yet supported because the Any handler doesn't handle
+        // outer parameter references in the inner predicate.
+        var stmt = TestHelpers.Translate(TestExpressions.WhereWithSubqueryAny());
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("EXISTS", sql);
+    }
+
+    #endregion
+
+    #region Arithmetic Tests
+
+    [Fact]
+    public void SelectUserIdModulo_ReturnsCorrectValues() {
+        using var connection = DbSetup.CreateSeeded();
+        var sql = TestHelpers.Compose(TestHelpers.Translate(TestExpressions.SelectUserIdModulo()));
+        Assert.Contains("%", sql);
+
+        var (commandText, cmd) = TestHelpers.PrepareCommand(connection, TestExpressions.SelectUserIdModulo());
+        connection.Open();
+        using var reader = cmd.ExecuteReader();
+        var results = new List<long>();
+        while (reader.Read()) {
+            results.Add(reader.GetInt64(0));
+        }
+        connection.Close();
+
+        Assert.Equal(3, results.Count);
+        Assert.Contains(1, results); // UserId 1 % 2 = 1
+        Assert.Contains(0, results); // UserId 2 % 2 = 0
+        Assert.Contains(1, results); // UserId 3 % 2 = 1
+    }
+
+    #endregion
+
+    #region CASE WHEN Tests
+
+    [Fact]
+    public void SelectWithCaseWhen_GeneratesCorrectSql() {
+        var stmt = TestHelpers.Translate(TestExpressions.SelectWithCaseWhen());
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("CASE", sql);
+        Assert.Contains("WHEN", sql);
+        Assert.Contains("THEN", sql);
+        Assert.Contains("ELSE", sql);
+        Assert.Contains("END", sql);
+    }
+
+    [Fact]
+    public void SelectWithCaseWhen_ReturnsCorrectResults() {
+        using var connection = DbSetup.CreateSeeded();
+        var (commandText, cmd) = TestHelpers.PrepareCommand(connection, TestExpressions.SelectWithCaseWhen());
+        connection.Open();
+        using var reader = cmd.ExecuteReader();
+        var results = new List<(string Username, string Status)>();
+        while (reader.Read()) {
+            results.Add((reader.GetString(0), reader.GetString(1)));
+        }
+        connection.Close();
+
+        Assert.Equal(3, results.Count);
+        Assert.Contains(results, r => r.Username == "Alice" && r.Status == "Active");
+        Assert.Contains(results, r => r.Username == "Bob" && r.Status == "Active");
+        Assert.Contains(results, r => r.Username == "Charlie" && r.Status == "Inactive");
+    }
+
+    #endregion
 }
