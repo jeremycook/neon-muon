@@ -143,4 +143,64 @@ public class DmlTests {
     }
 
     #endregion
+
+    #region RETURNING Clause Tests
+
+    [Fact]
+    public void InsertWithReturning_GeneratesCorrectSql() {
+        // Manually construct an InsertStmt with RETURNING
+        var stmt = InsertStmt.Create(
+            TableName.Create("User", typeof(User)),
+            StableList.Create(ColumnName.Create("Username", typeof(string))),
+            StableList.Create(StableList.Create<Expr>(ExprBindConstant.Create(typeof(string), "Frank"))),
+            Returning: StableList.Create<ResultColumn>(
+                ResultColumnExpr.Create(ExprColumn.Create(ColumnName.Create("UserId", typeof(long)))),
+                ResultColumnExpr.Create(ExprColumn.Create(ColumnName.Create("Username", typeof(string))))
+            )
+        );
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("INSERT INTO", sql);
+        Assert.Contains("RETURNING", sql);
+        Assert.Contains("UserId", sql);
+        Assert.Contains("Username", sql);
+    }
+
+    [Fact]
+    public void DeleteWithReturning_GeneratesCorrectSql() {
+        var stmt = DeleteStmt.Create(
+            TableName.Create("User", typeof(User)),
+            Where: ExprBinary.Create(BinaryOperator.Equal,
+                ExprColumn.Create(ColumnName.Create("IsActive", typeof(bool))),
+                ExprBindConstant.Create(typeof(bool), false)),
+            Returning: StableList.Create<ResultColumn>(
+                ResultColumnExpr.Create(ExprColumn.Create(ColumnName.Create("UserId", typeof(long))))
+            )
+        );
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("DELETE FROM", sql);
+        Assert.Contains("WHERE", sql);
+        Assert.Contains("RETURNING", sql);
+        Assert.Contains("UserId", sql);
+    }
+
+    [Fact]
+    public void UpdateWithReturning_GeneratesCorrectSql() {
+        var stmt = UpdateStmt.Create(
+            TableName.Create("User", typeof(User)),
+            StableList.Create((ColumnName.Create("Username", typeof(string)), (Expr)ExprBindConstant.Create(typeof(string), "Frank"))),
+            Where: ExprBinary.Create(BinaryOperator.Equal,
+                ExprColumn.Create(ColumnName.Create("UserId", typeof(long))),
+                ExprBindConstant.Create(typeof(long), 1)),
+            Returning: StableList.Create<ResultColumn>(
+                ResultColumnExpr.Create(ExprColumn.Create(ColumnName.Create("Username", typeof(string))))
+            )
+        );
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("UPDATE", sql);
+        Assert.Contains("SET", sql);
+        Assert.Contains("WHERE", sql);
+        Assert.Contains("RETURNING", sql);
+    }
+
+    #endregion
 }

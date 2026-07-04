@@ -555,12 +555,19 @@ public class SqliteComposer {
             row.Select(Expr).Join(", ")
         ).Join("), (");
 
-        var result = Join(" ",
+        var results = new List<ParameterizedSql>();
+        results.Add(Join(" ",
             "INSERT INTO", Identifier(insertStmt.TableName),
             "(", columnsSql, ")",
             "VALUES", "(", valuesSql, ")"
-        );
-        return result;
+        ));
+
+        if (insertStmt.Returning.Any()) {
+            var returningSql = insertStmt.Returning.Select(col => ResultColumn(col, false)).Join(", ");
+            results.Add(Join(" ", "RETURNING", returningSql));
+        }
+
+        return results.Join("\n");
     }
 
     protected virtual ParameterizedSql UpdateStmt(UpdateStmt updateStmt) {
@@ -579,6 +586,11 @@ public class SqliteComposer {
             results.Add(Join(" ", "WHERE", whereSql));
         }
 
+        if (updateStmt.Returning.Any()) {
+            var returningSql = updateStmt.Returning.Select(col => ResultColumn(col, false)).Join(", ");
+            results.Add(Join(" ", "RETURNING", returningSql));
+        }
+
         return results.Join("\n");
     }
 
@@ -589,6 +601,11 @@ public class SqliteComposer {
         if (deleteStmt.Where != null) {
             var whereSql = Expr(deleteStmt.Where);
             results.Add(Join(" ", "WHERE", whereSql));
+        }
+
+        if (deleteStmt.Returning.Any()) {
+            var returningSql = deleteStmt.Returning.Select(col => ResultColumn(col, false)).Join(", ");
+            results.Add(Join(" ", "RETURNING", returningSql));
         }
 
         return results.Join("\n");
