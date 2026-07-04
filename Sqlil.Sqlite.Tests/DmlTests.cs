@@ -202,5 +202,42 @@ public class DmlTests {
         Assert.Contains("RETURNING", sql);
     }
 
+    [Fact]
+    public void InsertWithOnConflictNothing_GeneratesCorrectSql() {
+        var stmt = InsertStmt.Create(
+            TableName.Create("User", typeof(User)),
+            StableList.Create(ColumnName.Create("Username", typeof(string))),
+            StableList.Create(StableList.Create<Expr>(ExprBindConstant.Create(typeof(string), "Frank"))),
+            OnConflict: new OnConflict(
+                StableList.Create(ColumnName.Create("Username", typeof(string))),
+                new OnConflictNothing()
+            )
+        );
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("INSERT INTO", sql);
+        Assert.Contains("ON CONFLICT", sql);
+        Assert.Contains("DO NOTHING", sql);
+    }
+
+    [Fact]
+    public void InsertWithOnConflictUpdate_GeneratesCorrectSql() {
+        var stmt = InsertStmt.Create(
+            TableName.Create("User", typeof(User)),
+            StableList.Create(ColumnName.Create("Username", typeof(string)), ColumnName.Create("IsActive", typeof(bool))),
+            StableList.Create(StableList.Create<Expr>(ExprBindConstant.Create(typeof(string), "Frank"), ExprBindConstant.Create(typeof(bool), true))),
+            OnConflict: new OnConflict(
+                StableList.Create(ColumnName.Create("Username", typeof(string))),
+                new OnConflictUpdate(
+                    StableList.Create((ColumnName.Create("IsActive", typeof(bool)), (Expr)ExprBindConstant.Create(typeof(bool), true)))
+                )
+            )
+        );
+        var sql = TestHelpers.Compose(stmt);
+        Assert.Contains("INSERT INTO", sql);
+        Assert.Contains("ON CONFLICT", sql);
+        Assert.Contains("DO UPDATE SET", sql);
+        Assert.Contains("IsActive", sql);
+    }
+
     #endregion
 }

@@ -567,6 +567,21 @@ public class SqliteComposer {
             results.Add(Join(" ", "RETURNING", returningSql));
         }
 
+        if (insertStmt.OnConflict != null) {
+            var conflictCols = insertStmt.OnConflict.ConflictColumns.Select(Identifier).Join(", ");
+            results.Add(Join(" ", "ON CONFLICT", "(", conflictCols, ")"));
+
+            if (insertStmt.OnConflict.Action is OnConflictNothing) {
+                results.Add(new("DO NOTHING"));
+            }
+            else if (insertStmt.OnConflict.Action is OnConflictUpdate update) {
+                var setSql = update.SetClauses.Select(set =>
+                    Join(" ", Identifier(set.ColumnName), "=", Expr(set.Value))
+                ).Join(", ");
+                results.Add(Join(" ", "DO UPDATE SET", setSql));
+            }
+        }
+
         return results.Join("\n");
     }
 

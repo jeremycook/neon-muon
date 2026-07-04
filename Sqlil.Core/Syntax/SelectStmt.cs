@@ -633,15 +633,30 @@ public record class InsertStmt(
     TableName TableName,
     StableList<ColumnName> ColumnNames,
     StableList<StableList<Expr>> Values,
-    StableList<ResultColumn> Returning
+    StableList<ResultColumn> Returning,
+    OnConflict? OnConflict = null
 ) : SqlStatement {
     public static InsertStmt Create(
         TableName TableName,
         StableList<ColumnName> ColumnNames,
         StableList<StableList<Expr>> Values,
-        StableList<ResultColumn>? Returning = null
-    ) => new(TableName, ColumnNames, Values, Returning ?? StableList<ResultColumn>.Empty);
+        StableList<ResultColumn>? Returning = null,
+        OnConflict? OnConflict = null
+    ) => new(TableName, ColumnNames, Values, Returning ?? StableList<ResultColumn>.Empty, OnConflict);
 }
+
+public record OnConflict(
+    StableList<ColumnName> ConflictColumns,
+    OnConflictAction Action
+);
+
+public interface OnConflictAction { }
+
+public record class OnConflictNothing : OnConflictAction { }
+
+public record class OnConflictUpdate(
+    StableList<(ColumnName ColumnName, Expr Value)> SetClauses
+) : OnConflictAction { }
 
 /// <summary>
 /// https://www.sqlite.org/lang_update.html
