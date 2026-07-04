@@ -413,11 +413,18 @@ public class SqliteComposer {
             ExprBindParameter exprBindParameter => ExprBindParameter(exprBindParameter),
             ExprColumn exprColumn => ExprColumn(exprColumn),
             ExprFunction exprFunction => ExprFunction(exprFunction),
+            ExprIsNull exprIsNull => ExprIsNull(exprIsNull),
             ExprLiteralString exprLiteral => ExprLiteral(exprLiteral),
             ExprUnary exprUnary => ExprUnary(exprUnary),
             _ => throw new NotImplementedException(expr.ToString()),
         };
         return result;
+    }
+
+    private ParameterizedSql ExprIsNull(ExprIsNull exprIsNull) {
+        var operandSql = Expr(exprIsNull.Operand);
+        var op = exprIsNull.IsNot ? "IS NOT NULL" : "IS NULL";
+        return Join(" ", operandSql, op);
     }
 
     private ParameterizedSql ExprFunction(ExprFunction exprFunction) {

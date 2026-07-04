@@ -53,7 +53,7 @@ public static class DbConnectionExtensions {
                         // No change needed
                     }
                 }
-                else {
+                else if (val != null) {
                     val = Convert.ChangeType(val, sqlColumns[i].Type);
                 }
                 values[i] = val;
@@ -112,7 +112,7 @@ public static class DbConnectionExtensions {
                         // No change needed
                     }
                 }
-                else {
+                else if (val != null) {
                     val = Convert.ChangeType(val, sqlColumns[i].Type);
                 }
                 values[i] = val;

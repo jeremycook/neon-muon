@@ -287,9 +287,10 @@ public record class ExprColumn(
 // TODO: Implement more the other function expressions from https://www.sqlite.org/syntax/expr.html
 public record class ExprFunction(
     ExprFunctionName FunctionName,
-    StableList<Expr> Exprs
+    StableList<Expr> Exprs,
+    Type? ExplicitType = null
 ) : Expr {
-    public Type Type => FunctionName switch {
+    public Type Type => ExplicitType ?? FunctionName switch {
         ExprFunctionName.Count => typeof(long),
         ExprFunctionName.Sum or ExprFunctionName.Average or ExprFunctionName.Min or ExprFunctionName.Max => typeof(double),
         _ => typeof(bool),
@@ -297,6 +298,19 @@ public record class ExprFunction(
 
     public static ExprFunction Create(ExprFunctionName FunctionName, params Expr[] Exprs)
         => new(FunctionName, StableList.Create(Exprs));
+
+    public static ExprFunction Create(ExprFunctionName FunctionName, Type explicitType, params Expr[] Exprs)
+        => new(FunctionName, StableList.Create(Exprs), explicitType);
+}
+
+public record class ExprIsNull(
+    Expr Operand,
+    bool IsNot
+) : Expr {
+    public Type Type => typeof(bool);
+
+    public static ExprIsNull Create(Expr Operand, bool IsNot = false)
+        => new(Operand, IsNot);
 }
 
 public enum ExprFunctionName {

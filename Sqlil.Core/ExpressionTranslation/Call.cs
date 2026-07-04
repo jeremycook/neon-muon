@@ -89,11 +89,28 @@ public partial class SelectStmtTranslator {
             var source = Translate(expression.Arguments[0], context);
             var predicate = Translate(expression.Arguments[1], context);
 
-            if (source is TableOrSubquery tableOrSubquery &&
-                predicate is Expr expr) {
+            if (predicate is Expr expr) {
 
-                var result = SelectCoreNormal.Create(tableOrSubquery, Where: expr);
-                return result;
+                if (source is TableOrSubquery tableOrSubquery) {
+                    return SelectCoreNormal.Create(tableOrSubquery, Where: expr);
+                }
+
+                if (source is SelectStmt selectStmt &&
+                    selectStmt.SelectCores.Count == 1 &&
+                    selectStmt.SelectCores[0] is SelectCoreNormal existingCore) {
+                    // Merge WHERE conditions with AND
+                    var mergedWhere = existingCore.Where != null
+                        ? ExprBinary.Create(BinaryOperator.AndAlso, existingCore.Where, expr)
+                        : expr;
+                    return existingCore with { Where = mergedWhere };
+                }
+
+                if (source is SelectCoreNormal selectCore) {
+                    var mergedWhere = selectCore.Where != null
+                        ? ExprBinary.Create(BinaryOperator.AndAlso, selectCore.Where, expr)
+                        : expr;
+                    return selectCore with { Where = mergedWhere };
+                }
             }
 
             throw new ExpressionNotSupportedException(expression);
@@ -121,10 +138,9 @@ public partial class SelectStmtTranslator {
             if (source is SelectStmt selectStmt) {
 
                 if (selectStmt.SelectCores.Count == 1 &&
-                    selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal &&
-                    selectCoreNormal.ResultColumns.Count == 1 &&
-                    selectCoreNormal.ResultColumns[0] is ResultColumnAsterisk) {
+                    selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
 
+                    // Replace result columns regardless of what they currently are
                     var result = selector switch {
 
                         StableList<ResultColumn> resultColumnList => selectStmt with {
@@ -492,11 +508,15 @@ public partial class SelectStmtTranslator {
     /// Translates Queryable.Count() or Queryable.Count(predicate).
     /// </summary>
     protected virtual SelectStmt Count(MethodCallExpression expression, TranslationContext context) {
+        // Determine if this is Count() or LongCount()
+        var isLongCount = expression.Method.Name == nameof(Queryable.LongCount);
+        var returnType = isLongCount ? typeof(long) : typeof(int);
+
         if (expression.Arguments.Count == 1) {
             // IQueryable<int> Count<TSource>(this IQueryable<TSource> source)
             var source = Translate(expression.Arguments[0], context);
             if (source is TableOrSubquery tableOrSubquery) {
-                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count, returnType);
                 var selectCore = SelectCoreNormal.Create(tableOrSubquery);
                 var result = selectCore with {
                     ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate))
@@ -504,7 +524,7 @@ public partial class SelectStmtTranslator {
                 return SelectStmt.Create(result);
             }
             if (source is SelectStmt selectStmt && selectStmt.SelectCores.Count == 1 && selectStmt.SelectCores[0] is SelectCoreNormal selectCoreNormal) {
-                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count, returnType);
                 var result = selectStmt with {
                     SelectCores = StableList.Create<SelectCore>(selectCoreNormal with {
                         ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate)),
@@ -520,7 +540,7 @@ public partial class SelectStmtTranslator {
             var predicate = Translate(expression.Arguments[1], context);
 
             if (source is TableOrSubquery tableOrSubquery && predicate is Expr expr) {
-                var aggregate = ExprFunction.Create(ExprFunctionName.Count);
+                var aggregate = ExprFunction.Create(ExprFunctionName.Count, returnType);
                 var selectCore = SelectCoreNormal.Create(tableOrSubquery, Where: expr);
                 var result = selectCore with {
                     ResultColumns = StableList.Create<ResultColumn>(ResultColumnExpr.Create(aggregate))
